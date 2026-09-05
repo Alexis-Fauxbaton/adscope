@@ -66,3 +66,21 @@ test('la fixture ne contient aucune donnée personnelle', () => {
     assert.equal(raw.includes(`"${forbidden}"`), false, `${forbidden} présent dans la fixture`)
   }
 })
+
+const { duration, ago } = createRequire(import.meta.url)(join(here, '../src/format.js'))
+
+test('les durées se lisent en français', () => {
+  assert.equal(duration(0), "moins d'un jour")
+  assert.equal(duration(1), '1 j')
+  assert.equal(duration(15), '15 j')
+  assert.equal(duration(45), '1 mois')
+  assert.equal(duration(400), '1 an')
+  assert.equal(duration(800), '2 ans')
+})
+
+test('une antériorité ne produit jamais « il y a aujourd\'hui »', () => {
+  assert.equal(ago(0), "aujourd'hui")
+  assert.equal(ago(1), 'hier')
+  assert.equal(ago(2), 'il y a 2 j')
+  for (const n of [0, 1, 2, 30, 400]) assert.ok(!ago(n).includes("il y a aujourd'hui"))
+})
