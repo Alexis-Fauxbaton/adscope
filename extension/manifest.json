@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "adscope",
+  "version": "0.1.0",
+  "description": "Affiche l'ancienneté réelle des annonces automobiles et signale celles qui ont été remontées.",
+  "content_scripts": [
+    {
+      "matches": ["https://www.leboncoin.fr/recherche*", "https://www.leboncoin.fr/c/voitures*"],
+      "js": ["src/sites/leboncoin.js", "src/format.js", "src/listing.js"],
+      "css": ["src/ui.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
