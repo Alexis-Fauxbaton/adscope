@@ -1,0 +1,53 @@
+from datetime import date, datetime
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+Source = Literal["user", "crawler"]
+
+
+class ObservationIn(BaseModel):
+    site: str = Field(max_length=8)
+    site_id: str = Field(max_length=32)
+    price: int | None = None
+    brand: str | None = None
+    model: str | None = None
+    version: str | None = None
+    year: int | None = None
+    mileage: int | None = None
+    postal_code: str | None = None
+    published_days_ago: int | None = None
+
+
+class ObservationsIn(BaseModel):
+    source: Source = "user"
+    items: list[ObservationIn] = Field(min_length=1, max_length=100)
+
+
+class BatchIn(BaseModel):
+    site: str = Field(max_length=8)
+    ids: list[str] = Field(min_length=1, max_length=30)
+
+
+class PricePointOut(BaseModel):
+    at: datetime
+    price: int
+
+
+class SignalsOut(BaseModel):
+    site: str
+    site_id: str
+    fingerprint: str | None
+    first_seen: datetime
+    last_seen: datetime
+    observations: int
+    tracked_days: int
+    site_published_first: date | None
+    real_age_days: int | None
+    republished: bool
+    republished_at: date | None
+    price: int | None
+    price_history: list[PricePointOut]
+    price_delta: int | None
+    price_delta_days: int | None
+    stable_days: int | None
