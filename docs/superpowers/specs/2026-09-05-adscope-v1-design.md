@@ -278,6 +278,19 @@ publication étant monotones par construction — minimum d'un côté, maximum d
 une seule valeur aberrante empoisonne l'annonce **définitivement** : aucune observation
 saine ultérieure ne peut réparer.
 
+### Question ouverte : jusqu'à quel âge La Centrale affiche-t-elle des jours ?
+
+Le relevé du 2026-09-05 montre « Publiée il y a 60 jours » — unité journalière à deux mois
+d'âge. On ignore si le site bascule en mois au-delà d'un certain seuil, et lequel.
+
+L'enjeu est direct : la détection de republication ne fonctionne que sur les observations
+d'unité journalière. Si La Centrale passe en mois à partir de 90 jours, la fonction
+distinctive du produit s'éteint précisément sur les annonces les plus anciennes, celles qui
+intéressent le plus un marchand.
+
+À vérifier en ouvrant quelques fiches d'âges croissants, au moment d'écrire la couche
+d'extraction de l'extension. La réponse borne la portée réelle de la V1.
+
 ## 9 bis. Concurrence — dette connue, bloquante avant mise en ligne
 
 Mesuré sur la V1 et **volontairement non corrigé** : à un seul utilisateur, ces défauts
