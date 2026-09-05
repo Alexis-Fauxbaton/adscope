@@ -16,7 +16,8 @@ def hash_key(key: str) -> str:
 
 
 def resolve(session, key: str, now=None) -> License | None:
-    now = now or datetime.now(timezone.utc)
+    if now is None:
+        now = datetime.now(timezone.utc)
     license_ = session.get(License, hash_key(key))
     if license_ is None or not license_.active:
         return None

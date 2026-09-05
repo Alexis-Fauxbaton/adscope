@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from adscope_api.auth import hash_key, new_key
 from adscope_api.db import get_session
 from adscope_api.main import app
-from adscope_api.models import License
+from adscope_api.models import License, PricePoint
 
 
 @pytest.fixture
@@ -69,6 +69,13 @@ def test_batch_returns_only_known_listings(client, key):
     assert body[0]["site_id"] == "1"
 
 
+def test_batch_accepts_thirty_ids(client, key):
+    r = client.post("/v1/listings/batch",
+                    json={"site": "lc", "ids": [str(i) for i in range(30)]},
+                    headers=auth(key))
+    assert r.status_code == 200
+
+
 def test_batch_rejects_more_than_thirty_ids(client, key):
     r = client.post("/v1/listings/batch",
                     json={"site": "lc", "ids": [str(i) for i in range(31)]},
@@ -80,3 +87,29 @@ def test_me_reports_the_license(client, key):
     r = client.get("/v1/me", headers=auth(key))
     assert r.status_code == 200
     assert r.json()["label"] == "test"
+
+
+def test_negative_published_days_ago_is_rejected(client, key):
+    r = client.post("/v1/observations",
+                    json={"items": [observation(published_days_ago=-400)]}, headers=auth(key))
+    assert r.status_code == 422
+
+
+def test_negative_price_is_rejected(client, key):
+    r = client.post("/v1/observations",
+                    json={"items": [observation(price=-1)]}, headers=auth(key))
+    assert r.status_code == 422
+
+
+def test_same_observation_twice_keeps_one_price_point(client, key):
+    for _ in range(2):
+        client.post("/v1/observations", json={"items": [observation()]}, headers=auth(key))
+    body = client.get("/v1/listings/lc/1", headers=auth(key)).json()
+    assert body["observations"] == 2
+    assert body["price_history"] == [{"at": body["price_history"][0]["at"], "price": 9900}]
+
+
+def test_source_claimed_by_the_client_is_ignored(client, session, key):
+    client.post("/v1/observations",
+                json={"source": "crawler", "items": [observation()]}, headers=auth(key))
+    assert session.query(PricePoint).one().source == "user"

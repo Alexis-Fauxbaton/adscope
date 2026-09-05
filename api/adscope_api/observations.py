@@ -10,7 +10,8 @@ VEHICLE_FIELDS = ("brand", "model", "version", "year", "mileage", "postal_code")
 
 
 def record(session, observation: ObservationIn, source: str, now=None) -> Listing:
-    now = now or datetime.now(timezone.utc)
+    if now is None:
+        now = datetime.now(timezone.utc)
 
     listing = session.scalar(
         select(Listing).where(
@@ -41,7 +42,8 @@ def record(session, observation: ObservationIn, source: str, now=None) -> Listin
         first = listing.site_published_first
         last = listing.site_published_last
         listing.site_published_first = published if first is None else min(first, published)
-        listing.site_published_last = published if last is None else max(last, published)
+        if observation.published_precision == "day":
+            listing.site_published_last = published if last is None else max(last, published)
 
     if observation.price is not None:
         session.flush()

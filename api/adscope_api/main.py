@@ -23,7 +23,7 @@ def require_license(authorization: str = Header(default=""), session=Depends(get
 def post_observations(payload: ObservationsIn, session=Depends(get_session),
                       _=Depends(require_license)):
     for item in payload.items:
-        record(session, item, source=payload.source)
+        record(session, item, source="user")
     session.commit()
     return {"accepted": len(payload.items)}
 
@@ -33,7 +33,7 @@ def post_batch(payload: BatchIn, session=Depends(get_session), _=Depends(require
     listings = session.scalars(
         select(Listing).where(Listing.site == payload.site, Listing.site_id.in_(payload.ids))
     ).all()
-    return [signals_for(session, listing) for listing in listings]
+    return [signals_for(listing) for listing in listings]
 
 
 @app.get("/v1/listings/{site}/{site_id}", response_model=SignalsOut)
@@ -44,7 +44,7 @@ def get_listing(site: str, site_id: str, session=Depends(get_session),
     )
     if listing is None:
         raise HTTPException(status_code=404, detail="annonce inconnue")
-    return signals_for(session, listing)
+    return signals_for(listing)
 
 
 @app.get("/v1/me")

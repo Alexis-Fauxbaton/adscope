@@ -5,9 +5,10 @@ from .models import Listing
 REPUBLICATION_THRESHOLD_DAYS = 7
 
 
-def signals_for(session, listing: Listing, now=None) -> dict:
-    now = now or datetime.now(timezone.utc)
-    points = sorted(listing.prices, key=lambda p: p.observed_at)
+def signals_for(listing: Listing, now=None) -> dict:
+    if now is None:
+        now = datetime.now(timezone.utc)
+    points = listing.prices
 
     out = {
         "site": listing.site,
@@ -23,8 +24,8 @@ def signals_for(session, listing: Listing, now=None) -> dict:
         "republished_at": None,
         "price": None,
         "price_history": [],
-        "price_delta": None,
-        "price_delta_days": None,
+        "price_delta_since_first": None,
+        "price_delta_days_since_first": None,
         "stable_days": None,
     }
 
@@ -40,7 +41,7 @@ def signals_for(session, listing: Listing, now=None) -> dict:
         out["price_history"] = [{"at": p.observed_at, "price": p.price} for p in points]
         out["stable_days"] = (now - points[-1].observed_at).days
         if len(points) > 1:
-            out["price_delta"] = points[-1].price - points[0].price
-            out["price_delta_days"] = (now - points[0].observed_at).days
+            out["price_delta_since_first"] = points[-1].price - points[0].price
+            out["price_delta_days_since_first"] = (now - points[0].observed_at).days
 
     return out

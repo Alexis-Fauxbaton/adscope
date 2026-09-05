@@ -3,24 +3,24 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-Source = Literal["user", "crawler"]
+Precision = Literal["day", "month", "year"]
 
 
 class ObservationIn(BaseModel):
     site: str = Field(max_length=8)
     site_id: str = Field(max_length=32)
-    price: int | None = None
+    price: int | None = Field(default=None, ge=0)
     brand: str | None = None
     model: str | None = None
     version: str | None = None
     year: int | None = None
     mileage: int | None = None
     postal_code: str | None = None
-    published_days_ago: int | None = None
+    published_days_ago: int | None = Field(default=None, ge=0, le=3650)
+    published_precision: Precision = "day"
 
 
 class ObservationsIn(BaseModel):
-    source: Source = "user"
     items: list[ObservationIn] = Field(min_length=1, max_length=100)
 
 
@@ -48,6 +48,6 @@ class SignalsOut(BaseModel):
     republished_at: date | None
     price: int | None
     price_history: list[PricePointOut]
-    price_delta: int | None
-    price_delta_days: int | None
+    price_delta_since_first: int | None
+    price_delta_days_since_first: int | None
     stable_days: int | None
