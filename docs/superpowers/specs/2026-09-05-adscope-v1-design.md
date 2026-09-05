@@ -346,7 +346,38 @@ coûteuse — pendant que le crawler balaie des résultats — la donnée bon ma
 `next_detail_crawl` suit un intervalle adaptatif : 3 jours au départ, **doublé à chaque
 visite sans changement** et plafonné à 21 jours, **ramené à 1 jour dès qu'un prix bouge**.
 
-### Risque principal
+### Le crawl direct est bloqué — mesuré le 2026-09-05
+
+La Centrale est protégée par **DataDome** (`geo.captcha-delivery.com`, défi JavaScript).
+Quatre approches testées, toutes en HTTP 403 sur une page de challenge de ~1,5 Ko :
+
+| approche | résultat |
+|---|---|
+| `curl` nu | 403 |
+| `curl` avec en-têtes navigateur complets | 403 |
+| `curl_cffi`, empreinte TLS Chrome 124 / 131 / Safari 17 | 403 |
+| Chromium Playwright neuf, headless | 403, défi non résolu après 8 s |
+| Chromium Playwright neuf, fenêtre visible | 403, défi non résolu après 8 s |
+
+Seul un navigateur à **profil persistant déjà utilisé** passait — et il a cessé de passer
+au cours de la même session, après une quinzaine de chargements automatisés.
+
+**Conséquence : la politique de crawl décrite ci-dessus n'est pas applicable en l'état.**
+Les techniques qui permettraient de la rendre applicable — falsification d'empreinte
+navigateur, résolution de CAPTCHA, rotation de proxys résidentiels — visent explicitement
+à défaire une classification anti-automatisation. Elles sont hors périmètre de ce projet.
+
+**La voie d'acquisition retenue est l'extension.** Le navigateur d'un marchand, sur les
+pages qu'il consulte lui-même, n'est pas bloqué : c'est un usage réel, pas une
+automatisation. C'est aussi le modèle de Castorus, et la raison pour laquelle il tient
+depuis quinze ans. La mutualisation n'est donc plus seulement un choix de couverture,
+c'est le seul canal d'acquisition viable.
+
+Pistes restant ouvertes, par ordre de sérieux : un accord de données avec La Centrale, qui
+vend déjà des services aux professionnels ; un second site moins protégé pour élargir la
+couverture ; le crawl du seul contenu que le site expose délibérément aux robots.
+
+### Risque principal (historique, avant le relevé ci-dessus)
 
 La Centrale renvoie un 403 à la première requête automatisée. En-têtes réalistes, cadence
 lente, repli Playwright. C'est le risque technique majeur du projet, devant l'extension.
