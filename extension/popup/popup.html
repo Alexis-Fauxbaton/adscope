@@ -2,6 +2,40 @@
 <meta charset="utf-8" />
 <title>adscope</title>
 <link rel="stylesheet" href="popup.css" />
-<h1>adscope</h1>
-<div id="state">Lecture…</div>
+
+<header>
+  <h1>adscope</h1>
+  <span id="dot" class="dot" title="État de la connexion"></span>
+</header>
+
+<section>
+  <h2>Clé de licence</h2>
+  <div id="key-saved" class="field" hidden>
+    <code id="key-mask"></code>
+    <button id="key-replace" class="ghost">Remplacer</button>
+  </div>
+  <div id="key-edit" class="field">
+    <input id="key" type="text" placeholder="adsc_…" spellcheck="false" autocomplete="off" />
+    <button id="key-save">Enregistrer</button>
+  </div>
+  <p id="key-note" class="note" hidden></p>
+</section>
+
+<section>
+  <h2>Adresse de l'API</h2>
+  <div class="field">
+    <input id="api" type="text" spellcheck="false" autocomplete="off" />
+    <button id="api-save">Enregistrer</button>
+  </div>
+  <p id="api-note" class="note" hidden></p>
+  <button id="test" class="wide">Tester la connexion</button>
+  <p id="test-note" class="note" hidden></p>
+</section>
+
+<section>
+  <h2>Dernière page lue</h2>
+  <div id="state"></div>
+</section>
+
+<script src="config.js"></script>
 <script src="popup.js"></script>
