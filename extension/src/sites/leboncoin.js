@@ -39,7 +39,7 @@ ADS.leboncoin = (() => {
       siteId: String(ad.list_id),
       url: ad.url,
       title: ad.subject,
-      isPro: (ad.owner || {}).type === 'pro',
+      sellerType: (ad.owner || {}).type === 'pro' ? 'pro' : 'private',
       price: Array.isArray(ad.price) ? ad.price[0] : ad.price,
       publishedAt: parseDate(ad.first_publication_date),
       bumpedAt: parseDate(ad.index_date),

@@ -28,7 +28,7 @@ test('le prix est extrait comme entier', () => {
 })
 
 test('les professionnels sont identifiables', () => {
-  assert.equal(listings.filter((l) => l.isPro).length, 7)
+  assert.equal(listings.filter((l) => l.sellerType === 'pro').length, 7)
 })
 
 test('une remontée franche est détectée', () => {
@@ -107,8 +107,14 @@ test('une annonce ancienne ou remontée est signalée', () => {
 })
 
 test('seule une minorité des annonces pro est notable', () => {
-  const pro = listings.filter((l) => l.isPro)
+  const pro = listings.filter((l) => l.sellerType === 'pro')
   const notable = pro.filter((l) => signals(l, NOW).notable)
   assert.ok(notable.length < pro.length, 'tout est notable, le tri ne sert à rien')
   assert.ok(notable.length >= 1, 'rien n est notable, le seuil est trop haut')
+})
+
+test('le type de vendeur est porté comme donnée, pas comme booléen', () => {
+  const types = new Set(listings.map((l) => l.sellerType))
+  assert.deepEqual([...types].sort(), ['private', 'pro'])
+  assert.equal(listings.filter((l) => l.sellerType === 'private').length, 28)
 })

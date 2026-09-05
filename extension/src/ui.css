@@ -48,3 +48,7 @@
 .adscope-label { color: #71717a; }
 .adscope-value { color: #27272a; font-weight: 600; }
 .adscope-value--strong { color: #92610a; }
+
+.adscope-badge--private {
+  border-style: dashed;
+}

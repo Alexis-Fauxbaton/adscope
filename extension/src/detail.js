@@ -35,7 +35,7 @@
 
     el.appendChild(line('En ligne depuis', duration(s.onlineDays), s.bumped))
     if (s.bumped) el.appendChild(line('Remontée', ago(s.bumpedDaysAgo), true))
-    el.appendChild(line('Vendeur', listing.isPro ? 'professionnel' : 'particulier'))
+    el.appendChild(line('Vendeur', listing.sellerType === 'pro' ? 'professionnel' : 'particulier'))
     return el
   }
 

@@ -8,7 +8,10 @@
   const badge = (listing, now) => {
     const s = signals(listing, now)
     const el = document.createElement('div')
-    el.className = 'adscope-badge' + (s.notable ? ' adscope-badge--notable' : ' adscope-badge--quiet')
+    el.className =
+      'adscope-badge' +
+      (s.notable ? ' adscope-badge--notable' : ' adscope-badge--quiet') +
+      (listing.sellerType === 'private' ? ' adscope-badge--private' : '')
     el.setAttribute(MARK, listing.siteId)
     el.textContent = s.bumped
       ? `⟳ remontée ${ago(s.bumpedDaysAgo)} · en ligne depuis ${duration(s.onlineDays)}`
@@ -26,9 +29,9 @@
   const render = () => {
     const now = new Date()
     const listings = fromDocument(document)
-    const pro = listings.filter((l) => l.isPro)
+    const pro = listings.filter((l) => l.sellerType === 'pro')
     let placed = 0
-    for (const listing of pro) {
+    for (const listing of listings) {
       const card = cardFor(listing.siteId)
       if (!card || card.querySelector(`[${MARK}]`)) continue
       card.appendChild(badge(listing, now))
