@@ -15,3 +15,30 @@
   background: #fef6e7;
   color: #92610a;
 }
+
+.adscope-panel {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid #d4d4d8;
+  border-left: 3px solid #71717a;
+  border-radius: 6px;
+  background: #fafafa;
+  font: 13px/1.6 system-ui, -apple-system, sans-serif;
+  max-width: 420px;
+}
+
+.adscope-panel--bumped {
+  border-color: #f5a524;
+  border-left-color: #f5a524;
+  background: #fef6e7;
+}
+
+.adscope-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.adscope-label { color: #71717a; }
+.adscope-value { color: #27272a; font-weight: 600; }
+.adscope-value--strong { color: #92610a; }

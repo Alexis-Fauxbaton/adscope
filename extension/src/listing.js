@@ -32,13 +32,21 @@
       card.appendChild(badge(listing, now))
       placed++
     }
-    if (!reported && listings.length) {
+    if (placed || !reported) {
       reported = true
-      console.log(`[adscope] ${listings.length} annonces, ${pro.length} pro, ${placed} pastilles`)
+      chrome.storage.local.set({
+        status: {
+          url: location.pathname,
+          nextData: !!document.getElementById('__NEXT_DATA__'),
+          listings: listings.length,
+          pro: pro.length,
+          badges: document.querySelectorAll(`[${MARK}]`).length,
+          at: Date.now(),
+        },
+      })
     }
   }
 
-  console.log('[adscope] script chargé sur', location.pathname)
   render()
 
   // Les résultats se rechargent sans navigation : on réobserve le conteneur.

@@ -5,6 +5,9 @@ ADS.leboncoin = (() => {
 
   const parseDate = (s) => (s ? new Date(s.replace(' ', 'T')) : null)
 
+  const isAd = (o) => o && typeof o === 'object' && 'list_id' in o && 'first_publication_date' in o
+
+  // Les résultats portent un tableau `ads`, une fiche un objet unique.
   const findAds = (node, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 12) return null
     if (Array.isArray(node)) {
@@ -14,7 +17,8 @@ ADS.leboncoin = (() => {
       }
       return null
     }
-    if (Array.isArray(node.ads) && node.ads.length && 'list_id' in node.ads[0]) return node.ads
+    if (Array.isArray(node.ads) && node.ads.some(isAd)) return node.ads.filter(isAd)
+    if (isAd(node)) return [node]
     for (const v of Object.values(node)) {
       const found = findAds(v, depth + 1)
       if (found) return found

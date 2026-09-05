@@ -3,10 +3,15 @@
   "name": "adscope",
   "version": "0.1.0",
   "description": "Affiche l'ancienneté réelle des annonces automobiles et signale celles qui ont été remontées.",
+  "permissions": ["storage"],
+  "action": {
+    "default_title": "adscope",
+    "default_popup": "popup/popup.html"
+  },
   "content_scripts": [
     {
       "matches": ["https://www.leboncoin.fr/*"],
-      "js": ["src/sites/leboncoin.js", "src/format.js", "src/listing.js"],
+      "js": ["src/sites/leboncoin.js", "src/format.js", "src/listing.js", "src/detail.js"],
       "css": ["src/ui.css"],
       "run_at": "document_idle"
     }
