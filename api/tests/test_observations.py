@@ -70,3 +70,17 @@ def test_observation_clears_disappearance(session):
     record(session, obs(), source="user", now=NOW + timedelta(days=1))
     session.commit()
     assert session.query(Listing).one().disappeared_at is None
+
+
+def test_observation_without_vehicle_details_leaves_fingerprint_unset(session):
+    listing = record(session, ObservationIn(site="lc", site_id="1", price=9900),
+                     source="user", now=NOW)
+    session.commit()
+    assert listing.fingerprint is None
+
+
+def test_vehicle_details_seen_later_set_the_fingerprint(session):
+    record(session, ObservationIn(site="lc", site_id="1"), source="user", now=NOW)
+    listing = record(session, obs(), source="user", now=NOW + timedelta(days=1))
+    session.commit()
+    assert listing.fingerprint == "54b22edbd39c"

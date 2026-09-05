@@ -1,3 +1,4 @@
+import hashlib
 from datetime import datetime, timedelta, timezone
 
 from adscope_api.auth import hash_key, new_key, resolve
@@ -48,4 +49,10 @@ def test_key_expiring_later_is_accepted(session):
 def test_raw_key_is_never_stored(session):
     key = new_key()
     add_license(session, key)
-    assert session.query(License).one().key_hash != key
+    assert session.query(License).one().key_hash == hashlib.sha256(key.encode()).hexdigest()
+
+
+def test_key_expiring_exactly_now_is_rejected(session):
+    key = new_key()
+    add_license(session, key, expires_at=NOW)
+    assert resolve(session, key, now=NOW) is None

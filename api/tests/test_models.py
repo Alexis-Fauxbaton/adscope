@@ -11,6 +11,7 @@ NOW = datetime(2026, 9, 5, 12, 0, tzinfo=timezone.utc)
 def test_listing_roundtrip(session):
     session.add(Listing(site="lc", site_id="87103336930", first_seen=NOW, last_seen=NOW))
     session.commit()
+    session.expire_all()
     stored = session.query(Listing).one()
     assert stored.site_id == "87103336930"
     assert stored.observations == 0

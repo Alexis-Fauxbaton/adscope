@@ -1,5 +1,6 @@
 from fastapi import Depends, FastAPI, Header, HTTPException
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from .auth import resolve
 from .db import get_session
@@ -31,7 +32,9 @@ def post_observations(payload: ObservationsIn, session=Depends(get_session),
 @app.post("/v1/listings/batch", response_model=list[SignalsOut])
 def post_batch(payload: BatchIn, session=Depends(get_session), _=Depends(require_license)):
     listings = session.scalars(
-        select(Listing).where(Listing.site == payload.site, Listing.site_id.in_(payload.ids))
+        select(Listing)
+        .where(Listing.site == payload.site, Listing.site_id.in_(payload.ids))
+        .options(selectinload(Listing.prices))
     ).all()
     return [signals_for(listing) for listing in listings]
 

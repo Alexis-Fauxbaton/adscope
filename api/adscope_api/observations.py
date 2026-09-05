@@ -6,7 +6,8 @@ from .fingerprint import fingerprint
 from .models import Listing, PricePoint
 from .schemas import ObservationIn
 
-VEHICLE_FIELDS = ("brand", "model", "version", "year", "mileage", "postal_code")
+FINGERPRINT_FIELDS = ("brand", "model", "version", "year", "mileage")
+VEHICLE_FIELDS = FINGERPRINT_FIELDS + ("postal_code",)
 
 
 def record(session, observation: ObservationIn, source: str, now=None) -> Listing:
@@ -30,9 +31,10 @@ def record(session, observation: ObservationIn, source: str, now=None) -> Listin
         if value is not None:
             setattr(listing, field, value)
 
-    listing.fingerprint = fingerprint(
-        listing.brand, listing.model, listing.version, listing.year, listing.mileage
-    )
+    details = [getattr(listing, field) for field in FINGERPRINT_FIELDS]
+    if any(value is not None for value in details):
+        listing.fingerprint = fingerprint(*details)
+
     listing.last_seen = max(listing.last_seen, now)
     listing.observations += 1
     listing.disappeared_at = None
@@ -50,7 +52,7 @@ def record(session, observation: ObservationIn, source: str, now=None) -> Listin
         latest = session.scalar(
             select(PricePoint)
             .where(PricePoint.listing_id == listing.id)
-            .order_by(PricePoint.observed_at.desc())
+            .order_by(PricePoint.observed_at.desc(), PricePoint.id.desc())
             .limit(1)
         )
         if latest is None or latest.price != observation.price:
