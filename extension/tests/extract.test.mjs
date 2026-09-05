@@ -31,7 +31,7 @@ test('les professionnels sont identifiables', () => {
   assert.equal(listings.filter((l) => l.sellerType === 'pro').length, 7)
 })
 
-test('une remontée franche est détectée', () => {
+test('une réactualisation franche est détectée', () => {
   const l = listings.find((l) => l.siteId === '3254194817')
   const s = signals(l, NOW)
   assert.equal(s.bumped, true)
@@ -39,7 +39,7 @@ test('une remontée franche est détectée', () => {
   assert.equal(s.bumpedDaysAgo, 2)
 })
 
-test('une annonce jamais remontée ne déclenche rien', () => {
+test('une annonce jamais réactualisée ne déclenche rien', () => {
   const l = normalize({
     list_id: 1, price: [9900], owner: { type: 'pro' }, attributes: [],
     first_publication_date: '2026-09-01 10:00:00',
@@ -51,7 +51,7 @@ test('une annonce jamais remontée ne déclenche rien', () => {
   assert.equal(s.onlineDays, 4)
 })
 
-test('un écart inférieur à 24 h ne compte pas comme remontée', () => {
+test('un écart inférieur à 24 h ne compte pas comme une réactualisation', () => {
   const l = normalize({
     list_id: 2, price: [1], owner: { type: 'pro' }, attributes: [],
     first_publication_date: '2026-09-01 10:00:00',
@@ -94,7 +94,7 @@ test('une annonce banale n\'est pas signalée', () => {
   assert.equal(signals(fresh, NOW).notable, false)
 })
 
-test('une annonce ancienne ou remontée est signalée', () => {
+test('une annonce ancienne ou réactualisée est signalée', () => {
   const old = normalize({
     list_id: 10, price: [1], owner: { type: 'pro' }, attributes: [],
     first_publication_date: '2026-08-20 10:00:00',

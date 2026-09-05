@@ -14,6 +14,13 @@ ADS.format = {
     if (n === 1) return 'hier'
     return `il y a ${ADS.format.duration(n)}`
   },
+
+  // Séparateur de milliers et espace insécable avant l'unité, sans dépendre
+  // des données de localisation de l'environnement.
+  money(n) {
+    const digits = String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f')
+    return `${digits}\u00a0€`
+  },
 }
 
 if (typeof module !== 'undefined') module.exports = ADS.format

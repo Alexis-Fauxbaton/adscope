@@ -51,8 +51,8 @@ ADS.leboncoin = (() => {
     }
   }
 
-  // Une remontée n'est retenue qu'au-delà d'un jour : republier et indexer
-  // à quelques heures d'écart est le fonctionnement normal du site.
+  // Une réactualisation n'est retenue qu'au-delà d'un jour : republier et
+  // indexer à quelques heures d'écart est le fonctionnement normal du site.
   const BUMP_MIN_MS = 24 * 3600 * 1000
 
   // En dessous, l'annonce est banale : le dire encombrerait la page sans

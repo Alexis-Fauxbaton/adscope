@@ -40,6 +40,7 @@
 }
 
 .adscope-row {
+  align-items: baseline;
   display: flex;
   justify-content: space-between;
   gap: 16px;
@@ -51,4 +52,41 @@
 
 .adscope-badge--private {
   border-style: dashed;
+}
+
+.adscope-caption {
+  margin-top: 6px;
+  color: #a1a1aa;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.adscope-caption:first-child { margin-top: 0; }
+
+/* Le suivi mutualisé se lit d'un coup d'œil comme n'étant pas la page. */
+.adscope-row--tracked {
+  border-left: 2px solid #6366f1;
+  margin-left: -12px;
+  padding-left: 10px;
+}
+
+.adscope-claim {
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: #fff;
+  border: 1px dashed #d4d4d8;
+}
+
+.adscope-claim-date {
+  margin-left: 6px;
+  color: #27272a;
+  font-weight: 600;
+}
+
+.adscope-note {
+  color: #92610a;
+  font-size: 11px;
 }

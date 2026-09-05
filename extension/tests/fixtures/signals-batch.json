@@ -1,0 +1,49 @@
+[
+ {
+  "site": "lbc",
+  "site_id": "3254194817",
+  "fingerprint": "hyundai|ioniq|2022",
+  "first_seen": "2026-08-24T09:12:00Z",
+  "last_seen": "2026-09-05T08:30:00Z",
+  "observations": 3,
+  "tracked_days": 12,
+  "seller_type": "pro",
+  "site_published_first": "2026-08-21",
+  "published_at": "2026-08-21T18:07:27Z",
+  "bumped_at": "2026-09-03T13:24:42Z",
+  "real_age_days": 14,
+  "age_source": "exact",
+  "republished": false,
+  "republished_at": null,
+  "price": 29190,
+  "price_history": [
+   { "at": "2026-08-24T09:12:00Z", "price": 29990 },
+   { "at": "2026-09-05T08:30:00Z", "price": 29190 }
+  ],
+  "price_delta_since_first": -800,
+  "price_delta_days_since_first": 12,
+  "stable_days": 0
+ },
+ {
+  "site": "lbc",
+  "site_id": "3250252623",
+  "fingerprint": "mini|mini|2018",
+  "first_seen": "2026-08-31T07:00:00Z",
+  "last_seen": "2026-09-05T08:30:00Z",
+  "observations": 1,
+  "tracked_days": 5,
+  "seller_type": "pro",
+  "site_published_first": "2026-08-15",
+  "published_at": "2026-08-15T02:42:22Z",
+  "bumped_at": "2026-09-03T17:54:17Z",
+  "real_age_days": 21,
+  "age_source": "exact",
+  "republished": false,
+  "republished_at": null,
+  "price": 19990,
+  "price_history": [{ "at": "2026-08-31T07:00:00Z", "price": 19990 }],
+  "price_delta_since_first": 0,
+  "price_delta_days_since_first": 5,
+  "stable_days": 5
+ }
+]
