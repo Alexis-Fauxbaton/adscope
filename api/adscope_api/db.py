@@ -25,3 +25,11 @@ def session_scope():
         raise
     finally:
         session.close()
+
+
+def get_session():
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
