@@ -33,18 +33,20 @@ el('key-replace').onclick = () => {
   showKey()
 }
 
+// Le domaine de production n'est pas connu à la compilation : l'accès à
+// l'adresse configurée se demande sur geste de l'utilisateur — enregistrer
+// en est un, et sans cet accès l'extension ne peut rien envoyer.
+const access = (apiBase) =>
+  chrome.permissions.request({ origins: [`${new URL(apiBase).origin}/*`] }).catch(() => false)
+
 el('api-save').onclick = async () => {
   const value = base(el('api').value)
   if (!isBase(value)) return note('api-note', 'bad', 'Adresse attendue : http(s)://hôte[:port]')
   el('api').value = value
   await chrome.storage.local.set({ apiBase: value })
-  note('api-note', 'ok', 'Adresse enregistrée.')
+  if (await access(value)) note('api-note', 'ok', 'Adresse enregistrée.')
+  else note('api-note', 'warn', `Adresse enregistrée, mais le navigateur en refuse l’accès : l’extension ne pourra pas joindre ${value}.`)
 }
-
-// Le domaine de production n'est pas connu à la compilation : l'accès à
-// l'adresse configurée se demande à l'ouverture, sur geste de l'utilisateur.
-const access = (apiBase) =>
-  chrome.permissions.request({ origins: [`${new URL(apiBase).origin}/*`] }).catch(() => false)
 
 el('test').onclick = async () => {
   const apiBase = base(el('api').value)

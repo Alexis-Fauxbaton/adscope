@@ -19,8 +19,11 @@ ADS.config = (() => {
     }
     if (res.status === 401 || res.status === 403) return { state: 'refused' }
     if (!res.ok) return { state: 'unreachable', status: res.status }
-    const { label, expires_at: expiresAt } = await res.json()
-    return { state: 'ok', label, expiresAt }
+    const body = await res.json().catch(() => null)
+    // Un 200 qui ne porte pas la réponse de /v1/me (page d'accueil, portail
+    // captif) dit une adresse erronée, pas une licence valide.
+    if (!body || !('label' in body)) return { state: 'unreachable' }
+    return { state: 'ok', label: body.label, expiresAt: body.expires_at }
   }
 
   const until = (iso) => {

@@ -20,7 +20,7 @@ La séparation `refused` / `unreachable` est le cœur de l'affaire : une clé re
 que l'API répond, une API injoignable ne dit rien de la clé. Les deux se réparent
 différemment et les messages le disent.
 
-**`extension/popup/popup.js`** (104 lignes) — le câblage DOM, sans `innerHTML` :
+**`extension/popup/popup.js`** (106 lignes) — le câblage DOM, sans `innerHTML` :
 
 - Clé de licence : champ + « Enregistrer », validé avant écriture dans
   `chrome.storage.local.licenseKey` ; une fois enregistrée, elle s'affiche masquée avec
@@ -43,7 +43,7 @@ utilisateur de Chrome.
 
 ## Vérifications
 
-- `cd extension && node --test tests/*.test.mjs` — 39 tests, dont 6 nouveaux dans
+- `cd extension && node --test tests/*.test.mjs` — 40 tests, dont 7 nouveaux dans
   `tests/config.test.mjs` (forme de la clé, masquage, normalisation d'adresse, et les
   trois issues du test de connexion, panne serveur comprise).
 - `cd api && ./.venv/bin/pytest tests/ -q` — 61 tests, intacts.
@@ -58,8 +58,30 @@ navigateur : la clé masquée et le champ de saisie s'affichaient tous les deux.
 une règle `[hidden] { display: none !important; }`. Le défaut n'était visible qu'au rendu,
 pas dans les tests unitaires.
 
+## Corrections après revue
+
+**Enregistrer une adresse demandait l'accès nulle part.** L'accès au domaine n'était
+demandé que depuis « Tester ». Le chemin naturel — coller l'adresse de production,
+enregistrer, fermer — laissait l'extension incapable de joindre l'API : l'API ne pose
+aucun en-tête CORS, donc sans host permission le `fetch` de `src/sw.js` est rejeté, et
+`src/sync.js` ignore `ok:false` en silence. Le clic sur « Enregistrer » est lui aussi un
+geste utilisateur : `popup.js` y demande maintenant l'accès. S'il est refusé, le message
+passe en ambre et dit que l'adresse est enregistrée mais que l'extension ne pourra pas la
+joindre.
+
+**Un 200 sans JSON faisait planter le test.** `probe` lisait `res.json()` sans filet : une
+réponse 2xx en HTML — `https://adscope.fr` au lieu de `https://api.adscope.fr`, un proxy,
+un portail captif — rejetait la promesse, le gestionnaire de clic finissait en rejet non
+intercepté et la popup restait figée sur « Test en cours… ». Le corps est désormais lu
+avec un `catch`, et un corps qui ne porte pas la réponse de `/v1/me` (pas de champ
+`label`) est classé `unreachable` plutôt que `ok` : c'est bien une adresse erronée, pas
+une licence valide sans libellé. Test ajouté dans `tests/config.test.mjs` pour les deux
+formes (corps non-JSON, corps JSON étranger).
+
 ## Points laissés ouverts
 
 - Le format `adsc_…` est vérifié côté extension seulement ; l'API reste juge.
 - Une adresse d'API en `http://` autre que `localhost:8000` n'est pas couverte par
-  `optional_host_permissions` : le test rendra « accès refusé par le navigateur ».
+  `optional_host_permissions` : l'enregistrement comme le test rendront « accès refusé
+  par le navigateur ». C'est un refus explicite, pas un silence, mais il faudra élargir
+  la permission le jour où un déploiement en clair devra être supporté.

@@ -66,6 +66,16 @@ test('une licence refusée se distingue d\'une API muette', async () => {
   assert.match(said.text, /injoignable sur http:\/\/localhost:8000 /)
 })
 
+test('un 200 qui n\'est pas /v1/me dénonce l\'adresse, pas la licence', async () => {
+  const html = { status: 200, ok: true, json: async () => { throw new SyntaxError('Unexpected token <') } }
+  const r = await probe('https://adscope.fr', KEY, async () => html)
+  assert.deepEqual(r, { state: 'unreachable' })
+  assert.match(outcome(r, 'https://adscope.fr').text, /adresse erronée/)
+
+  const other = await probe('https://adscope.fr', KEY, server(() => json(200, { hello: 'world' })).fetch)
+  assert.deepEqual(other, { state: 'unreachable' })
+})
+
 test('une panne serveur reste une API en défaut, pas une licence en cause', async () => {
   const r = await probe('http://localhost:8000', KEY, server(() => json(500, {})).fetch)
   assert.deepEqual(r, { state: 'unreachable', status: 500 })
