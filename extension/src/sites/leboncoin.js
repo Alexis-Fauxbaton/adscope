@@ -55,13 +55,21 @@ ADS.leboncoin = (() => {
   // à quelques heures d'écart est le fonctionnement normal du site.
   const BUMP_MIN_MS = 24 * 3600 * 1000
 
+  // En dessous, l'annonce est banale : le dire encombrerait la page sans
+  // rien apprendre. Le tri par défaut de leboncoin étant l'ordre de
+  // fraîcheur, une pastille sur chaque carte serait presque toujours
+  // « moins d'un jour ».
+  const STALE_MIN_DAYS = 7
+
   const signals = (listing, now) => {
     const online = Math.floor((now - listing.publishedAt) / 86400000)
     const gap = listing.bumpedAt - listing.publishedAt
+    const bumped = gap > BUMP_MIN_MS
     return {
       onlineDays: online,
-      bumped: gap > BUMP_MIN_MS,
-      bumpedDaysAgo: gap > BUMP_MIN_MS ? Math.floor((now - listing.bumpedAt) / 86400000) : null,
+      bumped,
+      bumpedDaysAgo: bumped ? Math.floor((now - listing.bumpedAt) / 86400000) : null,
+      notable: bumped || online >= STALE_MIN_DAYS,
     }
   }
 

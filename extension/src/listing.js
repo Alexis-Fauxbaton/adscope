@@ -27,6 +27,7 @@
     const pro = listings.filter((l) => l.isPro)
     let placed = 0
     for (const listing of pro) {
+      if (!signals(listing, now).notable) continue
       const card = cardFor(listing.siteId)
       if (!card || card.querySelector(`[${MARK}]`)) continue
       card.appendChild(badge(listing, now))

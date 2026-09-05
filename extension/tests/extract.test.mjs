@@ -84,3 +84,31 @@ test('une antériorité ne produit jamais « il y a aujourd\'hui »', () => {
   assert.equal(ago(2), 'il y a 2 j')
   for (const n of [0, 1, 2, 30, 400]) assert.ok(!ago(n).includes("il y a aujourd'hui"))
 })
+
+test('une annonce banale n\'est pas signalée', () => {
+  const fresh = normalize({
+    list_id: 9, price: [1], owner: { type: 'pro' }, attributes: [],
+    first_publication_date: '2026-09-05 20:59:10',
+    index_date: '2026-09-05 20:59:10',
+  })
+  assert.equal(signals(fresh, NOW).notable, false)
+})
+
+test('une annonce ancienne ou remontée est signalée', () => {
+  const old = normalize({
+    list_id: 10, price: [1], owner: { type: 'pro' }, attributes: [],
+    first_publication_date: '2026-08-20 10:00:00',
+    index_date: '2026-08-20 10:00:00',
+  })
+  assert.equal(signals(old, NOW).notable, true)
+
+  const bumped = listings.find((l) => l.siteId === '3254194817')
+  assert.equal(signals(bumped, NOW).notable, true)
+})
+
+test('la fixture réelle ne signale que la minorité utile', () => {
+  const pro = listings.filter((l) => l.isPro)
+  const notable = pro.filter((l) => signals(l, NOW).notable)
+  assert.ok(notable.length < pro.length, 'le filtre ne réduit rien')
+  assert.ok(notable.length >= 1, 'le filtre supprime tout')
+})
