@@ -1,119 +1,110 @@
-# adscope V1 — extension Chrome, enrichissement des annonces La Centrale
+# adscope V1 — extension Chrome, API et crawler
 
 Date : 2026-09-05
-Périmètre : extension uniquement. Le crawler backend fera l'objet d'un cycle séparé.
+Périmètre : extension, API, crawler. Le détail d'ingénierie du crawler fera l'objet
+d'un document dédié ; le présent document en fixe la politique et les interfaces.
+
+Cette version remplace une première conception en local pur, abandonnée au profit
+d'une architecture mutualisée.
 
 ## 1. Objet
 
-Extension Chrome destinée aux marchands et mandataires automobiles. Elle affiche,
-sur les pages de La Centrale, deux informations que le site ne met pas en avant :
+Extension Chrome destinée aux marchands et mandataires automobiles. Elle affiche, sur
+les pages de La Centrale, deux informations que le site ne met pas en avant :
 
 1. **L'ancienneté réelle de l'annonce**, y compris lorsque le vendeur l'a republiée
    pour remettre son compteur à zéro.
 2. **L'historique des prix** constaté depuis la première observation.
 
-Le traitement est intégralement local. Aucune requête réseau n'est émise par
-l'extension, sous aucune forme.
+Les observations sont mutualisées : chaque utilisateur alimente un pool commun, complété
+par un crawler. La couverture croît avec la base installée.
 
-## 2. Contraintes non négociables
+## 2. Contraintes
 
 - Manifest V3.
-- Stockage `chrome.storage.local` exclusivement. Aucun backend, aucune remontée.
-- `host_permissions` limitées à `https://www.lacentrale.fr/*`. Jamais `<all_urls>`.
-- Aucune requête vers une page que l'utilisateur n'a pas consultée lui-même.
-  Pas de crawl, pas de préchargement, pas de revalidation en tâche de fond.
-- Aucune collecte de données utilisateur, déclarable tel quel sur la fiche Store.
+- `host_permissions` limitées à `https://www.lacentrale.fr/*` et au domaine de l'API.
+  Jamais `<all_urls>`.
+- L'extension n'émet aucune requête vers une page que l'utilisateur n'a pas consultée
+  lui-même. Elle lit le DOM des pages ouvertes et dialogue avec l'API, rien d'autre.
 - Pas de code hébergé à distance.
-- L'utilisateur reste sur la page source. Aucun lien sortant vers un concurrent.
+- L'utilisateur reste sur la page source. Aucun lien sortant vers un concurrent, aucune
+  recherche d'annonces hébergée par adscope.
 - Ni télémétrie, ni affiliation.
+- **Seuls des constats dérivés sont conservés** : identifiant, empreinte, prix,
+  horodatage, ancienneté. Ni descriptions, ni photos, ni reproduction des fiches.
 
 ## 3. Reconnaissance du site (relevé du 2026-09-05)
 
-Relevé sur une fiche réelle (`/auto-occasion-annonce-87103336930.html`) :
+### Fiche annonce
 
-- **JSON-LD `Car` présent et complet** dans `script[type="application/ld+json"]` :
-  `offers.price` (`"9900"`), `offers.priceCurrency`, `offers.seller.address.postalCode`
-  (`"75015"`), `mileageFromOdometer.value` (`"62686"`), `dateVehicleFirstRegistered`
-  (`"2018"`), `brand`, `model`, `vehicleTransmission`, `fuelType`.
-- **L'ancienneté est affichée en clair** dans un bloc `[class*="ReferencesInfo"]` :
+- **JSON-LD `Car` complet** dans `script[type="application/ld+json"]` : `offers.price`
+  (`"9900"`), `offers.seller.address.postalCode` (`"75015"`), `mileageFromOdometer.value`
+  (`"62686"`), `dateVehicleFirstRegistered` (`"2018"`), `brand`, `model`,
+  `vehicleTransmission`, `fuelType`.
+- **Ancienneté affichée en clair** dans `[class*="ReferencesInfo"]` :
   `Réf. pro : P308129 | Réf. annonce : W103336930` puis `Publiée il y a 60 jours`.
-- **Pas de `datePublished`** dans le JSON-LD.
-- **`__NEXT_DATA__` est inexploitable** : `props` ne contient aucune donnée d'annonce.
-  L'extraction repose donc sur le JSON-LD et le DOM.
-- **Classes CSS hashées** (`ReferencesInfo_refs__0sGLk`). Les sélecteurs de présentation
-  ne sont pas fiables dans la durée.
+- Pas de `datePublished` dans le JSON-LD.
+- `__NEXT_DATA__` inexploitable : `props` ne contient aucune donnée d'annonce.
+- Classes CSS hashées (`ReferencesInfo_refs__0sGLk`) : les sélecteurs de présentation ne
+  sont pas fiables dans la durée.
 
-Pièges identifiés, à ne pas confondre avec la date de publication :
+Pièges à ne pas confondre avec la date de publication : `firstTrafficDate`
+(`"2018-09-14"`) est la première mise en circulation ; `creationDate` et `createdDate`
+se rapportent au concessionnaire.
 
-- `firstTrafficDate` (`"2018-09-14"`) est la première mise en circulation du véhicule.
-- `creationDate` et `createdDate` présents dans le HTML se rapportent au concessionnaire.
+### Page de résultats
 
-Relevé sur la page de résultats (`/listing?makesModelsCommercialNames=PEUGEOT:308`) :
-
-- **L'ancienneté n'y figure pas.** `Publiée il y a` est absent de l'intégralité de la
-  page. Cette information n'existe que sur la fiche.
-- **Les cartes portent en revanche tout le nécessaire à l'empreinte** : marque, modèle,
-  version, année, boîte, kilométrage, énergie, prix. Vingt-quatre cartes par page.
-- La localisation y est hétérogène — numéro de département sur certaines cartes, nom de
-  ville sur d'autres — là où la fiche donne un code postal complet. D'où son exclusion
-  de l'empreinte (§4).
-- Le site marque lui-même d'un `Déjà consultée` les annonces déjà ouvertes. Signal
-  propre à La Centrale, sans date associée, non exploité.
+- **L'ancienneté n'y figure pas.** `Publiée il y a` est absent de toute la page.
+- **Les cartes portent le reste** : marque, modèle, version, année, boîte, kilométrage,
+  énergie, prix. **24 cartes par page** — une requête rafraîchit 24 annonces.
+- Localisation hétérogène : département sur certaines cartes, nom de ville sur d'autres,
+  là où la fiche donne un code postal complet.
+- Les URL d'images encodent la référence d'annonce
+  (`pictures.lacentrale.fr/classifieds/W103336930_STANDARD_0.jpg`, suffixe `_0`, `_1`…)
+  et sont **signées par rendu** : changer la taille ou le watermark invalide la signature.
+- Le site marque d'un `Déjà consultée` les annonces déjà ouvertes. Non exploité.
 
 La navigation automatisée reçoit un 403 au premier appel. Sans incidence pour
-l'extension, qui lit le DOM d'une page chargée par l'utilisateur dans sa propre session.
+l'extension ; c'est en revanche le principal risque du crawler (§10).
 
 ## 4. Identification des annonces
 
-**Clé primaire** : identifiant natif extrait de l'URL, préfixé par le site.
-`lc:87103336930`. Exact, aucun faux positif, porte l'historique.
+**Clé primaire** : identifiant natif extrait de l'URL, préfixé par le site
+(`lc:87103336930`).
 
-**Empreinte secondaire** : hash du véhicule, stockée dès la V1 mais **non exploitée**.
-Elle servira à rattacher l'historique d'une annonce republiée sous un nouvel
-identifiant. Elle est stockée maintenant parce que les empreintes du passé ne
-peuvent pas être recalculées rétroactivement.
+**Empreinte secondaire** : hash du véhicule, calculée et stockée dès la V1 mais **non
+exploitée pour fusionner**. Elle permettra de rattacher l'historique d'une annonce
+republiée sous un nouvel identifiant. Elle est stockée maintenant parce que les
+empreintes du passé ne se recalculent pas.
 
-L'empreinte est également calculée par le crawler Python. Les deux implémentations
-doivent produire un hash identique, faute de quoi les deux jeux de données ne
-pourront jamais être joints.
+L'extension et le crawler la calculent tous les deux. Les deux implémentations doivent
+produire un hash identique, faute de quoi les jeux de données ne pourront jamais être
+joints.
 
 ### Algorithme (identique JS et Python)
 
-Normalisation d'une chaîne :
+Normalisation d'une chaîne : NFD, suppression des caractères de catégorie `Mn`,
+majuscules, remplacement de toute suite hors `[A-Z0-9]` par une espace, `trim`.
 
-1. Normalisation Unicode NFD.
-2. Suppression des caractères de catégorie `Mn` (diacritiques).
-3. Passage en majuscules.
-4. Remplacement de toute suite de caractères hors `[A-Z0-9]` par une espace.
-5. `trim`.
-
-Clé : `[brand, model, version, year, mileage]` jointe par `|`.
-`brand`, `model` et `version` sont normalisés ; `year` et `mileage` sont convertis
-en chaîne sans arrondi. Un champ absent devient une chaîne vide, la position est
-conservée.
-
-**Le code postal est délibérément exclu du hash.** La fiche expose un code postal
-complet (`75015`) tandis que les cartes de résultats affichent tantôt un numéro de
-département (`93`), tantôt un nom de ville (`PARIS`). Inclure ce champ produirait deux
-empreintes différentes pour le même véhicule selon la page d'observation, ce qui
-romprait précisément le rapprochement que l'empreinte doit permettre. La localisation
-est stockée à part, comme signal de désambiguïsation au moment de la fusion, jamais
-dans le hash.
-
-Les cinq champs retenus sont présents et cohérents sur les deux surfaces. Le
-kilométrage exact suffit à lui seul à discriminer la quasi-totalité des cas ; une
-collision résiduelle entre deux véhicules identiques au kilomètre près reste possible
-et sera arbitrée à la fusion, pas au hachage.
+Clé : `[brand, model, version, year, mileage]` jointe par `|`. Les trois premiers sont
+normalisés, `year` et `mileage` convertis en chaîne sans arrondi. Un champ absent devient
+une chaîne vide, la position est conservée.
 
 Empreinte : `sha256(clé, utf-8)`, hexadécimal, **12 premiers caractères**.
 
-Le kilométrage n'est pas arrondi. Le rapprochement d'annonces dont le kilométrage
-a évolué se fera par distance, au moment où la détection de republication sera activée.
+**Le code postal est délibérément exclu du hash.** La fiche expose un code postal complet
+(`75015`), les cartes affichent tantôt un département (`93`), tantôt un nom de ville
+(`PARIS`). L'inclure produirait deux empreintes différentes pour le même véhicule selon
+la page d'observation, ce qui romprait précisément le rapprochement recherché. La
+localisation est stockée à part, comme signal de désambiguïsation à la fusion.
+
+Le kilométrage n'est pas arrondi. Le rapprochement d'annonces dont il a évolué se fera
+par distance, au moment où la fusion sera activée.
 
 ### Vecteurs de test
 
 Vérifiés identiques en JS et en Python le 2026-09-05. À placer dans
-`shared/fingerprint-vectors.json` et à asserter des deux côtés.
+`shared/fingerprint-vectors.json`, assertés des deux côtés.
 
 | clé normalisée | empreinte |
 |---|---|
@@ -123,128 +114,211 @@ Vérifiés identiques en JS et en Python le 2026-09-05. À placer dans
 | `BMW\|SERIE 3 F30\|320D XDRIVE\|2019\|88123` | `946e1f6a35ed` |
 | `\|\|\|\|` | `45ca31c3315a` |
 
-Sources : `brand`, `model`, `version`, `year`, `mileage` tels qu'affichés
-respectivement sur la fiche (JSON-LD) et sur la carte de résultats. Les deux premiers
-vecteurs correspondent à des annonces réelles relevées le 2026-09-05.
-
 ## 5. Extraction
 
-Cascade à trois niveaux, dans l'ordre, premier succès retenu :
+Cascade à trois niveaux, premier succès retenu :
 
 1. **Données structurées** — JSON-LD `Car`. Contrat sémantique, survit aux refontes CSS.
 2. **Attributs sémantiques** — `data-testid`, `itemprop`, `id`.
-3. **Heuristique texte** — pour l'ancienneté, `/Publi[ée]e? il y a (\d+) (jour|mois|an)/`.
-   Pour le prix, le nœud correspondant à `/\d[\d\s.]*€/` de plus grande taille de police
-   dans la moitié haute du document.
+3. **Heuristique texte** — ancienneté par `/Publi[ée]e? il y a (\d+) (jour|mois|an)/` ;
+   prix par le nœud correspondant à `/\d[\d\s.]*€/` de plus grande taille de police dans
+   la moitié haute du document.
 
-**En cas d'échec de la cascade, rien n'est injecté.** Jamais d'encart dégradé, jamais
-de « N/A ». Un compteur local `misses` est incrémenté et affiché dans la popup : c'est
-le signal qui permet à l'utilisateur de constater que le site a changé et de le
-signaler. Aucune donnée ne quitte le poste.
+**En cas d'échec complet, rien n'est injecté.** Jamais d'encart dégradé ni de « N/A ». Un
+compteur local `misses` est incrémenté et affiché dans la popup : c'est le signal qui
+permet à l'utilisateur de constater que le site a changé et de le signaler.
 
-Tous les sélecteurs sont confinés dans `extension/src/sites/lacentrale.js`, qui exporte :
+Tous les sélecteurs sont confinés dans `extension/src/sites/lacentrale.js`, qui exporte
+`{ match, listingId, price, publishedDaysAgo, vehicle, cards }`. Aucun autre fichier ne
+contient de sélecteur ; ajouter un site consiste à ajouter un fichier.
 
-```
-{ match(url), listingId(url), price(doc), publishedDaysAgo(doc),
-  vehicle(doc), cards(doc) }
-```
+## 6. Extension
 
-Aucun autre fichier ne contient de sélecteur. Ajouter un site consiste à ajouter
-un fichier dans ce répertoire.
+### Service worker
 
-## 6. Stockage
+Le content script ne dialogue **jamais** directement avec l'API : la page est servie en
+`https`, l'API en développement écoute en `http://localhost`, et le navigateur bloque la
+requête (contenu mixte, CSP de page). Le service worker s'exécute sous l'origine de
+l'extension et n'a ni l'une ni l'autre contrainte.
 
-### Schéma
+Il porte l'appel API, le cache, la clé de licence et le regroupement des envois. Le
+content script communique avec lui par message.
 
-Une clé par annonce. Lecture O(1), pas de read-modify-write sur un blob unique,
-pas de corruption si deux onglets écrivent simultanément. La page de résultats lit
-ses trente annonces en un seul `get([...])`.
-
-```
-"a:lc:87103336930": {
-  f:  1757000000000,   // première observation (ms)
-  l:  1757600000000,   // dernière observation (ms)
-  p:  [[ts, 10900], [ts, 9900]],   // prix horodatés
-  n:  7,               // nombre d'observations
-  fp: "7c3d517a035c",  // empreinte
-  sp: "2026-07-07",    // date de publication site, la plus ancienne observée
-  spr:"2026-07-07"     // date de publication site, la plus récente observée
-}
-```
-
-Clé de métadonnées :
+### Flux
 
 ```
-"_meta": { started: ts, purged: ts, misses: n }
+content script            service worker              API
+──────────────            ──────────────              ───
+extrait {id, prix,
+ tuple, ancienneté}
+        │
+        └─ message ──────▶ cache local ─── hit ──┐
+                                 │               │
+                                 └─ POST /observations
+                                    POST /listings/batch
+                                           │
+                                 ◀─────────┘ signaux
+        ◀────── signaux ─────────┘
+   injecte / met à jour
 ```
 
-### Règles d'écriture
+### Affichage progressif
 
-- Un point de prix n'est ajouté **que si le prix diffère du dernier point enregistré**.
-  Recharger dix fois la page ne crée pas dix entrées. La croissance est bornée par les
-  changements réels.
-- `l` et `n` sont mis à jour à chaque observation.
-- `sp` ne recule jamais : `sp = min(sp, date calculée)`. `spr` ne recule jamais non plus.
-- L'écriture a lieu **depuis les fiches et depuis les cartes de résultats**. Trente
-  annonces captées par page de résultats consultée, sans aucune requête réseau : les
-  cartes sont déjà affichées sur une page ouverte par l'utilisateur. C'est ce qui rend
-  l'historique exploitable en jours plutôt qu'en semaines.
+**L'encart ne doit jamais attendre le réseau.** Il s'affiche immédiatement avec ce que la
+page contient — l'ancienneté y est écrite — puis se complète à la réponse de l'API. Pas
+d'écran vide, pas de saut visuel.
 
-### Croissance et purge
+### Cache local
 
-Un enregistrement pèse de l'ordre de 200 octets. Le quota standard de
-`chrome.storage.local` est d'environ 10 Mo, soit à peu près 50 000 annonces. Un
-marchand actif en observe de l'ordre de 6 000 par mois. La capacité couvre donc
-largement plus d'un an. **La permission `unlimitedStorage` n'est pas demandée**, ce qui
-retire une justification à fournir au Store.
+`chrome.storage.local` n'est plus la base de données mais un **cache et un repli hors
+ligne**. Une clé par annonce, `a:lc:87103336930`, contenant les derniers signaux connus
+et leur horodatage. La page de résultats lit ses 24 entrées en un seul `get([...])`.
 
-Purge opportuniste, au chargement du content script, une fois par jour au plus, gardée
-par `_meta.purged`. Pas de service worker, pas de permission `alarms`.
+Purge opportuniste au chargement, une fois par jour au plus, gardée par `_meta.purged` :
+suppression au-delà de 30 jours sans consultation. Le cache n'a plus à être durable,
+la base l'est. Pas de permission `alarms`.
 
-Règle : suppression des enregistrements dont `l` remonte à plus de **180 jours**,
-**sauf** si `p.length >= 2`. Un historique de prix effectif est ce que le produit a de
-plus précieux et n'est pas reconstituable.
+Le quota reste celui par défaut ; `unlimitedStorage` n'est pas demandée. Deux protections
+conservées, parce qu'elles évitent un arrêt silencieux de l'enregistrement :
+plafonnement de l'historique de prix par annonce au **premier point plus les 20 plus
+récents**, et interception de l'erreur de quota en écriture avec purge d'urgence puis une
+seule nouvelle tentative. Le taux d'occupation est affiché dans la popup.
 
-## 7. Détection de republication
+### Navigation SPA
 
-C'est la fonction qui distingue le produit : La Centrale affiche déjà l'ancienneté,
-mais ce compteur repart à zéro lorsque le vendeur republie pour masquer un véhicule
-qui ne se vend pas.
+La Centrale est une application Next.js : passer d'une annonce à l'autre ne recharge pas
+la page et ne redéclenche pas le content script. Première source de défauts sur ce type
+d'extension, traitée dès le départ.
+
+`spa.js` instrumente `history.pushState` et `history.replaceState`, écoute `popstate`, et
+retient un `MutationObserver` en repli. À chaque changement d'URL l'encart est retiré puis
+réinjecté ; le nœud porte un attribut dédié, ce qui rend la détection de doublon triviale.
+
+### Popup
+
+Saisie et état de la clé de licence, nombre d'annonces en cache, compteur d'échecs
+d'extraction, taux d'occupation, purge manuelle.
+
+## 7. API
+
+Quatre routes.
+
+| route | rôle |
+|---|---|
+| `POST /v1/observations` | lot d'observations, extension ou crawler |
+| `POST /v1/listings/batch` | signaux pour jusqu'à 30 identifiants — indispensable, une page de résultats affiche 24 cartes et doit tenir en un aller-retour |
+| `GET /v1/listings/{site}/{id}` | signaux d'une fiche |
+| `GET /v1/me` | validité de la licence |
+
+FastAPI, Postgres. Limitation de débit par licence.
+
+### Authentification
+
+Clé de licence transmise en `Authorization: Bearer`, stockée hashée côté serveur,
+révocable. L'extension la conserve dans `chrome.storage.local`. Aucune donnée personnelle
+n'est requise pour utiliser l'extension.
+
+## 8. Schéma Postgres
+
+```
+listings       site, site_id, fingerprint,
+               brand, model, version, year, mileage, postal_code,
+               first_seen, last_seen,
+               site_published_first, site_published_last,
+               disappeared_at, next_detail_crawl
+               unique(site, site_id)
+
+price_points   listing_id, observed_at, price, source ('user' | 'crawler')
+
+licenses       key_hash, label, active, expires_at
+```
+
+**Un point de prix n'est écrit que s'il diffère du dernier connu pour l'annonce.** La
+règle protège maintenant contre bien pire qu'en local : trente utilisateurs consultant la
+même annonce le même jour ne doivent pas produire trente lignes.
+
+`source` distingue les observations utilisateur du crawl ; c'est ce qui permettra de
+mesurer l'apport réel de la base installée.
+
+## 9. Détection de republication
+
+La Centrale affiche déjà l'ancienneté, mais ce compteur repart à zéro lorsque le vendeur
+republie pour masquer un véhicule qui ne se vend pas. C'est la fonction qui distingue le
+produit.
 
 À chaque observation d'une fiche, la date de publication site est calculée par
-`aujourd'hui - publishedDaysAgo`. Elle est comparée à `sp`.
+`aujourd'hui - publishedDaysAgo` et comparée à `site_published_first`. Le libellé étant
+arrondi, deux observations successives peuvent produire des dates distantes d'un jour :
+**le seuil de détection est de 7 jours**.
 
-Le libellé « il y a N jours » étant arrondi, deux observations successives peuvent
-produire des dates distantes d'un jour. **Le seuil de détection est donc de 7 jours** :
-une republication est retenue lorsque la date calculée dépasse `sp` de plus d'une
-semaine. `spr` conserve la date la plus récente pour l'affichage.
+Deux cas doivent être distingués ; la V1 ne traite que le premier :
 
-Deux cas de republication doivent être distingués. La V1 ne traite que le premier :
+- **Sans changement d'identifiant** — le compteur repart, l'URL ne bouge pas. Détecté par
+  la comparaison ci-dessus, sans recours à l'empreinte. **Périmètre V1.**
+- **Sous un nouvel identifiant** — annonce supprimée puis recréée. Seule l'empreinte
+  permet le rattachement. Hors périmètre ; l'empreinte est stockée pour le rendre
+  possible plus tard.
 
-- **Republication sans changement d'identifiant** — le vendeur relance son annonce, le
-  compteur du site repart à zéro, l'URL reste la même. Détectée par la comparaison
-  ci-dessus, sans recours à l'empreinte. **C'est le périmètre V1.**
-- **Republication sous un nouvel identifiant** — l'annonce est supprimée puis recréée,
-  l'historique est rompu du point de vue de la clé primaire. Seule l'empreinte permet
-  de les rattacher. Hors périmètre V1 ; l'empreinte est stockée dès maintenant pour
-  rendre ce rattachement possible plus tard.
+## 10. Crawler — politique
 
-## 8. Affichage
+Le détail d'ingénierie fait l'objet d'un document dédié. Politique retenue :
 
-### Encart, injecté sous le prix de la fiche
+### Deux tâches de nature différente
+
+**Balayage des résultats — quotidien, sans condition.** Parcourt les pages de résultats
+du segment : découvre les nouvelles annonces, rafraîchit tous les prix, repère les
+disparitions. Une requête couvre 24 annonces, soit ~210 requêtes par jour pour un segment
+de 5 000 annonces. Négligeable.
+
+**Visite des fiches — rare et arbitrée par budget.** Une fiche n'apporte que ce que la
+carte n'a pas : l'ancienneté. Budget quotidien fixe, file triée par priorité :
+
+1. **Annonces jamais vues en fiche** — sans visite, pas d'ancienneté. Obligatoire une
+   fois. À 3-5 % de nouveautés par jour sur 5 000 annonces, c'est 150 à 250 requêtes :
+   **c'est ce poste qui dimensionne le budget**, pas la péremption.
+2. **Candidates à la disparition** — repérées absentes du balayage, confirmées par un 404.
+   Produit le délai de vente et le prix final, la donnée la plus vendeuse du produit.
+3. **Contrôle de republication** — cadence lente, deux à trois semaines. Le compteur ne
+   bouge qu'en cas de republication, c'est rare.
+
+Un budget, et non un seuil : « tout ce qui dépasse X jours » fait croître silencieusement
+le volume avec le corpus, « les N premiers par score de péremption » borne la charge.
+
+### Fraîcheur partagée et intervalle adaptatif
+
+Le compteur de fraîcheur est **commun aux utilisateurs et au crawler**. Une annonce
+consultée par un marchand est fraîche sans requête. Plus la base installée grandit, moins
+le crawler travaille.
+
+Les deux se complètent naturellement : les utilisateurs ouvrent des fiches — la donnée
+coûteuse — pendant que le crawler balaie des résultats — la donnée bon marché.
+
+`next_detail_crawl` suit un intervalle adaptatif : 3 jours au départ, **doublé à chaque
+visite sans changement** et plafonné à 21 jours, **ramené à 1 jour dès qu'un prix bouge**.
+
+### Risque principal
+
+La Centrale renvoie un 403 à la première requête automatisée. En-têtes réalistes, cadence
+lente, repli Playwright. C'est le risque technique majeur du projet, devant l'extension.
+
+Le crawler écrit directement en base. L'API sert les lectures et les observations
+utilisateur.
+
+## 11. Affichage
+
+### Encart, sous le prix de la fiche
 
 ```
 Publiée il y a 60 j                     ← lu sur la page, dès la première vue
-Suivie depuis 12 j · 3 vues             ← observation adscope
+Suivie depuis 12 j · 3 vues             ← observations mutualisées
 9 900 €   ▼ −1 000 € en 12 j
   10 900 €  →  9 900 €    (24 août)
 ```
 
-Les deux sources sont toujours distinguées visuellement. Ne jamais présenter une
-donnée du site comme une observation adscope, ni l'inverse : la confusion détruirait
-la confiance dans l'outil.
+Les deux sources sont toujours distinguées visuellement. Ne jamais présenter une donnée du
+site comme une observation adscope, ni l'inverse : la confusion détruirait la confiance.
 
-Cas de republication :
+Republication :
 
 ```
 ⚠ Republiée le 12 août — en ligne depuis 74 j en réalité
@@ -252,80 +326,64 @@ Cas de republication :
 
 ### Cas vide
 
-C'est le cas majoritaire au démarrage et il conditionne la perception du produit.
-Il est traité par l'ancienneté lue sur la page : **dès la première visite, sans aucune
-donnée en base, l'encart affiche une information exacte et utile.**
-
-Pour l'historique de prix, le libellé est « Prix stable depuis X j » plutôt que
-« aucun changement » : même donnée, mais c'en est réellement une pour un marchand.
+Traité par l'ancienneté lue sur la page : **dès la première visite, sans aucune donnée en
+base, l'encart affiche une information exacte et utile.** Pour l'historique de prix, le
+libellé est « Prix stable depuis X j » plutôt que « aucun changement » — même donnée, mais
+c'en est réellement une pour un marchand.
 
 ### Pastille sur les cartes de résultats
 
-Discrète, sur chaque carte : ancienneté suivie et marqueur de baisse de prix.
+Ancienneté et marqueur de baisse de prix, en un seul appel `POST /listings/batch` pour les
+24 cartes.
 
-**Limitation assumée** : l'ancienneté site n'est présente que sur la fiche, pas sur les
-cartes. Une annonce jamais ouverte n'a donc pas de `sp` et sa pastille ne montre que
-l'observation adscope, vide au premier jour. La valeur du premier jour est portée par
-la fiche.
+## 12. Chrome Web Store
 
-## 9. Navigation SPA
+**But unique** :
 
-La Centrale est une application Next.js : passer d'une annonce à l'autre ne recharge
-pas la page et ne redéclenche pas le content script. C'est la première source de
-défauts sur ce type d'extension et le sujet est traité dès le départ.
+> Afficher l'ancienneté et l'historique de prix des annonces automobiles consultées par
+> l'utilisateur, à partir d'observations mutualisées.
 
-`spa.js` instrumente `history.pushState` et `history.replaceState`, écoute `popstate`,
-et retient un `MutationObserver` en repli. À chaque changement d'URL, l'encart existant
-est retiré puis réinjecté. Le nœud injecté porte un attribut dédié, ce qui rend la
-détection de doublon triviale.
+**Déclaration de données** : l'extension collecte de l'**activité de navigation sur le
+web** — les annonces consultées sur lacentrale.fr sont transmises au serveur adscope. À
+déclarer explicitement. Données non revendues, non utilisées à d'autres fins, non
+utilisées pour évaluer une solvabilité.
 
-## 10. Popup
+**Politique de confidentialité** obligatoire, à une URL publique, décrivant précisément ce
+qui est transmis et conservé.
 
-Environ soixante lignes : nombre d'annonces suivies, date de début du suivi, compteur
-d'échecs d'extraction, export JSON, purge manuelle.
+**`host_permissions`** : `https://www.lacentrale.fr/*` pour lire les annonces, et le
+domaine de l'API pour l'échange. Deux justifications à rédiger.
 
-L'export transforme la promesse « 100 % local » en quelque chose que l'utilisateur
-vérifie de ses yeux, et constitue un argument RGPD gratuit.
+**`permissions`** : `storage` seul. Ni `tabs`, ni `activeTab`, ni `unlimitedStorage`, ni
+`alarms`, ni `web_accessible_resources`, ni CSP personnalisée.
 
-## 11. Chrome Web Store
+**Autres points avant dépôt** :
 
-**But unique**, à reprendre tel quel dans le formulaire :
-
-> Afficher l'historique local d'observation des annonces automobiles consultées par
-> l'utilisateur.
-
-Tout ce qui n'entre pas dans cette phrase est hors périmètre V1.
-
-**Manifeste minimal** :
-
-```json
-"permissions": ["storage"],
-"host_permissions": ["https://www.lacentrale.fr/*"]
-```
-
-Ni `tabs`, ni `activeTab`, ni `unlimitedStorage`, ni `alarms`, ni
-`web_accessible_resources`, ni CSP personnalisée, ni service worker.
-
-**Confidentialité** : Google range l'historique de navigation parmi les données
-utilisateur, et l'extension enregistre bien quelles annonces ont été consultées. La
-formulation exacte et défendable est donc : *aucune donnée collectée ni transmise*, le
-traitement étant strictement local. Une politique de confidentialité doit malgré tout
-être publiée à une URL accessible ; son absence allonge la review.
-
-**Autres points à préparer avant dépôt** :
-
-- Mention explicite de non-affiliation à La Centrale dans la description.
+- Mention explicite de non-affiliation à La Centrale.
 - Captures 1280×800 : l'encart doit être présentable dès le PoC.
-- Pas de bundler ni de minification. Modules ES lisibles, le reviewer lit la source.
-- Vérifier la disponibilité du nom « adscope », générique et susceptible d'entrer en
-  conflit avec une marque existante.
+- Pas de bundler ni de minification. Le reviewer lit la source.
+- Vérifier la disponibilité du nom « adscope ».
 
-**Pas d'imports ES entre content scripts** : MV3 ne les prend pas en charge sans passer
-par `web_accessible_resources`, ce qui ajoute de la surface de review sans contrepartie.
-Les fichiers sont déclarés dans l'ordre dans `js: [...]`, partagent le même scope et
-publient chacun dans un unique espace de noms `ADS`.
+**Pas d'imports ES entre content scripts** : MV3 ne les prend pas en charge sans
+`web_accessible_resources`. Les fichiers sont déclarés dans l'ordre dans `js: [...]`,
+partagent le même scope et publient dans un unique espace de noms `ADS`.
 
-## 12. Arborescence
+Le régime de review est celui de Keepa ou Honey : plus long que pour une extension sans
+collecte, mais parfaitement passable.
+
+## 13. Développement local puis Render
+
+Le backend tourne d'abord sur le poste de développement, puis sur Render.
+
+**Le manifeste ne peut pas partir au Store avec `localhost` dans `host_permissions`.**
+`extension/manifest.json` est la version de production ; `scripts/dev-manifest.sh` en
+dérive la variante de développement. À prévoir maintenant plutôt qu'au moment du dépôt.
+
+**Le crawler tournera depuis une IP résidentielle.** Moins exposée au blocage qu'une IP de
+datacenter, mais un blocage priverait la connexion personnelle de l'accès au site.
+Acceptable en PoC, à revoir à la montée en volume.
+
+## 14. Arborescence
 
 ```
 adscope/
@@ -335,7 +393,9 @@ adscope/
 │   │   ├── sites/lacentrale.js   ~70   tous les sélecteurs
 │   │   ├── extract.js            ~60   cascade d'extraction
 │   │   ├── fingerprint.js        ~25   empreinte
-│   │   ├── store.js              ~80   get / record / purge / export
+│   │   ├── cache.js              ~80   cache local, purge, quota
+│   │   ├── api.js                ~60   client API (service worker)
+│   │   ├── sw.js                 ~70   service worker, messages, licence
 │   │   ├── format.js             ~30   durées, montants, deltas
 │   │   ├── spa.js                ~30   changements d'URL
 │   │   ├── detail.js             ~70   encart de la fiche
@@ -343,37 +403,77 @@ adscope/
 │   │   └── ui.css                ~80
 │   ├── popup/{popup.html,popup.js}
 │   └── icons/
-├── crawler/                      ← Python, cycle séparé
+├── api/                          ← FastAPI + Postgres
+├── crawler/                      ← Python
 ├── shared/
 │   ├── fingerprint.md
 │   └── fingerprint-vectors.json  ← asserté par les tests JS et Python
 ├── docs/superpowers/specs/
-├── scripts/package-extension.sh  ← zippe le contenu de extension/
+├── scripts/
+│   ├── package-extension.sh      ← zippe le contenu de extension/
+│   └── dev-manifest.sh
 └── README.md
 ```
 
-Aucun fichier au-dessus de 150 lignes. Aucune étape de build pour l'extension, qui
-reste chargeable en « extension non empaquetée » pendant le développement.
+Aucun fichier au-dessus de 150 lignes. Aucune étape de build pour l'extension, qui reste
+chargeable en « extension non empaquetée ». `manifest.json` devant être à la racine du
+ZIP, le script archive le *contenu* de `extension/`.
 
-`manifest.json` devant se trouver à la racine du ZIP, le script d'empaquetage archive
-le *contenu* de `extension/`, et non le dossier lui-même.
+Volume attendu : de l'ordre de 1 500 lignes réparties sur trois composants, contre 400
+pour la version locale abandonnée.
 
-## 13. Hors périmètre V1
+## 15. Hors périmètre V1
 
-- Le crawler backend et toute API. Projet distinct, cycle de conception propre.
-- L'exploitation de l'empreinte pour fusionner les historiques. Elle est calculée et
-  stockée, rien de plus.
-- leboncoin. Son payload `__NEXT_DATA__`, contrairement à celui de La Centrale, expose
-  l'annonce en JSON structuré ; c'est le candidat naturel pour le second site.
-- Toute requête réseau émise par l'extension.
+- **Dédup multi-sites.** Suppose deux sites en production et un corpus. Étudiée : les
+  hashes perceptuels seuls ne suffisent pas (§16), un embedding contrastif sera nécessaire.
+- **Exploitation de l'empreinte pour fusionner.** Calculée et stockée, rien de plus.
+- **leboncoin.** Son payload `__NEXT_DATA__` expose l'annonce en JSON structuré,
+  contrairement à celui de La Centrale ; c'est le candidat naturel pour le second site.
+- **Stockage de photos ou de descriptions.** Exclu par principe (§2).
 
-## 14. Décision d'exploitation à noter
+## 16. Étude versée au dossier — hashes perceptuels
 
-Le crawler backend est acté comme projet parallèle, décidé en connaissance des risques
-exposés : en opérant depuis une infrastructure identifiable, l'exploitant devient
-l'acteur désigné, et l'exposition au titre de l'extraction substantielle de base de
-données se concentre sur lui plutôt que de se diluer dans le trafic des utilisateurs.
-Le dépôt est maintenu privé.
+Mesuré le 2026-09-05 sur 12 photos réelles de Peugeot 308 (66 paires, 12 transformations
+chacune), en vue de la dédup multi-sites.
 
-L'extension V1 ne lit pas ce backend. Le jour où elle le fera, la déclaration Store,
-le but unique et les `host_permissions` devront être repris.
+Distances inter-voitures : dHash min **17**, médiane 27. pHash min **12**, médiane 28.
+
+Robustesse, distance maximale observée : redimensionnement et JPEG ≤ 3 ; saturation 3 ;
+luminosité 5 ; **watermark différent 7 en dHash contre 16 en pHash** ; recadrage 3 % → 8,
+7 % → 20, 12 % → 27 ; miroir 43.
+
+**Conclusion.** Le seuil utile est **dHash ≤ 8** : aucun faux positif sur l'échantillon, et
+il capte le cas dominant du fichier identique republié. Le recadrage au-delà de 7 % et le
+miroir lui échappent — il n'existe aucun seuil séparant « même photo recadrée à 7 % » de
+« voiture différente ». dHash est préférable à pHash sur le critère décisif, le changement
+de watermark, garanti entre deux sites.
+
+Précision élevée, rappel moyen : c'est le bon compromis, une fusion erronée affichant une
+contre-vérité à un marchand quand un doublon manqué ne fait que perdre une occasion.
+
+Rappel récupérable sans stocker d'images : hasher **toutes** les photos et rapprocher dès
+qu'une seule paire passe sous le seuil ; stocker aussi le hash de l'image retournée pour
+le miroir ; toujours confirmer par le tuple technique, jamais fusionner sur la photo seule.
+
+Réserves : 66 paires seulement — sur 500 000 annonces le minimum inter-voitures descendra
+nettement — et test mené sur des vignettes 352×264.
+
+Un **autoencodeur serait le mauvais outil** : son latent est optimisé pour la
+reconstruction, pas pour la similarité, et deux voitures identiques de couleur se
+reconstruisent pareil. Un embedding contrastif pré-entraîné (DINOv2, CLIP) est à la fois
+plus adapté à la tâche, plus compact et non inversible en pratique.
+
+## 17. Décisions d'exploitation
+
+Le crawl et la mutualisation sont actés en connaissance des risques exposés : en opérant
+depuis une infrastructure identifiable, l'exploitant devient l'acteur désigné, et
+l'exposition au titre du droit des producteurs de bases de données — extraction comme
+réutilisation — se concentre sur lui. Le dépôt est maintenu privé.
+
+La position retenue est défendable parce qu'elle est exacte : **des constats dérivés sur
+des annonces consultées, jamais une réplication de la base.** Ni descriptions, ni photos,
+ni recherche d'annonces hébergée, ni lien détournant l'utilisateur. La déclaration au
+Chrome Web Store est complète et conforme à ce que le produit fait réellement.
+
+Un avis d'avocat spécialisé en propriété intellectuelle reste recommandé avant
+commercialisation.
