@@ -2,8 +2,12 @@
   "manifest_version": 3,
   "name": "adscope",
   "version": "0.1.0",
-  "description": "Affiche l'ancienneté réelle des annonces automobiles et signale celles qui ont été remontées.",
+  "description": "Affiche l'ancienneté réelle des annonces automobiles et signale celles qui ont été réactualisées.",
   "permissions": ["storage"],
+  "host_permissions": ["http://localhost:8000/*"],
+  "background": {
+    "service_worker": "src/sw.js"
+  },
   "action": {
     "default_title": "adscope",
     "default_popup": "popup/popup.html"
