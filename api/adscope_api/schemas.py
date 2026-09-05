@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 Precision = Literal["day", "month", "year"]
+SellerType = Literal["pro", "private"]
 
 
 class ObservationIn(BaseModel):
@@ -16,8 +17,11 @@ class ObservationIn(BaseModel):
     year: int | None = None
     mileage: int | None = None
     postal_code: str | None = None
+    seller_type: SellerType | None = None
     published_days_ago: int | None = Field(default=None, ge=0, le=3650)
     published_precision: Precision = "day"
+    published_at: datetime | None = None
+    bumped_at: datetime | None = None
 
 
 class ObservationsIn(BaseModel):
@@ -42,8 +46,12 @@ class SignalsOut(BaseModel):
     last_seen: datetime
     observations: int
     tracked_days: int
+    seller_type: SellerType | None
     site_published_first: date | None
+    published_at: datetime | None
+    bumped_at: datetime | None
     real_age_days: int | None
+    age_source: Literal["exact", "inferred"] | None
     republished: bool
     republished_at: date | None
     price: int | None

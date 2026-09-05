@@ -28,6 +28,9 @@ class Listing(Base):
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     observations: Mapped[int] = mapped_column(default=0)
 
+    seller_type: Mapped[str | None] = mapped_column(String(8), index=True, default=None)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    bumped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     site_published_first: Mapped[date | None] = mapped_column(Date, default=None)
     site_published_last: Mapped[date | None] = mapped_column(Date, default=None)
     disappeared_at: Mapped[datetime | None] = mapped_column(

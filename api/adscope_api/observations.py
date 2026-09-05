@@ -7,7 +7,7 @@ from .models import Listing, PricePoint
 from .schemas import ObservationIn
 
 FINGERPRINT_FIELDS = ("brand", "model", "version", "year", "mileage")
-VEHICLE_FIELDS = FINGERPRINT_FIELDS + ("postal_code",)
+VEHICLE_FIELDS = FINGERPRINT_FIELDS + ("postal_code", "seller_type")
 
 
 def record(session, observation: ObservationIn, source: str, now=None) -> Listing:
@@ -38,6 +38,21 @@ def record(session, observation: ObservationIn, source: str, now=None) -> Listin
     listing.last_seen = max(listing.last_seen, now)
     listing.observations += 1
     listing.disappeared_at = None
+
+    # Un horodatage exact fait autorité ; les bornes inférées ne servent
+    # qu'aux sites qui ne donnent qu'un libellé relatif.
+    if observation.published_at is not None:
+        listing.published_at = (
+            observation.published_at
+            if listing.published_at is None
+            else min(listing.published_at, observation.published_at)
+        )
+    if observation.bumped_at is not None:
+        listing.bumped_at = (
+            observation.bumped_at
+            if listing.bumped_at is None
+            else max(listing.bumped_at, observation.bumped_at)
+        )
 
     if observation.published_days_ago is not None:
         published = (now - timedelta(days=observation.published_days_ago)).date()

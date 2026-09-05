@@ -4,6 +4,10 @@ from .models import Listing
 
 REPUBLICATION_THRESHOLD_DAYS = 7
 
+# En dessous, republier et réindexer à quelques heures d'écart est le
+# fonctionnement normal d'un site, pas une remontée.
+BUMP_MIN_DAYS = 1
+
 
 def signals_for(listing: Listing, now=None) -> dict:
     if now is None:
@@ -18,8 +22,12 @@ def signals_for(listing: Listing, now=None) -> dict:
         "last_seen": listing.last_seen,
         "observations": listing.observations,
         "tracked_days": (now - listing.first_seen).days,
+        "seller_type": listing.seller_type,
         "site_published_first": listing.site_published_first,
+        "published_at": listing.published_at,
+        "bumped_at": listing.bumped_at,
         "real_age_days": None,
+        "age_source": None,
         "republished": False,
         "republished_at": None,
         "price": None,
@@ -29,12 +37,23 @@ def signals_for(listing: Listing, now=None) -> dict:
         "stable_days": None,
     }
 
-    first, last = listing.site_published_first, listing.site_published_last
-    if first is not None:
-        out["real_age_days"] = (now.date() - first).days
-        if last is not None and (last - first).days > REPUBLICATION_THRESHOLD_DAYS:
+    # Un horodatage exact rend la republication observée plutôt que déduite :
+    # ni seuil de tolérance, ni faux positif possible.
+    if listing.published_at is not None:
+        out["age_source"] = "exact"
+        out["real_age_days"] = (now - listing.published_at).days
+        bumped = listing.bumped_at
+        if bumped is not None and (bumped - listing.published_at).days >= BUMP_MIN_DAYS:
             out["republished"] = True
-            out["republished_at"] = last
+            out["republished_at"] = bumped.date()
+    else:
+        first, last = listing.site_published_first, listing.site_published_last
+        if first is not None:
+            out["age_source"] = "inferred"
+            out["real_age_days"] = (now.date() - first).days
+            if last is not None and (last - first).days > REPUBLICATION_THRESHOLD_DAYS:
+                out["republished"] = True
+                out["republished_at"] = last
 
     if points:
         out["price"] = points[-1].price
