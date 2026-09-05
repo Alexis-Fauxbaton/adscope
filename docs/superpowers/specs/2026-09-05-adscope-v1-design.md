@@ -420,6 +420,27 @@ exactement le fait que le site n'affiche pas et que le produit doit révéler.
 **Conséquence : leboncoin est le meilleur premier site pour l'extension**, indépendamment
 de toute question de crawl — l'extension lit les pages que le marchand consulte lui-même.
 
+## 10 ter. La preuve, constatée le 2026-09-06
+
+Sur une fiche leboncoin réelle — Volkswagen Tiguan BUSINESS 2.0 TDI, CVD Automobiles,
+Palaiseau, 15 000 € :
+
+| | |
+|---|---|
+| ce que **leboncoin** affiche sous le prix | `aujourd'hui à 21:14` |
+| ce que **adscope** lit dans la même page | en ligne depuis **4 jours**, remontée aujourd'hui |
+
+Le site n'omet pas l'ancienneté : il affiche `index_date` à l'endroit où le lecteur
+comprend « date de publication ». Une annonce de quatre jours se présente comme neuve
+parce que le vendeur a payé une remontée le soir même.
+
+C'est la proposition de valeur du produit, désormais constatée plutôt que supposée, et
+elle tient en une capture d'écran : *leboncoin vous dit « aujourd'hui », la voiture est
+là depuis quatre jours.*
+
+La donnée qui permet de le dire est déjà dans la page que le marchand a ouverte. Aucune
+requête supplémentaire, aucune base, aucun historique préalable.
+
 ## 11. Affichage
 
 ### Encart, sous le prix de la fiche
