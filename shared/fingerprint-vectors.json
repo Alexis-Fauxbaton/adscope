@@ -1,0 +1,21 @@
+[
+  {"brand": "PEUGEOT", "model": "308 II phase 2", "version": "1.2 PURETECH 110 STYLE",
+   "year": 2018, "mileage": 62686,
+   "key": "PEUGEOT|308 II PHASE 2|1 2 PURETECH 110 STYLE|2018|62686",
+   "fingerprint": "54b22edbd39c"},
+  {"brand": "PEUGEOT", "model": "308 II phase 2", "version": "1.5 BLUEHDI 130 STYLE",
+   "year": 2019, "mileage": 87545,
+   "key": "PEUGEOT|308 II PHASE 2|1 5 BLUEHDI 130 STYLE|2019|87545",
+   "fingerprint": "b15b5ff0e88a"},
+  {"brand": "Citroën", "model": "C4 Picasso", "version": "1.6 BlueHDi  120 Shine",
+   "year": 2016, "mileage": 118400,
+   "key": "CITROEN|C4 PICASSO|1 6 BLUEHDI 120 SHINE|2016|118400",
+   "fingerprint": "13b6e4bc4bc1"},
+  {"brand": "BMW", "model": "Série 3 (F30)", "version": "320d xDrive",
+   "year": 2019, "mileage": 88123,
+   "key": "BMW|SERIE 3 F30|320D XDRIVE|2019|88123",
+   "fingerprint": "946e1f6a35ed"},
+  {"brand": null, "model": null, "version": null, "year": null, "mileage": null,
+   "key": "||||",
+   "fingerprint": "45ca31c3315a"}
+]
