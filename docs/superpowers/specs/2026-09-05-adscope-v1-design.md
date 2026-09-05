@@ -385,6 +385,41 @@ lente, repli Playwright. C'est le risque technique majeur du projet, devant l'ex
 Le crawler écrit directement en base. L'API sert les lectures et les observations
 utilisateur.
 
+## 10 bis. Relevé comparatif des sites — 2026-09-05
+
+| site | HTTP nu | anti-bot | robots.txt |
+|---|---|---|---|
+| lacentrale.fr | 403 | DataDome, défi JS | illisible, lui-même derrière DataDome |
+| leboncoin.fr | **200**, contenu complet | aucun sur ces routes | **interdit l'accès automatisé en toutes lettres** |
+| autoscout24.fr | **200**, 754 Ko, JSON-LD | aucun | `Disallow: /lst?` — la page de résultats est fermée à tous |
+| paruvendu.fr, largus.fr | 404 sur les URL testées | — | non évalué |
+
+En-tête du `robots.txt` de leboncoin, mot pour mot : *« It's forbidden to use search robots
+or other automatic methods to access Leboncoin.fr. Access is only permitted with special
+permission from Leboncoin.fr. »*
+
+### Ce que leboncoin expose, et qui vaut mieux que La Centrale
+
+Sur une fiche, en clair dans le payload :
+
+```
+"first_publication_date": "2026-08-21 18:07:27"
+"index_date":             "2026-09-03 13:24:42"
+"price": [29990]
+```
+
+**Un horodatage exact**, pas un libellé arrondi. Cela supprime d'un coup le problème de
+précision de §5 et §9 : plus de `published_precision`, plus de seuil de 7 jours, plus de
+faux positif sur les libellés en mois.
+
+Et surtout, **`index_date` est la date de dernière remontée**. L'écart entre les deux dates
+est la republication, donnée directement plutôt qu'inférée. Or leboncoin trie par défaut
+sur `index_date` : une annonce remontée réapparaît en tête comme si elle était neuve. C'est
+exactement le fait que le site n'affiche pas et que le produit doit révéler.
+
+**Conséquence : leboncoin est le meilleur premier site pour l'extension**, indépendamment
+de toute question de crawl — l'extension lit les pages que le marchand consulte lui-même.
+
 ## 11. Affichage
 
 ### Encart, sous le prix de la fiche
