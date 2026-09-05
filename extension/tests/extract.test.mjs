@@ -106,9 +106,9 @@ test('une annonce ancienne ou remontée est signalée', () => {
   assert.equal(signals(bumped, NOW).notable, true)
 })
 
-test('la fixture réelle ne signale que la minorité utile', () => {
+test('seule une minorité des annonces pro est notable', () => {
   const pro = listings.filter((l) => l.isPro)
   const notable = pro.filter((l) => signals(l, NOW).notable)
-  assert.ok(notable.length < pro.length, 'le filtre ne réduit rien')
-  assert.ok(notable.length >= 1, 'le filtre supprime tout')
+  assert.ok(notable.length < pro.length, 'tout est notable, le tri ne sert à rien')
+  assert.ok(notable.length >= 1, 'rien n est notable, le seuil est trop haut')
 })

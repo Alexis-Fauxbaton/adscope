@@ -3,10 +3,12 @@
   const { duration, ago } = ADS.format
   const MARK = 'data-adscope'
 
+  // Deux poids visuels : la mention discrète confirme que l'extension
+  // travaille, l'alerte ne se déclenche que sur ce qui mérite l'œil.
   const badge = (listing, now) => {
     const s = signals(listing, now)
     const el = document.createElement('div')
-    el.className = 'adscope-badge' + (s.bumped ? ' adscope-badge--bumped' : '')
+    el.className = 'adscope-badge' + (s.notable ? ' adscope-badge--notable' : ' adscope-badge--quiet')
     el.setAttribute(MARK, listing.siteId)
     el.textContent = s.bumped
       ? `⟳ remontée ${ago(s.bumpedDaysAgo)} · en ligne depuis ${duration(s.onlineDays)}`
@@ -27,7 +29,6 @@
     const pro = listings.filter((l) => l.isPro)
     let placed = 0
     for (const listing of pro) {
-      if (!signals(listing, now).notable) continue
       const card = cardFor(listing.siteId)
       if (!card || card.querySelector(`[${MARK}]`)) continue
       card.appendChild(badge(listing, now))

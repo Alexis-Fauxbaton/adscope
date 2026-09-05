@@ -10,10 +10,16 @@
   letter-spacing: 0.01em;
 }
 
-.adscope-badge--bumped {
+.adscope-badge--quiet {
+  opacity: 0.75;
+  font-weight: 400;
+}
+
+.adscope-badge--notable {
   border-color: #f5a524;
   background: #fef6e7;
   color: #92610a;
+  font-weight: 600;
 }
 
 .adscope-panel {
