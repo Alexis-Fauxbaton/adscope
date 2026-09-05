@@ -630,19 +630,21 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 Source = Literal["user", "crawler"]
+Precision = Literal["day", "month", "year"]
 
 
 class ObservationIn(BaseModel):
     site: str = Field(max_length=8)
     site_id: str = Field(max_length=32)
-    price: int | None = None
+    price: int | None = Field(default=None, ge=0)
     brand: str | None = None
     model: str | None = None
     version: str | None = None
     year: int | None = None
     mileage: int | None = None
     postal_code: str | None = None
-    published_days_ago: int | None = None
+    published_days_ago: int | None = Field(default=None, ge=0, le=3650)
+    published_precision: Precision = "day"
 
 
 class ObservationsIn(BaseModel):
@@ -674,8 +676,8 @@ class SignalsOut(BaseModel):
     republished_at: date | None
     price: int | None
     price_history: list[PricePointOut]
-    price_delta: int | None
-    price_delta_days: int | None
+    price_delta_since_first: int | None
+    price_delta_days_since_first: int | None
     stable_days: int | None
 ```
 
@@ -810,7 +812,7 @@ def test_stable_price_reports_days_since_last_change(session):
     out = signals_for(session, listing, now=NOW + timedelta(days=12))
     assert out["price"] == 9900
     assert out["stable_days"] == 12
-    assert out["price_delta"] is None
+    assert out["price_delta_since_first"] is None
 
 
 def test_price_drop_is_reported_with_its_window(session):
@@ -819,8 +821,8 @@ def test_price_drop_is_reported_with_its_window(session):
     session.commit()
     out = signals_for(session, listing, now=NOW + timedelta(days=12))
     assert out["price"] == 9900
-    assert out["price_delta"] == -1000
-    assert out["price_delta_days"] == 12
+    assert out["price_delta_since_first"] == -1000
+    assert out["price_delta_days_since_first"] == 12
     assert [p["price"] for p in out["price_history"]] == [10900, 9900]
 
 
@@ -891,8 +893,8 @@ def signals_for(session, listing: Listing, now=None) -> dict:
         "republished_at": None,
         "price": None,
         "price_history": [],
-        "price_delta": None,
-        "price_delta_days": None,
+        "price_delta_since_first": None,
+        "price_delta_days_since_first": None,
         "stable_days": None,
     }
 
@@ -908,8 +910,8 @@ def signals_for(session, listing: Listing, now=None) -> dict:
         out["price_history"] = [{"at": p.observed_at, "price": p.price} for p in points]
         out["stable_days"] = (now - points[-1].observed_at).days
         if len(points) > 1:
-            out["price_delta"] = points[-1].price - points[0].price
-            out["price_delta_days"] = (now - points[0].observed_at).days
+            out["price_delta_since_first"] = points[-1].price - points[0].price
+            out["price_delta_days_since_first"] = (now - points[0].observed_at).days
 
     return out
 ```
