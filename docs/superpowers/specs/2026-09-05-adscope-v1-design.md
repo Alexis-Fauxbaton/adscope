@@ -48,6 +48,18 @@ Pièges identifiés, à ne pas confondre avec la date de publication :
 - `firstTrafficDate` (`"2018-09-14"`) est la première mise en circulation du véhicule.
 - `creationDate` et `createdDate` présents dans le HTML se rapportent au concessionnaire.
 
+Relevé sur la page de résultats (`/listing?makesModelsCommercialNames=PEUGEOT:308`) :
+
+- **L'ancienneté n'y figure pas.** `Publiée il y a` est absent de l'intégralité de la
+  page. Cette information n'existe que sur la fiche.
+- **Les cartes portent en revanche tout le nécessaire à l'empreinte** : marque, modèle,
+  version, année, boîte, kilométrage, énergie, prix. Vingt-quatre cartes par page.
+- La localisation y est hétérogène — numéro de département sur certaines cartes, nom de
+  ville sur d'autres — là où la fiche donne un code postal complet. D'où son exclusion
+  de l'empreinte (§4).
+- Le site marque lui-même d'un `Déjà consultée` les annonces déjà ouvertes. Signal
+  propre à La Centrale, sans date associée, non exploité.
+
 La navigation automatisée reçoit un 403 au premier appel. Sans incidence pour
 l'extension, qui lit le DOM d'une page chargée par l'utilisateur dans sa propre session.
 
@@ -75,10 +87,23 @@ Normalisation d'une chaîne :
 4. Remplacement de toute suite de caractères hors `[A-Z0-9]` par une espace.
 5. `trim`.
 
-Clé : `[brand, model, year, mileage, postalCode]` jointe par `|`.
-`brand`, `model` et `postalCode` sont normalisés ; `year` et `mileage` sont convertis
+Clé : `[brand, model, version, year, mileage]` jointe par `|`.
+`brand`, `model` et `version` sont normalisés ; `year` et `mileage` sont convertis
 en chaîne sans arrondi. Un champ absent devient une chaîne vide, la position est
 conservée.
+
+**Le code postal est délibérément exclu du hash.** La fiche expose un code postal
+complet (`75015`) tandis que les cartes de résultats affichent tantôt un numéro de
+département (`93`), tantôt un nom de ville (`PARIS`). Inclure ce champ produirait deux
+empreintes différentes pour le même véhicule selon la page d'observation, ce qui
+romprait précisément le rapprochement que l'empreinte doit permettre. La localisation
+est stockée à part, comme signal de désambiguïsation au moment de la fusion, jamais
+dans le hash.
+
+Les cinq champs retenus sont présents et cohérents sur les deux surfaces. Le
+kilométrage exact suffit à lui seul à discriminer la quasi-totalité des cas ; une
+collision résiduelle entre deux véhicules identiques au kilomètre près reste possible
+et sera arbitrée à la fusion, pas au hachage.
 
 Empreinte : `sha256(clé, utf-8)`, hexadécimal, **12 premiers caractères**.
 
@@ -90,13 +115,17 @@ a évolué se fera par distance, au moment où la détection de republication se
 Vérifiés identiques en JS et en Python le 2026-09-05. À placer dans
 `shared/fingerprint-vectors.json` et à asserter des deux côtés.
 
-| brand | model | year | mileage | CP | clé normalisée | empreinte |
-|---|---|---|---|---|---|---|
-| PEUGEOT | 308 II phase 2 | 2018 | 62686 | 75015 | `PEUGEOT\|308 II PHASE 2\|2018\|62686\|75015` | `7c3d517a035c` |
-| Citroën | C4 Picasso  1.6 BlueHDi | 2016 | 118400 | 69003 | `CITROEN\|C4 PICASSO 1 6 BLUEHDI\|2016\|118400\|69003` | `d3c993ccd417` |
-| Renault | Mégane IV Estate | 2021 | 45000 | 33000 | `RENAULT\|MEGANE IV ESTATE\|2021\|45000\|33000` | `fb3f6cd58600` |
-| BMW | Série 3 (F30) 320d | 2019 | 88123 | 06000 | `BMW\|SERIE 3 F30 320D\|2019\|88123\|06000` | `04a8af6998a2` |
-| (vide) | (vide) | (vide) | (vide) | (vide) | `\|\|\|\|` | `45ca31c3315a` |
+| clé normalisée | empreinte |
+|---|---|
+| `PEUGEOT\|308 II PHASE 2\|1 2 PURETECH 110 STYLE\|2018\|62686` | `54b22edbd39c` |
+| `PEUGEOT\|308 II PHASE 2\|1 5 BLUEHDI 130 STYLE\|2019\|87545` | `b15b5ff0e88a` |
+| `CITROEN\|C4 PICASSO\|1 6 BLUEHDI 120 SHINE\|2016\|118400` | `13b6e4bc4bc1` |
+| `BMW\|SERIE 3 F30\|320D XDRIVE\|2019\|88123` | `946e1f6a35ed` |
+| `\|\|\|\|` | `45ca31c3315a` |
+
+Sources : `brand`, `model`, `version`, `year`, `mileage` tels qu'affichés
+respectivement sur la fiche (JSON-LD) et sur la carte de résultats. Les deux premiers
+vecteurs correspondent à des annonces réelles relevées le 2026-09-05.
 
 ## 5. Extraction
 
