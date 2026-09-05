@@ -124,6 +124,14 @@ Cascade à trois niveaux, premier succès retenu :
    prix par le nœud correspondant à `/\d[\d\s.]*€/` de plus grande taille de police dans
    la moitié haute du document.
 
+**L'unité du libellé d'ancienneté doit toujours être transmise**, dans le champ
+`published_precision` (`day` | `month` | `year`). Ce n'est pas un détail de confort : un
+libellé « il y a 2 mois » reste constant une trentaine de jours pendant que le temps
+avance, ce qui ferait avancer la borne haute de publication et déclencherait une
+republication fictive dès le huitième jour d'observation. Une observation d'unité
+grossière est un **minorant d'ancienneté** : elle peut abaisser `site_published_first`,
+jamais relever `site_published_last`. Voir §9.
+
 **En cas d'échec complet, rien n'est injecté.** Jamais d'encart dégradé ni de « N/A ». Un
 compteur local `misses` est incrémenté et affiché dans la popup : c'est le signal qui
 permet à l'utilisateur de constater que le site a changé et de le signaler.
@@ -258,6 +266,35 @@ Deux cas doivent être distingués ; la V1 ne traite que le premier :
 - **Sous un nouvel identifiant** — annonce supprimée puis recréée. Seule l'empreinte
   permet le rattachement. Hors périmètre ; l'empreinte est stockée pour le rendre
   possible plus tard.
+
+**Seules les observations d'unité journalière font foi pour la borne haute.** Une
+observation de précision `month` ou `year` met à jour `site_published_first` par
+minimum, jamais `site_published_last`. Sans cette règle, toute annonce de plus de deux
+mois déclenche une republication fictive au huitième jour de suivi — mesuré, et
+précisément la contre-vérité affichée à un marchand que §16 dit vouloir éviter.
+
+`published_days_ago` est borné à l'entrée entre 0 et 3650 jours. Les deux bornes de
+publication étant monotones par construction — minimum d'un côté, maximum de l'autre —
+une seule valeur aberrante empoisonne l'annonce **définitivement** : aucune observation
+saine ultérieure ne peut réparer.
+
+## 9 bis. Concurrence — dette connue, bloquante avant mise en ligne
+
+Mesuré sur la V1 et **volontairement non corrigé** : à un seul utilisateur, ces défauts
+n'ont aucun effet ; ils deviennent bloquants dès que la mutualisation joue.
+
+- **Perte de mises à jour.** `record()` lit sans verrou puis écrit des littéraux. Sur dix
+  observations simultanées d'une même annonce, le compteur de vues n'avance que de 1 au
+  lieu de 10, et `site_published_first` peut avancer — violation de l'invariant. Correctif
+  attendu : `with_for_update()` ou incrément SQL atomique.
+- **Première observation simultanée d'une annonce inconnue.** Sans `ON CONFLICT` ni
+  reprise sur `IntegrityError`, deux utilisateurs ouvrant la même annonce neuve au même
+  instant provoquent un 500 pour l'un d'eux.
+
+À noter, sur le même terrain : **la règle « un point de prix par changement réel » tient
+sous concurrence**, le `flush()` prenant le verrou de ligne avant la lecture du dernier
+prix. Mais c'est un effet de bord, pas une intention écrite : déplacer ce `flush` casserait
+la garantie sans qu'aucun test ne le signale.
 
 ## 10. Crawler — politique
 

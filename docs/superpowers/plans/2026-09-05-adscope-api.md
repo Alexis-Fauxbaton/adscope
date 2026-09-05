@@ -706,7 +706,7 @@ def record(session, observation: ObservationIn, source: str, now=None) -> Listin
     if listing is None:
         listing = Listing(
             site=observation.site, site_id=observation.site_id,
-            first_seen=now, last_seen=now,
+            first_seen=now, last_seen=now, observations=0,
         )
         session.add(listing)
 
@@ -1301,6 +1301,20 @@ git commit -m "Routes FastAPI : observations, batch, fiche, licence"
 ```
 
 ---
+
+## Corrections apportées au plan après exécution
+
+- **`observations=0` explicite à la création d'un `Listing`** (tâche 3). `mapped_column(default=0)`
+  est un défaut appliqué à l'`INSERT` : l'attribut vaut `None` en Python avant le flush, donc
+  `listing.observations += 1` lève un `TypeError`. Le code initialement écrit ici ne tournait pas
+  — les 7 tests de la tâche 3 échouaient. Corrigé ci-dessus pour que le crawler, qui réutilisera
+  `record()`, n'hérite pas du piège.
+
+- **`published_precision` ajouté à `ObservationIn`** (tâches 3 et 6). Voir spec §5 et §9 : une
+  observation d'unité grossière ne doit jamais relever `site_published_last`.
+
+- **Bornes d'entrée** sur `published_days_ago` (0 à 3650) et `price` (≥ 0). Les bornes de
+  publication étant monotones, une valeur aberrante est irréversible.
 
 ## Ce que ce plan ne couvre pas
 
