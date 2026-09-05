@@ -26,21 +26,31 @@ const NB = '\u00a0'
 const NARROW = '\u202f'
 
 test('la pastille dit « réactualisée », jamais « remontée »', () => {
-  const [l, s] = of('3254194817')
-  const text = view.badge(l, s, null)
-  assert.match(text, /⟳ réactualisée il y a 2 j · en ligne depuis 14 j/)
-  assert.ok(!text.includes('remont'))
+  const [, s] = of('3254194817')
+  const { page } = view.badge(s, null)
+  assert.match(page, /⟳ réactualisée il y a 2 j · en ligne depuis 14 j/)
+  assert.ok(!page.includes('remont'))
 })
 
 test('sans API la pastille tient avec la seule page', () => {
-  const [l, s] = of('3254194817')
-  assert.equal(view.badge(l, s, null), view.badge(l, s, undefined))
-  assert.ok(!view.badge(l, s, null).includes('▼'))
+  const [, s] = of('3254194817')
+  assert.deepEqual(view.badge(s, null), view.badge(s, undefined))
+  assert.equal(view.badge(s, null).tracked, null)
 })
 
 test('la baisse de prix vient des signaux et s\'ajoute à la pastille', () => {
-  const [l, s, r] = of('3254194817')
-  assert.equal(view.badge(l, s, r), `⟳ réactualisée il y a 2 j · en ligne depuis 14 j · ▼ −800${NB}€ en 12 j`)
+  const [, s, r] = of('3254194817')
+  assert.equal(view.badge(s, r).tracked, `▼ −800${NB}€ en 12 j`)
+})
+
+test('la pastille sépare la page du suivi en deux fragments', () => {
+  const [, s, r] = of('3254194817')
+  const b = view.badge(s, r)
+  // Ce que dit la page ne porte jamais la baisse, qui suppose une observation
+  // antérieure ; l'inverse non plus.
+  assert.ok(!b.page.includes('▼'))
+  assert.ok(!b.tracked.includes('en ligne'))
+  assert.deepEqual(Object.keys(b), ['page', 'tracked'])
 })
 
 test('une hausse ou un prix stable ne produit aucune baisse', () => {

@@ -19,7 +19,9 @@ ADS.view = (() => {
     return days ? `${amount} en ${duration(days)}` : amount
   }
 
-  const badge = (listing, s, r) => [age(s), drop(r)].filter(Boolean).join(' · ')
+  // Deux fragments, jamais concaténés : `page` se lit sur l'annonce ouverte,
+  // `tracked` n'existe que parce que l'annonce a déjà été vue avant.
+  const badge = (s, r) => ({ page: age(s), tracked: drop(r) })
 
   const tracking = (r) => {
     const rows = []

@@ -57,14 +57,20 @@
     el.replaceChildren(...nodes)
   }
 
+  const stampOf = (siteId) => (ADS.sync.of(siteId) ? 'sync' : 'page')
+
+  // L'observateur rejoue ce rendu à chaque lot de mutations de la fiche, qui en
+  // produit sans cesse. L'estampille se lit sur le panneau déjà posé : tant
+  // qu'elle correspond, ni le JSON de la page ni le balayage du DOM ne sont
+  // refaits.
   const render = () => {
+    let el = document.querySelector(`[${MARK}]`)
+    if (el && el.getAttribute(SRC) === stampOf(el.getAttribute(MARK))) return
     const listings = fromDocument(document)
     const [listing] = listings
     if (!listing) return
     ADS.sync.send(listings)
     const remote = ADS.sync.of(listing.siteId)
-    const stamp = remote ? 'sync' : 'page'
-    let el = document.querySelector(`[${MARK}]`)
     const node = dateNode()
     if (!el) {
       const target = node || document.querySelector('h1')
@@ -72,8 +78,8 @@
       el = document.createElement('div')
       el.setAttribute(MARK, listing.siteId)
       target.parentElement.insertBefore(el, target.nextSibling)
-    } else if (el.getAttribute(SRC) === stamp) return
-    el.setAttribute(SRC, stamp)
+    }
+    el.setAttribute(SRC, remote ? 'sync' : 'page')
     fill(el, listing, remote, node && node.textContent.trim())
   }
 

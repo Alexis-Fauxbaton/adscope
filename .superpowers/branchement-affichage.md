@@ -52,12 +52,25 @@ d'extension invalidé pendant une navigation.
 
 **Séparation des origines** : le panneau est découpé en deux sections légendées, `LU SUR
 LA PAGE` et `SUIVI ADSCOPE`, et les lignes du suivi portent un filet de couleur. La
-citation du site est encadrée en pointillés, à part des deux. Aucune donnée du site n'est
-présentée comme une observation adscope, ni l'inverse.
+citation du site est encadrée en pointillés, à part des deux. La pastille suit la même
+règle : `view.badge` rend deux fragments (`{page, tracked}`) que `paint` pose dans deux
+`span` distincts, celui du suivi portant `.adscope-badge-tracked` et le même filet indigo
+que le panneau. Aucune donnée du site n'est présentée comme une observation adscope, ni
+l'inverse.
 
-## 5. Tests — 30 au total (13 conservés, 17 ajoutés)
+## 5. Coût du rendu sous l'observateur
 
-`tests/view.test.mjs` (10) : fusion des signaux sur les fixtures d'annonces plus une
+L'observateur est branché sur `document.body` en `subtree` d'une SPA qui mute sans arrêt.
+`render()` commence donc par la comparaison d'estampille, avant toute extraction : le
+panneau déjà posé porte le `siteId` dans son attribut de marquage, ce qui suffit à décider
+sans rouvrir `__NEXT_DATA__` (100 à 300 Ko de JSON à parser) ni rebalayer le document à la
+recherche de la date affichée. Un lot de mutations qui ne change rien ne coûte plus qu'un
+`querySelector` et une lecture d'attribut. Le travail lourd n'a lieu que deux fois par
+consultation : au premier rendu, puis à l'arrivée des signaux.
+
+## 6. Tests — 33 au total (13 conservés, 20 ajoutés)
+
+`tests/view.test.mjs` (11) : fusion des signaux sur les fixtures d'annonces plus une
 fixture `signals-batch.json` calquée sur `SignalsOut`. Couvre la baisse, le prix stable,
 la contradiction présente et absente, la séparation des deux sections, et le rendu
 identique avec `null` ou `undefined` en guise de signaux.
@@ -67,13 +80,20 @@ transmission aux abonnés, abonné tardif, et les trois dégradations — `{ok:f
 `lastError` avec réponse vide, exception à l'émission. Un faux `chrome` sert de service
 worker, le module est rechargé à chaque test.
 
-`node --test tests/*.test.mjs` → 30/30. `pytest` côté API → 61/61, inchangé.
+`tests/dom.test.mjs` (2) : un DOM minimal — une centaine de lignes, sans dépendance —
+rejoue les deux content scripts. Il vérifie que la fiche n'extrait ni ne balaie plus rien
+sur vingt lots de mutations successifs (le test échoue sur la version antérieure du
+rendu), et que la pastille pose bien un nœud par origine, la baisse n'apparaissant que
+dans celui du suivi.
+
+`node --test tests/*.test.mjs` → 33/33. `pytest` côté API → 61/61, inchangé.
 
 ## Ce qui n'est pas fait
 
 - Pas de cache local (`a:lc:<id>`) ni de repli hors ligne : la spec le prévoit, il n'entre
   pas dans ce lot.
-- Pas de test de rendu DOM : ni jsdom ni `package.json` dans le dépôt, la logique
-  d'affichage a donc été sortie dans `view.js` pour être couverte sans navigateur.
+- Pas de jsdom ni de `package.json` : la logique d'affichage vit dans `view.js`, couverte
+  sans navigateur, et le stub de `dom.test.mjs` ne couvre que les appels que les deux
+  content scripts font réellement.
 - `detail.js` pose encore son panneau sous le `h1` d'une page de résultats faute de date
   lue — comportement antérieur, non traité ici.

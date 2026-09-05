@@ -8,6 +8,13 @@
     return link && (link.closest('article') || link)
   }
 
+  const span = (cls, text) => {
+    const el = document.createElement('span')
+    el.className = cls
+    el.textContent = text
+    return el
+  }
+
   // Deux poids visuels : la mention discrète confirme que l'extension
   // travaille, l'alerte ne se déclenche que sur ce qui mérite l'œil.
   // La pastille est posée avec la seule page, puis réécrite si des signaux
@@ -23,12 +30,17 @@
       card.appendChild(el)
     }
     const s = signals(listing, now)
+    const { page, tracked } = ADS.view.badge(s, remote)
     el.className =
       'adscope-badge' +
-      (s.notable || ADS.view.drop(remote) ? ' adscope-badge--notable' : ' adscope-badge--quiet') +
+      (s.notable || tracked ? ' adscope-badge--notable' : ' adscope-badge--quiet') +
       (listing.sellerType === 'private' ? ' adscope-badge--private' : '')
     el.setAttribute(SRC, stamp)
-    el.textContent = ADS.view.badge(listing, s, remote)
+    // Un nœud par origine : le suivi mutualisé ne se fond pas dans la page.
+    el.replaceChildren(
+      span('adscope-badge-page', page),
+      ...(tracked ? [span('adscope-badge-tracked', tracked)] : []),
+    )
     return true
   }
 
