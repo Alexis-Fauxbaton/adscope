@@ -19,16 +19,26 @@
     return link && (link.closest('article') || link)
   }
 
+  let reported = false
+
   const render = () => {
     const now = new Date()
-    for (const listing of fromDocument(document)) {
-      if (!listing.isPro) continue
+    const listings = fromDocument(document)
+    const pro = listings.filter((l) => l.isPro)
+    let placed = 0
+    for (const listing of pro) {
       const card = cardFor(listing.siteId)
       if (!card || card.querySelector(`[${MARK}]`)) continue
       card.appendChild(badge(listing, now))
+      placed++
+    }
+    if (!reported && listings.length) {
+      reported = true
+      console.log(`[adscope] ${listings.length} annonces, ${pro.length} pro, ${placed} pastilles`)
     }
   }
 
+  console.log('[adscope] script chargé sur', location.pathname)
   render()
 
   // Les résultats se rechargent sans navigation : on réobserve le conteneur.
