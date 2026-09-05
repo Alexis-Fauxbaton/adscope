@@ -188,3 +188,17 @@ def test_unknown_seller_type_is_rejected(session):
 
     with pytest.raises(ValidationError):
         ObservationIn(site="lbc", site_id="1", seller_type="marchand")
+
+
+def test_bump_boundary_exactly_one_day_is_a_republication(session):
+    listing = record(session, exact(published_at=PUB, bumped_at=PUB + timedelta(days=1)),
+                     source="user", now=LATER)
+    session.commit()
+    assert signals_for(listing, now=LATER)["republished"] is True
+
+
+def test_bump_boundary_just_under_one_day_is_not(session):
+    listing = record(session, exact(published_at=PUB, bumped_at=PUB + timedelta(hours=23, minutes=59)),
+                     source="user", now=LATER)
+    session.commit()
+    assert signals_for(listing, now=LATER)["republished"] is False
