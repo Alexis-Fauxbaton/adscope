@@ -76,9 +76,8 @@ class PricePoint(Base):
     source: Mapped[str] = mapped_column(String(8))
     # Un point écrit parce que la semaine est passée, non parce que le prix a
     # bougé. Sans cette marque, `price_history` montrerait « 9 900 € → 9 900 € »
-    # comme s'il s'était passé quelque chose, et toute variation partirait de
-    # travers. Faux pour tout ce qui a été enregistré avant : c'étaient des
-    # changements.
+    # comme s'il s'était passé quelque chose. Faux pour tout ce qui a été
+    # enregistré avant : c'étaient des changements.
     confirmation: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false"
     )
@@ -111,14 +110,13 @@ class License(Base):
 
 
 class UsageDay(Base):
-    """L'usage du produit : des pages vues, par licence et par jour.
+    """L'usage du jour courant : une ligne par annonce vue, avec ses passages.
 
     Les points de prix ne mesuraient que les changements de prix : un marchand
     qui reparcourt chaque jour des annonces stables n'en produit aucun et
-    paraissait inactif. Le grain est ici l'annonce dans la journée — une ligne
-    par annonce vue, avec son compte de passages. Il donne les deux nombres
-    qu'on cherche, les pages vues et les annonces distinctes, sans table
-    d'événements ni horodatage à la seconde.
+    paraissait inactif. Le grain est ici l'annonce dans la journée. Il ne sert
+    qu'à dédoublonner les annonces pendant qu'elle dure : passée, son compte
+    tient dans `UsageSummary` et ces lignes-là sont effacées.
     """
 
     __tablename__ = "usage_days"
@@ -130,4 +128,23 @@ class UsageDay(Base):
     listing_id: Mapped[int] = mapped_column(
         ForeignKey("listings.id", ondelete="CASCADE"), primary_key=True
     )
+    observations: Mapped[int] = mapped_column(default=0)
+
+
+class UsageSummary(Base):
+    """L'usage d'une journée close : une ligne par licence et par jour.
+
+    Le grain fin pesait 5 615 lignes et 3,2 Mo pour une seule journée, contre
+    3,7 Mo pour tout l'historique de prix. Ces deux nombres-ci répondent aux
+    deux questions posées à la mesure et se gardent sans borne — `usage.compact`
+    dit le reste.
+    """
+
+    __tablename__ = "usage_summaries"
+
+    license_key_hash: Mapped[str] = mapped_column(
+        String(64), ForeignKey("licenses.key_hash", ondelete="CASCADE"), primary_key=True
+    )
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    listings: Mapped[int] = mapped_column(default=0)
     observations: Mapped[int] = mapped_column(default=0)

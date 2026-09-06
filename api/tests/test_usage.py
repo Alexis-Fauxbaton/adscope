@@ -1,7 +1,13 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
-from adscope_api.models import License, UsageDay
-from adscope_api.usage import by_day, by_license
+from sqlalchemy import update
+
+from adscope_api import usage
+from adscope_api.models import License, UsageDay, UsageSummary
+from adscope_api.usage import (
+    RETENTION_DAYS, by_day, by_license, compact, compact_daily,
+)
+from conftest import auth
 from adscope_api.observations import record
 from adscope_api.intake import ObservationIn
 
@@ -153,3 +159,97 @@ def test_two_licenses_sharing_a_label_stay_apart(session):
     record(session, obs("2", 8000), source="user", license_=second, now=NOW)
     session.commit()
     assert len(by_license(by_day(session))) == 2
+
+
+# Mesuré sur la base de développement : 5 615 lignes et 3,2 Mo pour une seule
+# journée, contre 3,7 Mo pour `price_points` qui porte tout l'historique de
+# prix. Le grain (licence, jour, annonce) ne sert qu'à dédoublonner les annonces
+# pendant la journée ; une fois close, son compte suffit et se garde.
+def rows(session, model):
+    return session.query(model).count()
+
+
+def test_a_closed_day_is_rolled_up_and_its_fine_rows_are_dropped(session):
+    lic = license_(session, "alexis", "a" * 64)
+    for site_id in ("1", "2", "1"):
+        record(session, obs(site_id, 9900), source="user", license_=lic, now=NOW)
+    session.commit()
+    compact(session, now=NOW + timedelta(days=RETENTION_DAYS))
+    session.commit()
+    assert rows(session, UsageDay) == 0
+    summary = session.query(UsageSummary).one()
+    assert (summary.listings, summary.observations) == (2, 3)
+
+
+def test_a_rolled_up_day_still_answers_both_questions(session):
+    lic = license_(session, "alexis", "a" * 64)
+    for site_id in ("1", "2"):
+        record(session, obs(site_id, 9900), source="user", license_=lic, now=NOW)
+    session.commit()
+    compact(session, now=NOW + timedelta(days=RETENTION_DAYS))
+    session.commit()
+    assert [(r["label"], r["day"], r["listings"], r["observations"]) for r in by_day(session)] == [
+        ("alexis", NOW.date(), 2, 2),
+    ]
+
+
+# La fenêtre récente garde son grain : c'est elle qui dédoublonne les annonces
+# du jour, et elle absorbe un décalage d'horloge ou une observation en retard.
+def test_the_days_within_the_window_keep_their_fine_grain(session):
+    lic = license_(session, "alexis", "a" * 64)
+    record(session, obs("1", 9900), source="user", license_=lic, now=NOW)
+    session.commit()
+    compact(session, now=NOW + timedelta(days=RETENTION_DAYS - 1))
+    session.commit()
+    assert (rows(session, UsageDay), rows(session, UsageSummary)) == (1, 0)
+
+
+def test_compacting_twice_changes_nothing(session):
+    lic = license_(session, "alexis", "a" * 64)
+    record(session, obs("1", 9900), source="user", license_=lic, now=NOW)
+    session.commit()
+    for _ in range(2):
+        compact(session, now=NOW + timedelta(days=RETENTION_DAYS))
+        session.commit()
+    assert [(r["listings"], r["observations"]) for r in by_day(session)] == [(1, 1)]
+
+
+# Une observation datée d'un jour déjà résumé : son compte s'ajoute au résumé,
+# il ne le remplace pas et ne fait pas doubler la ligne à la lecture.
+def test_a_late_observation_joins_the_summary_of_its_day(session):
+    lic = license_(session, "alexis", "a" * 64)
+    record(session, obs("1", 9900), source="user", license_=lic, now=NOW)
+    session.commit()
+    compact(session, now=NOW + timedelta(days=RETENTION_DAYS))
+    session.commit()
+    record(session, obs("2", 8000), source="user", license_=lic, now=NOW)
+    session.commit()
+    assert [(r["listings"], r["observations"]) for r in by_day(session)] == [(2, 2)]
+    compact(session, now=NOW + timedelta(days=RETENTION_DAYS))
+    session.commit()
+    assert [(r["listings"], r["observations"]) for r in by_day(session)] == [(2, 2)]
+
+
+# Rien à lancer à la main : le premier lot du jour ferme les journées passées,
+# comme le cache de l'extension se purge au premier passage.
+def test_the_first_batch_of_the_day_closes_the_days_that_passed(session):
+    lic = license_(session, "alexis", "a" * 64)
+    record(session, obs("1", 9900), source="user", license_=lic, now=NOW)
+    session.commit()
+    later = NOW + timedelta(days=RETENTION_DAYS)
+    assert compact_daily(session, now=later) == 1
+    # Les lots suivants du même jour ne rejouent pas la fermeture.
+    assert compact_daily(session, now=later) == 0
+    session.commit()
+    assert rows(session, UsageSummary) == 1
+
+
+# Le câblage : c'est la route qui ferme, personne n'a de commande à lancer.
+def test_the_observations_route_closes_the_days_that_passed(client, key, session):
+    item = {"site": "lc", "site_id": "1", "price": 9900}
+    client.post("/v1/observations", json={"items": [item]}, headers=auth(key))
+    session.execute(update(UsageDay).values(day=date.today() - timedelta(days=RETENTION_DAYS)))
+    session.commit()
+    usage._closed_on = None
+    client.post("/v1/observations", json={"items": [item]}, headers=auth(key))
+    assert (rows(session, UsageSummary), rows(session, UsageDay)) == (1, 1)

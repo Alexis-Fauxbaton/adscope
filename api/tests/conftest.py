@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from adscope_api import usage
 from adscope_api.auth import hash_key, new_key
 from adscope_api.db import create_all, get_session
 from adscope_api.main import app
@@ -48,3 +49,10 @@ def client(session):
 
 def auth(key):
     return {"Authorization": f"Bearer {key}"}
+
+
+# La fermeture des journées passées n'a lieu qu'une fois par jour et par
+# processus : le marqueur ne doit pas traverser d'un test à l'autre.
+@pytest.fixture(autouse=True)
+def _day_not_closed_yet():
+    usage._closed_on = None

@@ -1,5 +1,6 @@
 from fastapi import Depends, FastAPI, Header, HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
 from .auth import resolve
@@ -10,6 +11,7 @@ from .intake import ObservationsIn
 from .schemas import BatchIn, SellerStatsOut, SignalsOut
 from .sellers import stats_for
 from .signals import signals_for
+from .usage import compact_daily
 
 app = FastAPI(title="adscope", version="0.1.0")
 
@@ -27,6 +29,14 @@ def post_observations(payload: ObservationsIn, session=Depends(get_session),
                       license_=Depends(require_license)):
     for item in payload.items:
         record(session, item, source="user", license_=license_)
+    # La mesure d'usage ferme ses journées passées au premier lot du jour. Elle
+    # trébucherait qu'elle n'emporterait pas les observations : c'est le défaut
+    # qu'on vient de fermer.
+    try:
+        with session.begin_nested():
+            compact_daily(session)
+    except SQLAlchemyError:
+        pass
     session.commit()
     # Ce qui est entré, et ce que le lot portait qu'on ne pouvait pas
     # enregistrer : un refus muet serait la perte silencieuse qu'on ferme ici.
