@@ -46,8 +46,11 @@ observation d'une annonce.
 possibilité que le code fautif n'avait pas : deux lots portant les deux mêmes annonces en
 sens inverse s'attendent l'un l'autre, et Postgres en tue un. `ordered` trie les
 observations du lot par identité d'annonce. Ce n'est pas de la prudence de principe — sans
-ce tri, `test_two_crossed_batches_do_not_deadlock` rend un `DeadlockDetected` en une
-seconde. Le tri est stable : deux observations d'une même annonce gardent leur rang.
+l'appel à `ordered` dans `post_observations`, `test_two_crossed_batches_do_not_deadlock`
+rend un `DeadlockDetected` trois fois sur trois. Le tri est stable : deux observations d'une
+même annonce gardent leur rang. Ce test a d'abord appliqué le tri lui-même et n'éprouvait
+donc que le trieur ; il passe désormais par l'entrée (voir
+`.superpowers/tests-discriminants.md`).
 
 ## Ce qui a été écarté
 
@@ -68,18 +71,27 @@ quatre-vingt-dix-neuf autres. `ON CONFLICT` évite l'erreur au lieu de la répar
 **Sérialiser l'endpoint** (verrou d'avis, `SERIALIZABLE`). Écarté par la première contrainte
 de conception.
 
-## La garantie qui tenait par accident
+## La garantie qui tenait par accident — et qui tient toujours par accident aussi
 
 « Un point de prix par changement réel » résistait déjà sous concurrence, mais par l'ordre
 des instructions : le `session.flush()` prenait le verrou de ligne avant la lecture du
 dernier prix. Un effet de bord, déjà déplacé une fois pour donner `listing.id` au compteur
 d'usage.
 
-Le `flush` a disparu : `listing.id` est acquis dès `_locked`, et c'est le verrou explicite
-qui porte désormais la garantie. Deux tests la tiennent —
-`test_a_single_price_point_for_a_single_creation` (dix créations simultanées, un point) et
-`test_a_single_price_point_for_a_single_change` (dix observations simultanées du même
-changement, un point). Le second échoue si l'on retire le verrou.
+Le `flush` explicite a disparu : `listing.id` est acquis dès `_locked`, et le verrou porte
+désormais la garantie. **Mais il ne la porte pas seul, et cette version du rapport l'a
+d'abord affirmé à tort.** `listing.observations += 1` salit la ligne ; SQLAlchemy la chasse
+en `UPDATE` avant la lecture du dernier prix, et cet `UPDATE` reprend le verrou de ligne.
+La sérialisation accidentelle d'avant le correctif est donc toujours là, à côté du verrou
+explicite.
+
+Mesuré : verrou commenté, `test_a_single_price_point_for_a_single_change` passait dix fois
+sur dix — l'affirmation « le second échoue si l'on retire le verrou » était fausse. Il
+passait aussi sur le code fautif de `b506fd9`, comme son jumeau
+`test_a_single_price_point_for_a_single_creation`, dont le point unique n'était que le
+résidu de neuf écrivains sur dix écrasés par `IntegrityError`. Les deux tests ont été
+retirés : voir `.superpowers/tests-discriminants.md`. La règle elle-même reste éprouvée
+séquentiellement dans `tests/test_observations.py`.
 
 ## Les invariants, écrits noir sur blanc
 

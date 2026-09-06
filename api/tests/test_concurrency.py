@@ -3,6 +3,13 @@
 Ces tests ouvrent de vraies connexions distinctes et les lâchent sur une
 barrière : une simulation séquentielle ne provoque pas la collision et ne
 prouverait rien. Ils tiennent les invariants écrits dans `observations`.
+
+Chacun rougit quand on retire du code une ligne nommée — la démonstration est
+tenue dans `.superpowers/tests-discriminants.md`. On n'y trouvera pas de test
+concurrent du point de prix unique : la lecture du dernier prix est sérialisée
+deux fois, par le verrou et par l'écriture de `observations` que SQLAlchemy
+chasse avant elle ; aucune ligne retirée seule ne fait rougir un tel test, et
+la règle « un point par changement réel » se prouve dans `test_observations`.
 """
 
 import threading
@@ -10,9 +17,10 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 
-from adscope_api.intake import ObservationIn
-from adscope_api.main import ordered
-from adscope_api.models import Listing, PricePoint
+from adscope_api.auth import hash_key
+from adscope_api.intake import ObservationIn, ObservationsIn
+from adscope_api.main import post_observations
+from adscope_api.models import License, Listing
 from adscope_api.observations import record
 
 NOW = datetime(2026, 9, 5, 12, 0, tzinfo=timezone.utc)
@@ -66,25 +74,6 @@ def test_ten_simultaneous_creations_of_an_unknown_listing(session, concurrently)
     assert session.scalar(select(Listing.observations)) == WRITERS
 
 
-def test_a_single_price_point_for_a_single_creation(session, concurrently):
-    concurrently(WRITERS, lambda i, s: record(s, obs(), source="user", now=NOW))
-    assert count(session, PricePoint) == 1
-
-
-# La règle « un point par changement réel » tenait par l'ordre des instructions,
-# pas par une intention écrite. Ce test échoue si l'ordre change.
-def test_a_single_price_point_for_a_single_change(session, concurrently):
-    record(session, obs(price=10900), source="user", now=NOW)
-    session.commit()
-    errors = concurrently(
-        WRITERS, lambda i, s: record(s, obs(price=9900), source="user", now=NOW)
-    )
-    assert errors == []
-    assert session.scalars(select(PricePoint.price).order_by(PricePoint.id)).all() == [
-        10900, 9900,
-    ]
-
-
 # Le verrou se prend par annonce : deux marchands sur deux annonces
 # différentes ne s'attendent pas. Le fil qui tient la première ne rend la main
 # qu'après le second — s'ils se sérialisaient, ce test resterait bloqué.
@@ -127,14 +116,21 @@ def test_a_batch_of_a_hundred_stays_one_transaction(session, sessions):
 
 
 # Deux lots qui portent les deux mêmes annonces en sens inverse s'attendent
-# l'un l'autre : Postgres en tue un. L'ordre commun que pose l'entrée ôte le
-# cycle — sans lui, ce test rend une erreur de verrou mortel.
-def test_two_crossed_batches_do_not_deadlock(concurrently):
+# l'un l'autre : Postgres en tue un. L'ordre commun ôte le cycle, mais il ne
+# vaut que là où l'entrée le pose : ce test passe par `post_observations` et
+# non par `ordered` appelé à la main, qui n'éprouverait que le trieur. Rendez
+# `main` à `for item in payload.items` et il rend `DeadlockDetected`.
+def test_two_crossed_batches_do_not_deadlock(session, concurrently):
+    license_ = License(key_hash=hash_key("crossed"), label="crossed")
+    session.add(license_)
+    session.commit()
     ids = [str(n) for n in range(20)]
-    batches = [[obs(site_id=i) for i in ids], [obs(site_id=i) for i in reversed(ids)]]
+    batches = [
+        ObservationsIn(items=[obs(site_id=i).model_dump() for i in ids]),
+        ObservationsIn(items=[obs(site_id=i).model_dump() for i in reversed(ids)]),
+    ]
 
     def send(index, s):
-        for item in ordered(batches[index]):
-            record(s, item, source="user", now=NOW)
+        post_observations(batches[index], session=s, license_=license_)
 
     assert concurrently(2, send) == []
