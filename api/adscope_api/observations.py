@@ -5,6 +5,7 @@ from sqlalchemy import select
 from .fingerprint import fingerprint
 from .models import Listing, PricePoint
 from .schemas import ObservationIn
+from .usage import bump
 
 FINGERPRINT_FIELDS = ("brand", "model", "version", "year", "mileage")
 VEHICLE_FIELDS = FINGERPRINT_FIELDS + ("postal_code", "seller_type")
@@ -75,8 +76,13 @@ def record(session, observation: ObservationIn, source: str, license_=None,
         if observation.published_precision == "day":
             listing.site_published_last = published if last is None else max(last, published)
 
+    session.flush()
+    # L'usage se compte ici, sur l'observation reçue, et non plus sur le point
+    # de prix : celui-ci n'est écrit qu'en cas de changement, et un marchand qui
+    # reparcourt des annonces stables paraissait alors inactif.
+    bump(session, license_, listing.id, now.date())
+
     if observation.price is not None:
-        session.flush()
         latest = session.scalar(
             select(PricePoint)
             .where(PricePoint.listing_id == listing.id)

@@ -101,3 +101,25 @@ class License(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
+
+class UsageDay(Base):
+    """L'usage du produit : des pages vues, par licence et par jour.
+
+    Les points de prix ne mesuraient que les changements de prix : un marchand
+    qui reparcourt chaque jour des annonces stables n'en produit aucun et
+    paraissait inactif. Le grain est ici l'annonce dans la journée — une ligne
+    par annonce vue, avec son compte de passages. Il donne les deux nombres
+    qu'on cherche, les pages vues et les annonces distinctes, sans table
+    d'événements ni horodatage à la seconde.
+    """
+
+    __tablename__ = "usage_days"
+
+    license_key_hash: Mapped[str] = mapped_column(
+        String(64), ForeignKey("licenses.key_hash", ondelete="CASCADE"), primary_key=True
+    )
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    listing_id: Mapped[int] = mapped_column(
+        ForeignKey("listings.id", ondelete="CASCADE"), primary_key=True
+    )
+    observations: Mapped[int] = mapped_column(default=0)
