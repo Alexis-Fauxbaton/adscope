@@ -3,7 +3,21 @@
 L'API tourne en permanence sur le poste, sans terminal ouvert, via un LaunchAgent.
 Postgres est déjà un service Homebrew ; celui-ci lui répond.
 
-## Installation
+## Dépendances
+
+Le projet est géré par [uv](https://docs.astral.sh/uv/). `api/uv.lock` fige les 34
+paquets résolus : une installation ailleurs — un autre poste, un hébergeur — obtient
+exactement les mêmes versions.
+
+```sh
+cd api && uv sync --extra dev     # crée .venv et installe le verrou
+uv lock --upgrade                 # met à jour le verrou, délibérément
+```
+
+Ne pas installer avec `pip` : le verrou serait contourné et l'écart de versions ne se
+verrait qu'au déploiement.
+
+## Installation du service
 
 ```sh
 sed -e "s|__API__|$PWD/api|g" -e "s|__HOME__|$HOME|g" \
