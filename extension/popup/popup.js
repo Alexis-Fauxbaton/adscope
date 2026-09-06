@@ -1,4 +1,5 @@
 const { isKey, mask, base, isBase, probe, outcome } = ADS.config
+const { rows, trouble, occupancy } = ADS.report
 
 const el = (id) => document.getElementById(id)
 
@@ -61,7 +62,7 @@ el('test').onclick = async () => {
   el('dot').className = `dot ${r.tone}`
 }
 
-const row = (label, value, bad, mark) => {
+const line = ({ label, value, bad, mark }) => {
   const d = document.createElement('div')
   d.className = 'row'
   const l = document.createElement('span')
@@ -72,7 +73,7 @@ const row = (label, value, bad, mark) => {
   if (mark) {
     const m = document.createElement('span')
     m.className = 'mark'
-    m.textContent = mark
+    m.textContent = ` ${mark.trim()}`
     v.append(m)
   }
   d.append(l, v)
@@ -86,56 +87,30 @@ const hint = (text, bad) => {
   return d
 }
 
-const found = (s) => row('Données trouvées', s.nextData ? 'oui' : 'non', !s.nextData)
-
-// La source dit d'où viennent les annonces lues : le bloc du rendu serveur, qui
-// décrit la page d'entrée, ou la charge reçue depuis — c'est ce qui distingue
-// une navigation bien suivie d'une première page relue en boucle.
-const from = (s) => row('Source', s.source === 'live' ? 'navigation en cours' : 'chargement initial')
-
-// Sur une fiche, la question est « quelle annonce l'extension a-t-elle retenue ».
-// L'accord avec l'URL ne mérite qu'une coche ; le désaccord passe la ligne en
-// alerte et la note nomme les deux identifiants — c'est le défaut qu'on cherche.
-const detailRows = (s) => [
-  row('Fiche', s.url),
-  found(s),
-  from(s),
-  row('Annonces connues', String(s.listings), !s.listings),
-  row('Annonce retenue', s.pickedId, !s.matchesUrl, s.matchesUrl ? '\u00a0✓' : '\u00a0≠ URL'),
-  row('Vendeur', s.sellerType === 'pro' ? 'professionnel' : 'particulier'),
-]
-
-const listingRows = (s) => [
-  row('Résultats', s.url),
-  found(s),
-  from(s),
-  row('Annonces lues', String(s.listings), !s.listings),
-  row('Pro / particuliers', `${s.pro} / ${s.listings - s.pro}`),
-  row('Pastilles posées', String(s.badges), !s.badges),
-  // Cumulé sur toute la vie de la page, pages suivantes comprises : c'est ce que
-  // l'API a réellement accusé, et non ce que la page affiche en ce moment.
-  row("Transmises depuis l'ouverture", String(s.sent ?? 0), !s.sent),
-]
-
-const trouble = (s) => {
-  if (!s.nextData) return { text: 'La page ne contient pas le bloc de données attendu — la structure du site a changé.' }
-  if (!s.listings) return { text: 'Données présentes mais aucune annonce reconnue.' }
-  if (s.kind === 'detail')
-    return s.matchesUrl
-      ? {}
-      : { text: `L'URL désigne l'annonce ${s.urlId}, le panneau décrit ${s.pickedId} : il ne parle pas de l'annonce ouverte.`, bad: true }
-  return s.badges ? {} : { text: 'Annonces lues mais aucune carte correspondante : les sélecteurs sont à revoir.' }
-}
-
 const diagnose = (status) => {
   const box = el('state')
   if (!status) {
     box.append(hint('Aucune page analysée. Ouvre une liste de résultats ou une annonce voiture sur leboncoin, puis rouvre cette fenêtre.'))
     return
   }
-  box.append(...(status.kind === 'detail' ? detailRows(status) : listingRows(status)))
+  box.append(...rows(status).map(line))
   const { text, bad } = trouble(status)
   if (text) box.append(hint(text, bad))
+}
+
+// Le cache est tenu par le service worker : lui seul sait ce qu'il contient.
+const ask = (msg) => chrome.runtime.sendMessage(msg).catch(() => null)
+
+const showCache = async () => {
+  const stats = await ask({ type: 'cache-stats' })
+  const box = el('cache')
+  box.replaceChildren(stats ? line(occupancy(stats)) : hint('Cache illisible.'))
+}
+
+el('cache-clear').onclick = async () => {
+  await ask({ type: 'cache-clear' })
+  await showCache()
+  note('cache-note', 'ok', 'Cache vidé. Les signaux reviendront de l’API à la prochaine page.')
 }
 
 chrome.storage.local.get(['licenseKey', 'apiBase', 'status']).then((stored) => {
@@ -143,4 +118,5 @@ chrome.storage.local.get(['licenseKey', 'apiBase', 'status']).then((stored) => {
   el('api').value = stored.apiBase || 'http://localhost:8000'
   showKey()
   diagnose(stored.status)
+  showCache()
 })
