@@ -44,13 +44,15 @@ MIGRATIONS = (
         "ALTER TABLE listings ADD COLUMN IF NOT EXISTS seller_name varchar(128)",
         "CREATE INDEX IF NOT EXISTS ix_listings_seller ON listings (site, seller_id)",
     )),
-    # Un émetteur automatique n'est pas un utilisateur. La licence du crawler
-    # est déjà frappée et sa clé est entre les mains de son propriétaire : on ne
-    # la refrappe pas, on la marque là où elle est.
+    # Un émetteur automatique n'est pas un utilisateur. La colonne s'ajoute ;
+    # qui elle marque ne se devine pas. Le libellé n'est pas une identité — la
+    # base porte deux licences homonymes, et l'émetteur qui produit sept mille
+    # lignes par jour ne s'appelle pas « crawler » : `UPDATE ... WHERE label =
+    # 'crawler'` marquait au hasard. `scripts/mark_automated.py` la met sur une
+    # licence désignée par sa clé.
     ("003_licenses_automated", (
         "ALTER TABLE licenses ADD COLUMN IF NOT EXISTS automated boolean"
         " NOT NULL DEFAULT false",
-        "UPDATE licenses SET automated = true WHERE label = 'crawler'",
     )),
     # L'échantillonnage dans le temps : un point de prix peut désormais dire
     # « inchangé cette semaine ». Les 12 918 points déjà enregistrés l'ont tous

@@ -118,16 +118,18 @@ def test_migration_adds_the_automated_flag(session):
     assert "automated" in columns(session, "licenses")
 
 
-# La licence du crawler est déjà frappée et sa clé est entre les mains de son
-# propriétaire : on ne la refrappe pas, on la marque là où elle est.
-def test_the_crawler_license_is_marked_automated_and_the_others_are_not(session):
+# Le libellé n'est pas une identité : la base porte deux licences homonymes, et
+# l'émetteur qui produit 7 081 lignes par jour s'appelle « alexis ». Marquer sur
+# `label = 'crawler'` marquait au hasard. La migration pose la colonne et ne
+# devine rien ; `mark_automated` la met sur une licence désignée.
+def test_the_migration_marks_no_license_on_a_guess(session):
     to_old_shape(session)
     with_licenses(session)
     apply_migrations(session.connection())
     rows = session.execute(
         text("SELECT label, automated FROM licenses ORDER BY label")
     ).all()
-    assert rows == [("alexis", False), ("crawler", True)]
+    assert rows == [("alexis", False), ("crawler", False)]
 
 
 # L'échantillonnage arrive sur une base qui porte 12 918 points de prix, tous

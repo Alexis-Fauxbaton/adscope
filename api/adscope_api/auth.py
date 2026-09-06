@@ -24,3 +24,18 @@ def resolve(session, key: str, now=None) -> License | None:
     if license_.expires_at is not None and license_.expires_at <= now:
         return None
     return license_
+
+
+def mark_automated(session, key_or_hash: str, automated=True) -> License | None:
+    """Marque un émetteur qui n'est pas un utilisateur, désigné par sa clé.
+
+    Jamais par le libellé : deux licences peuvent le porter — la base en a deux
+    — et une migration qui marquait `label = 'crawler'` marquait au hasard.
+    L'empreinte est acceptée pour une licence dont la clé n'est plus en main.
+    """
+    for candidate in (hash_key(key_or_hash), key_or_hash):
+        license_ = session.get(License, candidate)
+        if license_ is not None:
+            license_.automated = automated
+            return license_
+    return None
