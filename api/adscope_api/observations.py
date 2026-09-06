@@ -1,6 +1,21 @@
+"""Ce qu'une observation apprend sur une annonce, écrit sous verrou.
+
+Chaque valeur se calcule ici en Python sur ce qu'on vient de lire. Sans verrou,
+l'intervalle entre la lecture et l'écriture appartient à qui passe en même
+temps : dix marchands simultanés faisaient monter le compteur de 1 à 2, et la
+borne basse se perdait dix fois sur douze. `_locked` ferme cet intervalle.
+
+Les invariants tenus ici : `site_published_first` ne recule jamais — la
+détection de republication en dépend tout entière ; `site_published_last`
+n'avance jamais à rebours ; `published_at` ne recule jamais et `bumped_at`
+n'avance jamais à rebours ; `observations` compte toutes les observations
+reçues ; un point de prix par changement réel, un par semaine sans changement.
+"""
+
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 
 from .fingerprint import fingerprint
 from .models import Listing, PricePoint
@@ -19,22 +34,42 @@ VEHICLE_FIELDS = FINGERPRINT_FIELDS + ("postal_code", "seller_type")
 CONFIRM_AFTER = timedelta(days=7)
 
 
+def _locked(session, observation, now) -> Listing:
+    """L'annonce, verrouillée jusqu'à la fin de la transaction.
+
+    Le verrou porte sur une ligne, jamais sur la table : deux marchands qui
+    observent deux annonces différentes ne s'attendent pas. Et il se tient
+    pour toute la suite — c'est lui, et non l'ordre des instructions, qui rend
+    justes le compteur, les bornes et la lecture du dernier prix.
+
+    L'annonce inconnue s'insère avec `ON CONFLICT DO NOTHING`. Deux marchands
+    ouvrant la même annonce neuve au même instant, c'est le scénario même de la
+    mutualisation, et il rendait 500 : neuf erreurs sur dix créations
+    simultanées. Qui perd la course attend, puis verrouille la ligne écrite.
+    """
+    held = (
+        select(Listing)
+        .where(Listing.site == observation.site, Listing.site_id == observation.site_id)
+        .with_for_update()
+    )
+    listing = session.scalar(held)
+    if listing is None:
+        session.execute(
+            insert(Listing)
+            .values(site=observation.site, site_id=observation.site_id,
+                    first_seen=now, last_seen=now, observations=0)
+            .on_conflict_do_nothing(index_elements=["site", "site_id"])
+        )
+        listing = session.scalar(held)
+    return listing
+
+
 def record(session, observation: ObservationIn, source: str, license_=None,
            now=None) -> Listing:
     if now is None:
         now = datetime.now(timezone.utc)
 
-    listing = session.scalar(
-        select(Listing).where(
-            Listing.site == observation.site, Listing.site_id == observation.site_id
-        )
-    )
-    if listing is None:
-        listing = Listing(
-            site=observation.site, site_id=observation.site_id,
-            first_seen=now, last_seen=now, observations=0,
-        )
-        session.add(listing)
+    listing = _locked(session, observation, now)
 
     for field in VEHICLE_FIELDS:
         value = getattr(observation, field)
@@ -84,12 +119,15 @@ def record(session, observation: ObservationIn, source: str, license_=None,
         if observation.published_precision == "day":
             listing.site_published_last = published if last is None else max(last, published)
 
-    session.flush()
     # L'usage se compte ici, sur l'observation reçue, et non plus sur le point
     # de prix : celui-ci n'est écrit qu'en cas de changement, et un marchand qui
-    # reparcourt des annonces stables paraissait alors inactif.
+    # reparcourt des annonces stables paraissait alors inactif. `listing.id` est
+    # acquis depuis `_locked` : plus de `flush` à placer au bon endroit.
     bump(session, license_, listing.id, now.date())
 
+    # Un point par changement réel. La lecture du dernier point et l'écriture
+    # du suivant se font sous le verrou pris plus haut : deux observations
+    # simultanées du même changement n'en écrivent qu'un.
     if observation.price is not None:
         latest = session.scalar(
             select(PricePoint)

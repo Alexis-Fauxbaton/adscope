@@ -36,10 +36,13 @@ def test_one_oversized_name_does_not_sink_the_batch(client, key, session):
 
 
 # La raison commerciale est de la prose, affichée telle quelle : tronquée au
-# gabarit de la colonne, elle reste lisible et l'annonce entre.
+# gabarit de la colonne, elle reste lisible et l'annonce entre. L'annonce se
+# désigne par son identité de site : l'entrée verrouille le lot dans un ordre
+# commun, et la clé primaire ne suit plus le rang d'arrivée.
 def test_an_oversized_name_is_truncated(client, key, session):
     post(client, key, hundred(seller_name="X" * 200))
-    assert session.get(Listing, 43).seller_name == "X" * 128
+    listing = session.query(Listing).filter_by(site_id="42").one()
+    assert listing.seller_name == "X" * 128
 
 
 # Un identifiant tronqué en désignerait un autre : deux marchands se

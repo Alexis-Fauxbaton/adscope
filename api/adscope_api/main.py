@@ -24,10 +24,18 @@ def require_license(authorization: str = Header(default=""), session=Depends(get
     return license_
 
 
+# Le lot verrouille chaque annonce qu'il touche jusqu'à son commit. Deux lots
+# qui portent les deux mêmes annonces en sens inverse s'attendent l'un l'autre
+# et Postgres en tue un : un ordre commun à tous les émetteurs ôte le cycle. Le
+# tri est stable — deux observations d'une même annonce gardent leur rang.
+def ordered(items):
+    return sorted(items, key=lambda item: (item.site, item.site_id))
+
+
 @app.post("/v1/observations")
 def post_observations(payload: ObservationsIn, session=Depends(get_session),
                       license_=Depends(require_license)):
-    for item in payload.items:
+    for item in ordered(payload.items):
         record(session, item, source="user", license_=license_)
     # La mesure d'usage ferme ses journées passées au premier lot du jour. Elle
     # trébucherait qu'elle n'emporterait pas les observations : c'est le défaut
