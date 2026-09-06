@@ -233,13 +233,34 @@ listings       site, site_id, fingerprint,
                brand, model, version, year, mileage, postal_code,
                first_seen, last_seen,
                site_published_first, site_published_last,
+               seller_type, seller_id, seller_name,
                disappeared_at, next_detail_crawl
                unique(site, site_id)
 
-price_points   listing_id, observed_at, price, source ('user' | 'crawler')
+price_points   listing_id, observed_at, price, source ('user' | 'crawler'),
+               license_key_hash
 
-licenses       key_hash, label, active, expires_at
+usage_days     license_key_hash, day, listing_id, observations
+               clé primaire sur les trois premiers
+
+licenses       key_hash, label, active, expires_at, automated
 ```
+
+`seller_id` et `seller_name` ne sont renseignés que pour les professionnels (§ 10 sexies).
+
+`usage_days` est la mesure d'usage. Elle ne pouvait pas se lire dans `price_points` : un
+point n'y est écrit que si le prix diffère du dernier connu, si bien qu'un marchand
+reparcourant chaque jour des annonces stables ne produisait aucune ligne et paraissait
+inactif — alors que les deux questions posées sont « combien de pages par jour » et
+« a-t-il décroché au bout de trois jours ». Le compteur est incrémenté à **chaque**
+observation reçue. Le grain — une ligne par annonce et par jour — donne les pages vues
+(somme) et les annonces distinctes (compte) sans table d'événements ni horodatage à la
+seconde.
+
+`automated` distingue un émetteur automatique d'un utilisateur. Le crawler local poste avec
+une licence comme l'extension : sans cette marque, ses observations passent pour l'usage
+d'un humain et la mesure n'est plus que du bruit. Les licences automatiques sont écartées à
+la lecture, pas à l'écriture : leur volume reste consultable sans se mêler à l'usage.
 
 **Un point de prix n'est écrit que s'il diffère du dernier connu pour l'annonce.** La
 règle protège maintenant contre bien pire qu'en local : trente utilisateurs consultant la
@@ -568,6 +589,46 @@ aucun sens — il vend une voiture.
 Même ligne que celle tracée pour l'affichage (§ 2), appliquée au stockage, et formulable
 telle quelle dans la politique de confidentialité : *nous agrégeons les annonces des
 vendeurs professionnels, jamais celles des particuliers*.
+
+### Ce que le champ contient réellement — relevé du 2026-09-06
+
+Sur une page de résultats réelle, `owner` porte :
+
+```
+"store_id": "76697703", "user_id": "b4ac8071-…", "type": "pro",
+"name": "CVD AUTOMOBILES", "siren": "984694505"
+```
+
+**Et les mêmes clés pour un particulier**, avec un prénom en guise de nom :
+
+```
+"store_id": "27784407", "user_id": "62d41a2e-…", "type": "private", "name": "Fra"
+```
+
+La présence du champ ne dit donc rien : le tri se fait sur `owner.type`, et sur lui seul.
+`user_id` et `siren` ne sortent jamais de la page — ni l'un ni l'autre n'est nécessaire
+pour agréger, et le premier est un identifiant de compte.
+
+### Les définitions retenues
+
+Une moyenne sans population n'est pas une mesure. La route rend chaque statistique avec le
+nombre d'annonces qui la porte.
+
+| statistique | définition | pourquoi |
+|---|---|---|
+| annonces en ligne | annonces du vendeur revues dans les 30 jours | une annonce leboncoin vit 60 jours ; celle que personne n'a revue depuis un mois est probablement partie, la compter gonflerait le stock |
+| part au delà d'un mois | ancienneté ≥ 31 j, rapportée aux annonces datées | même seuil que la pastille : un seul seuil dans le produit |
+| médiane d'ancienneté | médiane des anciennetés connues | la moyenne serait emportée par la BMW de six ans |
+| baisse moyenne | moyenne des variations relatives **des seules annonces qui ont baissé** | mêlée aux hausses, elle ne dirait plus « il baisse » mais « son catalogue bouge » |
+| délai de la baisse | médiane de l'âge de l'annonce au dernier prix observé | la base suit ces annonces depuis quelques heures quand elles sont en ligne depuis des mois : compté depuis notre première observation, le délai ne dirait que la durée de notre suivi |
+
+Sous huit annonces, la popup marque le chiffre et dit sur quoi il est calculé : une médiane
+sur trois annonces n'est pas une médiane. Une baisse jamais observée se dit — « aucune
+encore observée » — plutôt que de se chiffrer à 0 %.
+
+Les durées du bloc vendeur se lisent en jours, contre l'usage du reste du produit. La
+pastille peut dire « 1 mois », elle alerte ; une médiane se compare d'un marchand à
+l'autre, et « 1 mois » couvrirait de 31 à 60 jours.
 
 ### Un principe de mesure
 
