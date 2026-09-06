@@ -156,6 +156,33 @@ test('aucun module partagé ne nomme un site', () => {
   for (const f of found.filter(own)) assert.match(f, /\/sites\/[\w-]+\.js$/)
 })
 
+// Le pire défaut possible pour ce produit : un nombre faux énoncé avec autorité.
+// Une charge peut porter la clé de date sans valeur ; comptée en millisecondes,
+// `null` rend l'époque Unix — « 56 ans 8 mois · 20 702 j », et le badge au rouge.
+// La règle est la même partout : sans date, aucun âge, et rien qui en dépende.
+test("sans date de mise en ligne, aucun site n'énonce d'âge", () => {
+  const now = new Date()
+  for (const site of sites.all()) {
+    const s = site.signals({ site: site.id, publishedAt: null, bumpedAt: new Date() }, now)
+    assert.equal(s.onlineDays, null, `${site.id} énonce un âge sans date`)
+    for (const flag of ['notable', 'old', 'dormant', 'bumped']) {
+      assert.equal(s[flag], false, `${site.id}.${flag} sans date`)
+    }
+    assert.equal(s.bumpedDaysAgo, null, site.id)
+    assert.notEqual(s.capped, true, site.id)
+  }
+})
+
+// La sonde de charge vivait dans le code partagé et n'y nommait aucun site — elle
+// en décrivait pourtant la structure : « Données trouvées : non » s'affichait sur
+// La Centrale, qui n'est pas une application Next, au-dessus d'un panneau qui
+// montrait 23 annonces lues. Chaque site sait, lui, comment voir sa charge.
+test('chaque site constate lui-même que sa charge est présente', () => {
+  for (const s of sites.all()) assert.equal(typeof s.payload, 'function', `${s.id} sans sonde`)
+  const empty = { getElementById: () => null, querySelectorAll: () => [] }
+  for (const s of sites.all()) assert.equal(s.payload(empty), false, `${s.id} sur une page vide`)
+})
+
 // Le nom lisible d'un site est du vocabulaire de site : la fenêtre l'affiche
 // sans le connaître, elle le demande au registre.
 test('chaque site déclare son nom lisible', () => {

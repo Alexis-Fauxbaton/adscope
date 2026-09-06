@@ -80,10 +80,12 @@ ADS.leboncoin = ADS.sites.register((() => {
   const BUMP_RECENT_DAYS = 14
 
   const signals = (listing, now) => {
-    const online = Math.floor((now - listing.publishedAt) / 86400000)
-    const bumped = listing.bumpedAt - listing.publishedAt > BUMP_MIN_MS
+    // Une charge peut porter la clé de date sans valeur : `null` compté en millisecondes rendrait
+    // l'époque Unix, cinquante-six ans énoncés d'autorité. Sans date, aucun âge, et rien qui suive.
+    const online = listing.publishedAt ? Math.floor((now - listing.publishedAt) / 86400000) : null
+    const bumped = online != null && listing.bumpedAt - listing.publishedAt > BUMP_MIN_MS
     const bumpedDaysAgo = bumped ? Math.floor((now - listing.bumpedAt) / 86400000) : null
-    const old = online >= OLD_MIN_DAYS
+    const old = online != null && online >= OLD_MIN_DAYS
     return {
       onlineDays: online, bumped, bumpedDaysAgo,
       // L'alerte : ancienne, et encore poussée. La page dit « aujourd'hui », la
@@ -108,6 +110,8 @@ ADS.leboncoin = ADS.sites.register((() => {
     const tag = doc.getElementById('__NEXT_DATA__')
     return tag ? fromPayload(JSON.parse(tag.textContent)) : []
   }
+  // Comment ce site constate que sa charge est là : le bloc que son rendu serveur écrit.
+  const payload = (doc) => !!doc.getElementById('__NEXT_DATA__')
 
   // Ce que l'URL d'une fiche porte : une suite d'au moins six chiffres.
   const urlId = (path) => (path.match(/\d{6,}/) || [])[0] || null
@@ -129,9 +133,8 @@ ADS.leboncoin = ADS.sites.register((() => {
     bumpLabel: 'Réactualisée',
   }
 
-  // La contradiction, nommée : le site montre une date d'indexation là où le
-  // lecteur comprend une date de mise en ligne.
-  // `days` dit ce qu'elle couvre de l'axe : pas plus loin que la remontée.
+  // La contradiction, nommée : le site montre une date d'indexation là où le lecteur comprend
+  // une date de mise en ligne. `days` dit ce qu'elle couvre : pas plus loin que la remontée.
   const claim = (s, says) =>
     s.bumped && says
       ? { label: 'leboncoin affiche', says, days: s.bumpedDaysAgo, note: 'date de réactualisation, pas de publication' }
@@ -140,7 +143,7 @@ ADS.leboncoin = ADS.sites.register((() => {
   return {
     id: 'lbc', name: 'leboncoin', origins: ['https://www.leboncoin.fr'],
     urlId, card, dateNode, words, claim,
-    fromDocument, fromPayload, normalize, signals, findAds,
+    fromDocument, fromPayload, payload, normalize, signals, findAds,
   }
 })())
 

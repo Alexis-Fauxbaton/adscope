@@ -70,8 +70,22 @@ ADS.chart = (() => {
     return hit
   }
 
+  // Un dessin sans nom n'existe pas pour qui ne le voit pas. Le nom dit ce que la
+  // courbe couvre et où elle finit ; le détail des observations se lit sous le
+  // tracé, en toutes lettres, plutôt que point par point au clavier.
+  const name = (model) => {
+    const span = `du ${model.axis.start} à aujourd'hui`
+    const seen = model.points.length
+    if (!seen) return `Prix observé, ${span} — aucune observation`
+    const last = model.points[seen - 1]
+    return `Prix observé, ${span} — ${seen} observation${seen > 1 ? 's' : ''}, dernier prix ${money(last.price)}`
+  }
+
   const draw = (model, onHover = () => {}) => {
-    const svg = node('svg', { viewBox: `0 0 ${W} ${H}`, class: 'plot', role: 'img' })
+    const svg = node('svg', {
+      viewBox: `0 0 ${W} ${H}`, class: 'plot', role: 'img', 'aria-labelledby': 'plot-name',
+    })
+    svg.append(node('title', { id: 'plot-name' }, name(model)))
     svg.append(hatching('adscope-hatch'))
 
     if (model.blind) {

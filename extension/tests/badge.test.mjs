@@ -5,6 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { storage } from './storage.mjs'
 import { ad, block, world } from './world.mjs'
+import { at } from './stage.mjs'
 import { CARDS, page, results } from './lc-page.mjs'
 
 const require = createRequire(import.meta.url)
@@ -67,25 +68,52 @@ test("sans onglet identifié, aucun badge n'est posé", async () => {
   assert.equal(painted.length, 0)
 })
 
-// Ce que le content script a trouvé : c'est lui qui alimente le badge.
+// Ce que le content script a trouvé : c'est lui qui alimente le badge. Le nombre
+// est celui compté à la main sur les 23 cartes de la page relevée au 6 septembre
+// 2026 — huit dépassent le plafond de 60 jours. Le comparer au champ du
+// diagnostic ne disait rien : les deux sortent du même objet, et 0 = 0.
 test("une page de résultats annonce ce qu'elle a mis en alerte", () => {
-  const w = page({
-    path: '/listing?makesModelsCommercialNames=PEUGEOT',
-    scripts: results(CARDS),
-    cards: CARDS.map((c) => c.reference),
+  const w = at('2026-09-06T18:00:00Z', () => {
+    const w = page({
+      path: '/listing?makesModelsCommercialNames=PEUGEOT',
+      scripts: results(CARDS),
+      cards: CARDS.map((c) => c.reference),
+    })
+    w.load('listing.js')
+    return w
   })
-  w.load('listing.js')
   const said = w.badges()
   assert.ok(said.length, 'le content script parle au service worker')
-  assert.equal(said.at(-1).alerts, w.status().alerts)
-  assert.equal(typeof w.status().alerts, 'number')
+  assert.equal(said.at(-1).alerts, 8)
 })
 
-// Une fiche en alerte parle d'une annonce, une seule.
+// Une fiche en alerte parle d'une annonce, une seule. Les deux cas sont posés :
+// une annonce ancienne et encore poussée le 6 septembre 2026, et la même fiche
+// fraîche — sans quoi « une alerte » et « aucune » resteraient indistinguables.
+const NOISY = '3254194817'
+const on = (a) => at('2026-09-06T18:00:00Z', () => {
+  const w = world('0', { path: `/ad/voitures/${NOISY}`, data: block(a) })
+  w.load('detail.js')
+  return w
+})
+
 test("une fiche en alerte annonce une alerte, une fiche calme aucune", () => {
-  const NOISY = '3254194817'
-  const noisy = world('0', { path: `/ad/voitures/${NOISY}`, data: block(ad(NOISY)) })
-  noisy.load('detail.js')
-  assert.equal(noisy.badges().at(-1).alerts, noisy.status().alerts)
-  assert.equal(noisy.status().alerts, noisy.status().card.notable ? 1 : 0)
+  // 128 jours en ligne, réactualisée cinq jours plus tôt : le seuil et l'alerte.
+  const noisy = on({
+    ...ad(NOISY),
+    first_publication_date: '2026-05-01 10:00:00',
+    index_date: '2026-09-01 10:00:00',
+  })
+  assert.equal(noisy.status().card.notable, true)
+  assert.equal(noisy.status().alerts, 1)
+  assert.equal(noisy.badges().at(-1).alerts, 1)
+
+  const calm = on({
+    ...ad(NOISY),
+    first_publication_date: '2026-09-01 10:00:00',
+    index_date: '2026-09-01 10:00:00',
+  })
+  assert.equal(calm.status().card.notable, false)
+  assert.equal(calm.status().alerts, 0)
+  assert.equal(calm.badges().at(-1).alerts, 0)
 })

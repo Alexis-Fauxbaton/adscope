@@ -60,6 +60,15 @@ ADS.fiche = (() => {
     return [head, tag('p', 'claim-note', `${c.claim.note} — c'est la bande rouge. Le reste de l'axe, le site ne le montre pas.`)]
   }
 
+  // Le survol est une affaire de souris : au clavier, aucun point de la courbe
+  // ne serait atteignable. Le relevé dit les mêmes valeurs en toutes lettres,
+  // replié pour ne pas encombrer, et la tabulation l'ouvre.
+  const observation = (p) => ({
+    label: new Date(p.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
+    value: money(p.price),
+    mark: p.change ? 'changement' : 'vérification',
+  })
+
   const hover = (p) => {
     el('readout').textContent = p
       ? `${new Date(p.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} · ${money(p.price)}`
@@ -70,12 +79,19 @@ ADS.fiche = (() => {
     el('fiche-title').textContent = card.title || 'Annonce'
     el('fiche-specs').textContent = specs(card)
     // La durée d'abord, en clair ; le compte de jours à côté, pour qu'on puisse
-    // le citer. « 4 ans 11 mois » se retient, « 1 810 j » se vérifie.
-    el('age-main').textContent = spell(card.onlineDays)
-    el('age-days').textContent = `${number(card.onlineDays)} j`
+    // le citer. « 4 ans 11 mois » se retient, « 1 810 j » se vérifie. Et quand
+    // aucune date ne porte cet âge, la fenêtre refuse de l'épeler : elle le dit
+    // en petit et se tait, comme la courbe se contente de hachure.
+    const undated = card.onlineDays == null
+    el('age').className = undated ? 'age age--undated' : 'age'
+    el('age-main').textContent = undated ? 'date absente de la page' : spell(card.onlineDays)
+    el('age-days').textContent = undated ? '' : `${number(card.onlineDays)} j`
+    el('age-days').hidden = undated
 
     const model = ADS.curve.plot({
-      publishedAt: card.publishedAt || now,
+      // Sans mise en ligne, l'axe part de la première observation : la prendre
+      // à aujourd'hui écraserait sur un seul jour tout ce qu'on a vu avant.
+      publishedAt: card.publishedAt || (signals && signals.first_seen) || now,
       now,
       firstSeen: signals && signals.first_seen,
       price: card.price,
@@ -92,6 +108,8 @@ ADS.fiche = (() => {
     // large, sous l'axe quand elle est trop étroite pour un mot.
     el('hatch').textContent = captioned ? model.blind.text : ''
     el('hatch').hidden = !captioned
+    fill('points-rows', model.points.map((p) => row(observation(p))))
+    el('points').hidden = !model.points.length
     fill('claim', claim(card))
     // Le suivi mutualisé, nommé : ce qui suit ne se lit pas sur la page, il ne
     // vient que de nous être vu plusieurs fois.

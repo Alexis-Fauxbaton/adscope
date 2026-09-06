@@ -67,7 +67,7 @@ export const card = (over = {}) => ({
 })
 
 export const detail = (over = {}) => ({
-  kind: 'detail', url: '/ad/voitures/1', nextData: true, source: 'live', listings: 1,
+  kind: 'detail', url: '/ad/voitures/1', payload: true, source: 'live', listings: 1,
   pickedId: '1', urlId: '1', matchesUrl: true, sellerType: 'pro', site: 'lbc',
   sellerId: '73911', sellerName: 'ENTREPOT 222', sources: { cache: 0, network: 1 },
   card: card(), ...over,
@@ -94,7 +94,7 @@ export const open = async ({
 } = {}) => {
   const nodes = {}
   // Les sections écrites masquées dans popup.html : c'est l'état de départ.
-  for (const id of ['seller-box', 'fiche', 'summary', 'claim', 'hatch', 'empty']) {
+  for (const id of ['seller-box', 'fiche', 'summary', 'claim', 'hatch', 'empty', 'points']) {
     nodes[id] = new El()
     nodes[id].hidden = true
   }

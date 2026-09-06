@@ -67,6 +67,14 @@
 }
 
 #tracking { margin-top: 12px; }
+
+/* Le relevé des observations : ce que le survol dit à la souris, écrit pour qui
+   navigue au clavier. Replié, il ne prend la place de rien. */
+.points { margin-top: 8px; }
+
+/* Une raison sociale sans espace déborderait comme un titre d'annonce. */
+#seller-title { overflow-wrap: anywhere; }
+
 #seller .hint { margin: 0 0 8px; }
 
 /* Les valeurs du vendeur sont des phrases, pas des nombres : les tronquer
@@ -79,10 +87,9 @@
   border-top: 1px solid var(--line);
 }
 
-#tools > summary {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+/* Les deux replis de la fenêtre portent le même intitulé d'imprimé. */
+#tools > summary,
+.points > summary {
   padding: 9px 0;
   font: 10px/1.4 var(--mono);
   letter-spacing: 0.14em;
@@ -90,6 +97,9 @@
   color: var(--mute);
   cursor: pointer;
 }
+
+#tools > summary { display: flex; align-items: center; gap: 6px; }
+.points > summary { padding: 3px 0; }
 
 #tools section:last-of-type { border-bottom: 0; padding-bottom: 0; }
 
@@ -113,7 +123,9 @@ code {
   background: var(--card);
 }
 
-input:focus { outline: 2px solid var(--faint); outline-offset: -1px; background: #fff; }
+/* L'anneau natif est remplacé : ce qui le remplace doit être au moins aussi
+   visible. L'encre, la seule qui le soit franchement — 12,86:1 sur le papier. */
+input:focus { outline: 2px solid var(--ink); outline-offset: -1px; background: #fff; }
 
 button {
   padding: 5px 10px;

@@ -49,6 +49,22 @@ export class El {
   }
 }
 
+// Le jour du relevé, tenu fixe le temps d'un rendu. Les comptes attendus sont
+// calculés à la main sur cette date : une horloge qui avance les ferait dériver
+// d'un cran par jour, et le test cesserait de dire quoi que ce soit.
+export const at = (iso, fn) => {
+  const Real = Date
+  globalThis.Date = class extends Real {
+    constructor(...args) { super(...(args.length ? args : [iso])) }
+    static now() { return new Real(iso).getTime() }
+  }
+  try {
+    return fn()
+  } finally {
+    globalThis.Date = Real
+  }
+}
+
 // Le décor commun aux deux sites : stockage, runtime, observateur, chargement
 // des modules dans l'ordre du manifeste. Le DOM, lui, est monté par l'appelant :
 // c'est la seule chose que la page d'un site ne partage pas avec l'autre.

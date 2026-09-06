@@ -25,6 +25,27 @@ test("sur une fiche, la fenêtre met l'annonce et son ancienneté réelle en suj
   assert.match(nodes['age-days'].text, /118 j/)
 })
 
+// Le défaut le plus grave du lot : `publishedAt` nul comptait comme l'époque
+// Unix, et le sujet de la fenêtre annonçait « 56 ans 8 mois · 20 702 j » en
+// 27 pixels — pendant que l'axe de la même fenêtre disait « 6 sept. → auj. ».
+// La courbe se dégrade honnêtement ; le titre doit en faire autant.
+test("sans date de mise en ligne, la fenêtre n'énonce aucun âge", async () => {
+  const { nodes } = await open({
+    status: detail({ card: card({ onlineDays: null, publishedAt: null }) }),
+    cached: signals(),
+  })
+  assert.equal(nodes.fiche.hidden, false)
+  assert.match(nodes['age-main'].text, /absente/)
+  assert.doesNotMatch(nodes['age-main'].text, /\d/)
+  assert.equal(nodes['age-days'].text, '')
+  assert.equal(nodes['age-days'].hidden, true)
+  // L'axe part de la première observation, jamais d'un jour inventé : replié sur
+  // aujourd'hui, il écraserait les cinq observations sur un seul point.
+  const abscissas = new Set(kinds(nodes).map((p) => p.getAttribute('cx')))
+  assert.equal(abscissas.size, 5, [...abscissas].join(' '))
+  assert.match(nodes['axis-start'].text, /\d{4}/)
+})
+
 // La fenêtre ne nomme aucun site : elle demande au registre celui que le
 // diagnostic désigne.
 test('le nom du site vient du registre', async () => {
@@ -84,6 +105,35 @@ test("sans contradiction, ni bande rouge ni bloc", async () => {
   assert.equal(nodes.plot.all.find((n) => n.getAttribute('data-band')), undefined)
 })
 
+// Un dessin sans nom n'existe pas pour qui ne le voit pas, et le survol est une
+// affaire de souris : au clavier, aucun point n'était atteignable.
+test('la courbe porte un nom accessible et son relevé de valeurs', async () => {
+  const { nodes } = await open({ status: detail(), cached: signals() })
+  const svg = nodes.plot.children[0]
+  assert.equal(svg.getAttribute('role'), 'img')
+  const title = svg.children.find((n) => n.tag === 'title')
+  assert.ok(title, 'la courbe porte un titre')
+  assert.equal(svg.getAttribute('aria-labelledby'), title.getAttribute('id'))
+  assert.match(title.textContent, /Prix observé/)
+  assert.match(title.textContent, /5 observations/)
+
+  // Les mêmes valeurs en toutes lettres, sous un repli que la tabulation ouvre.
+  assert.equal(nodes.points.hidden, false)
+  assert.equal(nodes['points-rows'].children.length, 5)
+  assert.match(nodes['points-rows'].text, /12\u202f900\u00a0€/)
+  assert.match(nodes['points-rows'].text, /vérification/)
+  assert.match(nodes['points-rows'].text, /changement/)
+})
+
+test("sans observation, le relevé ne s'ouvre pas sur du vide", async () => {
+  const { nodes } = await open({
+    status: detail({ card: card({ price: null }) }),
+    cached: null,
+  })
+  assert.equal(nodes.points.hidden, true)
+  assert.equal(nodes['points-rows'].children.length, 0)
+})
+
 // Le suivi mutualisé se lit avec sa date de dernière vérification : « stable
 // depuis deux mois » ne vaut que ce que valent les observations qui l'ont vu.
 test('le suivi mutualisé porte sa date de dernière vérification', async () => {
@@ -123,7 +173,7 @@ test('le diagnostic quitte le premier plan', async () => {
 // Sur une page de résultats, le résumé — et rien de la fiche.
 test("sur des résultats, la fenêtre résume la page lue", async () => {
   const { nodes } = await open({
-    status: { kind: 'listing', site: 'lc', url: '/listing', nextData: true, listings: 23, pro: 21, badges: 23, sent: 23, old: 9, alerts: 4 },
+    status: { kind: 'listing', site: 'lc', url: '/listing', payload: true, listings: 23, pro: 21, badges: 23, sent: 23, old: 9, alerts: 4 },
   })
   assert.equal(nodes.fiche.hidden, true)
   assert.equal(nodes.summary.hidden, false)

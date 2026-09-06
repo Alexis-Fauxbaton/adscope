@@ -29,7 +29,7 @@ test('un particulier ne déclenche aucune demande et aucun bloc', async () => {
 
 test('une page de résultats ne parle pas de vendeur', async () => {
   const { nodes, asked } = await open({
-    status: { kind: 'listing', site: 'lbc', url: '/voitures', nextData: true, listings: 24, pro: 18, badges: 24, sent: 24, old: 6, alerts: 2 },
+    status: { kind: 'listing', site: 'lbc', url: '/voitures', payload: true, listings: 24, pro: 18, badges: 24, sent: 24, old: 6, alerts: 2 },
   })
   assert.equal(asked.length, 0)
   assert.equal(nodes['seller-box'].hidden, true)

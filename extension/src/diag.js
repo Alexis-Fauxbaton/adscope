@@ -14,23 +14,28 @@ ADS.diag = (() => {
 
   // Gardé : sur un onglet resté ouvert à travers une mise à jour, le stockage
   // de l'extension n'existe plus.
-  const write = ADS.context.guard((fields) =>
+  const write = ADS.context.guard((fields) => {
+    const site = ADS.sites.current() || {}
     chrome.storage.local.set({
       status: {
         url: location.pathname + location.search,
-        nextData: !!document.getElementById('__NEXT_DATA__'),
+        // Que la charge attendue soit là se constate depuis le registre : elle
+        // n'a pas la même forme d'un site à l'autre — un bloc du rendu serveur
+        // ici, des globales dans des scripts en ligne là —, et le code partagé
+        // n'en connaît aucune. Chaque site sait, lui, comment voir la sienne.
+        payload: site.payload ? site.payload(document) : false,
         at: Date.now(),
         // Quel site, pour que la fenêtre le nomme depuis le registre — elle
         // n'a pas la page, et ne connaît aucun site par elle-même.
-        site: (ADS.sites.current() || {}).id || null,
+        site: site.id || null,
         // D'où viennent les signaux affichés : le cache répond tout de suite,
         // le réseau les remplace ensuite. La popup doit pouvoir dire lequel
         // des deux tient l'encart sous les yeux du lecteur.
         sources: ADS.sync.counts(),
         ...fields,
       },
-    }),
-  )
+    })
+  })
 
   // Le badge de l'icône : seul le service worker sait à quel onglet la page
   // appartient, et il le lit sur l'expéditeur du message.

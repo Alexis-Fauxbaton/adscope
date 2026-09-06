@@ -9,7 +9,7 @@ globalThis.ADS = undefined
 const report = require(join(dirname(fileURLToPath(import.meta.url)), '../popup/report.js'))
 
 const listing = (over = {}) => ({
-  kind: 'listing', url: '/voitures/occasions', nextData: true, source: 'live',
+  kind: 'listing', url: '/voitures/occasions', payload: true, source: 'live',
   listings: 24, pro: 18, badges: 24, sent: 24, sources: { cache: 0, network: 24 }, ...over,
 })
 
@@ -23,7 +23,7 @@ test("le relevé sépare les signaux du cache de ceux du réseau", () => {
 
 test('une fiche dit la même chose que la liste sur ses signaux', () => {
   const rows = report.rows({
-    kind: 'detail', url: '/ad/voitures/1', nextData: true, source: 'page', listings: 1,
+    kind: 'detail', url: '/ad/voitures/1', payload: true, source: 'page', listings: 1,
     pickedId: '1', urlId: '1', matchesUrl: true, sellerType: 'pro',
     sources: { cache: 1, network: 0 },
   })
@@ -47,13 +47,27 @@ test('une page servie par le cache seul ne déclenche aucune alerte', () => {
   assert.deepEqual(report.trouble(listing({ sent: 0, sources: { cache: 24, network: 0 } })), {})
 })
 
+// Le champ était écrit par le diagnostic, verrouillé par deux tests, et aucune
+// ligne de la fenêtre ne le rendait — pendant que le message du commit affirmait
+// que ces annonces sont signalées. Six annonces préchargées sans carte sur la
+// page relevée : dites, désormais, au lieu d'être tues.
+test('les annonces que la charge porte sans carte sont dites', () => {
+  const rows = report.rows(listing({ unshown: 6 }))
+  assert.equal(value(rows, 'En réserve, sans carte'), '6')
+  // Un diagnostic écrit avant ce champ ne fait pas de trou dans le relevé.
+  assert.equal(value(report.rows(listing()), 'En réserve, sans carte'), '0')
+  // Et la fiche, qui n'a pas de cartes, ne porte pas cette ligne.
+  const detail = report.rows({ kind: 'detail', payload: true, listings: 1, matchesUrl: true, sellerType: 'pro' })
+  assert.equal(value(detail, 'En réserve, sans carte'), undefined)
+})
+
 test('un diagnostic ancien, sans origine connue, ne fait pas planter le relevé', () => {
   const rows = report.rows(listing({ sources: undefined }))
   assert.equal(value(rows, 'Signaux affichés'), '0 du cache · 0 du réseau')
 })
 
 test("le désaccord entre l'URL et l'annonce retenue reste l'alerte principale", () => {
-  const s = { kind: 'detail', nextData: true, listings: 2, pickedId: '1', urlId: '2', matchesUrl: false }
+  const s = { kind: 'detail', payload: true, listings: 2, pickedId: '1', urlId: '2', matchesUrl: false }
   assert.equal(report.trouble(s).bad, true)
   assert.match(report.trouble(s).text, /2/)
 })

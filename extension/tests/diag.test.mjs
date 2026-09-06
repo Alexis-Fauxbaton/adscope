@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ad, block, world } from './world.mjs'
+import { at } from './stage.mjs'
 
 // Le diagnostic répond à une seule question : quelle annonce l'extension a-t-elle
 // retenue, et est-ce celle que l'URL désigne ? Deux annonces dans le bloc, comme
@@ -14,7 +15,7 @@ test("sur une fiche, le diagnostic dit l'annonce retenue et son accord avec l'UR
   w.load('detail.js')
   const s = w.status()
   assert.equal(s.kind, 'detail')
-  assert.equal(s.nextData, true)
+  assert.equal(s.payload, true)
   assert.equal(s.listings, 2)
   assert.equal(s.pickedId, PRIVATE)
   assert.equal(s.urlId, PRIVATE)
@@ -133,16 +134,36 @@ test("le diagnostic porte de quoi composer la fiche dans la fenêtre", () => {
   assert.ok(c.claim === null || typeof c.claim.label === 'string')
 })
 
-// Le résumé d'une page de résultats : annonces lues, combien dépassent le
-// seuil, combien sont en alerte.
-test('le diagnostic des résultats compte ce qui dépasse le seuil et ce qui alerte', () => {
-  const w = world(PRO, { path: '/voitures/occasions', data: TWO })
+// Le résumé d'une page de résultats : annonces lues, combien dépassent le seuil,
+// combien sont en alerte. Deux pages d'âge choisi, et des valeurs posées à la
+// main : n'asserter que les types laissait les deux compteurs supprimables.
+const RELEVE = '2026-09-06T18:00:00Z'
+const results = (...ads) => at(RELEVE, () => {
+  const w = world(PRO, { path: '/voitures/occasions', data: block(...ads) })
   w.load('listing.js')
-  const s = w.status()
-  assert.equal(typeof s.old, 'number')
-  assert.equal(typeof s.alerts, 'number')
-  assert.ok(s.old <= s.listings)
-  assert.ok(s.alerts <= s.old)
+  return w
+})
+
+test('le diagnostic des résultats compte ce qui dépasse le seuil et ce qui alerte', () => {
+  // 128 jours en ligne au 6 septembre 2026, réactualisée cinq jours plus tôt :
+  // au delà du seuil d'un mois, et encore poussée — donc en alerte. Seule elle
+  // porte une carte ; la seconde annonce n'est lue que par la charge.
+  const loud = results(
+    { ...ad(PRO), first_publication_date: '2026-05-01 10:00:00', index_date: '2026-09-01 10:00:00' },
+    ad(PRIVATE),
+  ).status()
+  assert.equal(loud.listings, 1)
+  assert.equal(loud.old, 1)
+  assert.equal(loud.alerts, 1)
+
+  // Cinq jours en ligne, jamais republiée : ni l'un ni l'autre.
+  const quiet = results(
+    { ...ad(PRO), first_publication_date: '2026-09-01 10:00:00', index_date: '2026-09-01 10:04:00' },
+    ad(PRIVATE),
+  ).status()
+  assert.equal(quiet.listings, 1)
+  assert.equal(quiet.old, 0)
+  assert.equal(quiet.alerts, 0)
 })
 
 // La fenêtre affiche le nom du site : elle le résout dans le registre, encore

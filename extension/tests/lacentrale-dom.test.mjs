@@ -1,6 +1,19 @@
+import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CARDS, FICHES, fiche, page, results } from './lc-page.mjs'
+import { at } from './stage.mjs'
+
+// Le relevé de la fenêtre, chargé avant que le décor ne réinitialise `ADS` : les
+// chiffres du diagnostic et les lignes affichées doivent se juger ensemble.
+const report = createRequire(import.meta.url)(
+  join(dirname(fileURLToPath(import.meta.url)), '../popup/report.js'),
+)
+
+// Le jour du relevé des deux pages sauvegardées.
+const RELEVE = '2026-09-06T18:00:00Z'
 
 const OLDEST = 'W103409201' // 216 jours en ligne le jour du relevé
 const FRESH = 'W103546110' // 5 jours
@@ -20,6 +33,94 @@ test('sur une page de résultats, chaque carte porte son ancienneté réelle', (
   assert.match(w.badge(OLDEST).textContent, /en ligne/)
   assert.match(w.badge(OLDEST).textContent, /mois|ans?/)
   assert.match(w.badge(FRESH).textContent, /\d+ j en ligne/)
+})
+
+// Le diagnostic disait « Données trouvées : non » en rouge sur les deux pages de
+// La Centrale, suivi de « la structure du site a changé » — au-dessus d'un panneau
+// montrant 23 annonces lues et 23 pastilles posées. La sonde cherchait le bloc
+// d'un rendu Next, que ce site ne porte pas et ne portera jamais.
+const found = (s) => report.rows(s).find((r) => r.label === 'Données trouvées')
+
+test('sur les deux surfaces du site, la charge est constatée présente', () => {
+  for (const [what, build, script] of [['résultats', listing, 'listing.js'], ['fiche', capped, 'detail.js']]) {
+    const w = build()
+    w.load(script)
+    const s = w.status()
+    assert.equal(s.payload, true, what)
+    assert.equal(found(s).value, 'oui', what)
+    assert.equal(found(s).bad, false, what)
+    assert.doesNotMatch(report.trouble(s).text || '', /structure du site/, what)
+  }
+})
+
+// Les trois chiffres du résumé, et le nombre que porte le badge. Comptés à la
+// main sur les 23 cartes de la page relevée, au 6 septembre 2026 18 h UTC :
+// 14 annonces à 31 jours ou plus (94, 45, 45, 38, 45, 69, 127, 85, 216, 66, 81,
+// 41, 53, 66), dont 8 au delà du plafond de 60 jours (94, 69, 127, 85, 216, 66,
+// 81, 66). Aucune ne s'approche des bornes à moins d'un jour près.
+test('le résumé des résultats compte le seuil dépassé et les alertes', () => {
+  const w = at(RELEVE, () => {
+    const w = listing()
+    w.load('listing.js')
+    return w
+  })
+  const s = w.status()
+  assert.equal(s.listings, 23)
+  assert.equal(s.old, 14)
+  assert.equal(s.alerts, 8)
+  // Le badge de l'icône porte le même nombre, et il vient du même comptage.
+  assert.equal(w.badges().at(-1).alerts, 8)
+  // Le résumé de la fenêtre le rend tel quel.
+  const rendered = report.summary(s).map((r) => r.value)
+  assert.deepEqual(rendered, ['23', '14', '8'])
+})
+
+// Ce que la page montre en pastilles doit dire la même chose que ce que le
+// résumé compte : huit alertes, huit pastilles au poids d'alerte.
+test('autant de pastilles en alerte que le résumé en annonce', () => {
+  const w = at(RELEVE, () => {
+    const w = listing()
+    w.load('listing.js')
+    return w
+  })
+  const notable = CARDS.filter((c) => /adscope-badge--notable/.test(w.badge(c.reference).className))
+  assert.equal(notable.length, 8)
+})
+
+// Le défaut le plus grave du lot, vu de la page : une carte dont la charge porte
+// la clé de date sans valeur. `null` compté en millisecondes rendait l'époque
+// Unix — cinquante-six ans en ligne, et la pastille au rouge.
+test("une carte sans date n'énonce aucun âge et ne met rien en alerte", () => {
+  const [c] = CARDS
+  const w = page({
+    path: '/listing',
+    scripts: results([{ ...c, firstOnlineDate: null }]),
+    cards: [c.reference],
+  })
+  w.load('listing.js')
+  const badge = w.badge(c.reference)
+  assert.equal(badge.textContent, 'date absente de la page')
+  assert.doesNotMatch(badge.textContent, /\d/)
+  assert.match(badge.className, /adscope-badge--quiet/)
+  assert.equal(w.status().alerts, 0)
+  assert.equal(w.status().old, 0)
+})
+
+test("sur une fiche sans date, le panneau et la fenêtre refusent d'épeler un âge", () => {
+  const w = page({
+    path: '/auto-occasion-annonce-66101733515.html',
+    scripts: fiche({ ...FICHES.capped, creationDate: null }),
+    label: 'Publiée il y a 60 jours',
+  })
+  w.load('detail.js')
+  const text = w.panel().textContent
+  assert.match(text, /date absente de la page/)
+  assert.doesNotMatch(text, /ans|mois/)
+  // Rien à opposer au site : sans date, il n'y a pas de contradiction à nommer.
+  assert.doesNotMatch(text, /La Centrale affiche/)
+  assert.equal(w.status().card.onlineDays, null)
+  assert.equal(w.status().card.publishedAt, null)
+  assert.equal(w.status().alerts, 0)
 })
 
 // L'alerte de La Centrale est le plafond de son compteur, mesuré sur sa fiche ;

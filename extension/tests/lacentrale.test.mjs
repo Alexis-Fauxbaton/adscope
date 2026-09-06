@@ -13,7 +13,7 @@ const require = createRequire(import.meta.url)
 require(join(here, '../src/sites.js'))
 require(join(here, '../src/sites/read.js'))
 const site = require(join(here, '../src/sites/lacentrale.js'))
-const { fromDocument, fromScripts, signals, claim, displayed } = site
+const { fromDocument, fromScripts, signals, claim, displayed, payload } = site
 
 // Le jour du relevé : 23 jours après la mise en ligne de la fiche non plafonnée.
 const NOW = new Date('2026-09-06T18:00:00Z')
@@ -128,6 +128,34 @@ test('le véhicule et le prix sont lus sur les deux surfaces', () => {
   assert.equal(card.mileage, 52626)
   assert.equal(card.price, CARDS[0].price)
   assert.equal(card.url, `https://www.lacentrale.fr/auto-occasion-annonce-87${CARDS[0].reference.slice(1)}.html`)
+})
+
+// Le site nomme lui-même ce qui atteste sa charge : les globales de ses deux
+// surfaces. Sans cela, le diagnostic cherchait ici le bloc d'un autre site.
+test('la charge du site se constate par les globales que ses pages portent', () => {
+  const doc = (texts) => ({ querySelectorAll: () => texts.map((t) => ({ textContent: t, children: [] })) })
+  assert.equal(payload(doc(fiche(FICHES.capped))), true)
+  assert.equal(payload(doc(results(CARDS))), true)
+  assert.equal(payload(doc(['var HeaderData= {"menu":[]}'])), false)
+  assert.equal(payload(doc([])), false)
+})
+
+// Une carte dont la charge porte la clé de date sans valeur. `null` compté en
+// millisecondes rendrait 20 702 jours — l'époque Unix prise pour une mise en ligne.
+test("une annonce sans date ne reçoit ni âge ni signal", () => {
+  const [undated] = fromScripts(results([{ ...CARDS[0], firstOnlineDate: null }]))
+  assert.equal(undated.siteId, CARDS[0].reference)
+  assert.equal(undated.publishedAt, null)
+  const s = signals(undated, NOW)
+  assert.equal(s.onlineDays, null)
+  assert.equal(s.capped, false)
+  assert.equal(s.notable, false)
+  assert.equal(s.old, false)
+  assert.equal(s.dormant, false)
+  // `lastUpdate` seul ne fait pas une remontée : sans mise en ligne, l'écart
+  // se mesurerait depuis l'époque Unix et vaudrait toujours des décennies.
+  assert.equal(s.bumped, false)
+  assert.equal(claim(s, 'Publiée il y a 60 jours'), null)
 })
 
 test("l'extracteur ne rend rien sur une page étrangère au site", () => {

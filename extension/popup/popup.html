@@ -16,7 +16,7 @@
   <p id="fiche-specs" class="specs"></p>
 
   <p class="label">En ligne depuis</p>
-  <p class="age"><span id="age-main"></span><span id="age-days" class="age-days"></span></p>
+  <p id="age" class="age"><span id="age-main"></span><span id="age-days" class="age-days"></span></p>
 
   <p class="label">Prix observé</p>
   <div id="plot" class="plot-box"></div>
@@ -24,6 +24,15 @@
   <p id="readout" class="readout"></p>
   <p id="hatch" class="hatch" hidden></p>
   <div id="claim" class="claim" hidden></div>
+
+  <!--
+    Ce que la courbe montre, en toutes lettres : le survol est une affaire de
+    souris, ce relevé s'atteint à la tabulation et se lit à voix haute.
+  -->
+  <details id="points" class="points" hidden>
+    <summary>Relevé des observations</summary>
+    <div id="points-rows"></div>
+  </details>
 
   <div id="tracking" hidden></div>
 </section>

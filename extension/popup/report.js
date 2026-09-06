@@ -3,7 +3,8 @@ globalThis.ADS = globalThis.ADS || {}
 // Ce que la popup a à dire de la dernière page lue, sans toucher au document :
 // des lignes, une éventuelle explication. Le rendu est l'affaire de popup.js.
 ADS.report = (() => {
-  const found = (s) => ({ label: 'Données trouvées', value: s.nextData ? 'oui' : 'non', bad: !s.nextData })
+  // Le site dit lui-même si sa charge est là ; la fenêtre ne fait que le rendre.
+  const found = (s) => ({ label: 'Données trouvées', value: s.payload ? 'oui' : 'non', bad: !s.payload })
 
   // La source dit d'où viennent les annonces lues : le bloc du rendu serveur,
   // qui décrit la page d'entrée, ou la charge reçue depuis — c'est ce qui
@@ -57,6 +58,9 @@ ADS.report = (() => {
     found(s),
     from(s),
     { label: 'Annonces lues', value: String(s.listings), bad: !s.listings },
+    // L'écart entre ce que la charge porte et ce que la page montre : sans lui,
+    // « 29 lues, 23 pastilles » ressemblait à un défaut de sélecteurs.
+    { label: 'En réserve, sans carte', value: String(s.unshown ?? 0) },
     { label: 'Pro / particuliers', value: `${s.pro} / ${s.listings - s.pro}` },
     { label: 'Pastilles posées', value: String(s.badges), bad: !s.badges },
     signals(s),
@@ -75,7 +79,7 @@ ADS.report = (() => {
   ]
 
   const trouble = (s) => {
-    if (!s.nextData) return { text: 'La page ne contient pas le bloc de données attendu — la structure du site a changé.' }
+    if (!s.payload) return { text: 'La page ne contient pas le bloc de données attendu — la structure du site a changé.' }
     if (!s.listings) return { text: 'Données présentes mais aucune annonce reconnue.' }
     if (s.kind === 'detail' && !s.matchesUrl) {
       return {

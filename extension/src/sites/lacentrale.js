@@ -8,7 +8,6 @@ ADS.lacentrale = ADS.sites.register((() => {
   const DAY = 86400000
   const { leaf, blobs, collect } = ADS.read
 
-  // Une fiche porte `creationDate`, une page de résultats `firstOnlineDate` : jamais les deux.
   const isDetail = (o) => 'classifiedReference' in o && 'creationDate' in o
   const isCard = (o) => 'reference' in o && 'firstOnlineDate' in o
   const date = (s) => (s ? new Date(s) : null)
@@ -45,8 +44,7 @@ ADS.lacentrale = ADS.sites.register((() => {
       sellerType: type(c.customerType),
       ...seller(c.customerType, c.customerReference, (c.contacts || {}).nomPublie),
       price: number(c.price), publishedAt: date(c.firstOnlineDate),
-      // `lastUpdate` dit qu'on a touché à l'annonce, pas pourquoi : remontée payée
-      // ou simple correction, la page ne les distingue pas.
+      // `lastUpdate` dit qu'on a touché à l'annonce, jamais pourquoi — voir BUMP_MIN_MS.
       bumpedAt: c.lastUpdate ? new Date(c.lastUpdate * 1000) : null,
       brand: v.make || null, model: v.model || null, version: v.version || null,
       year: number(v.year), mileage: number(v.mileage),
@@ -77,7 +75,11 @@ ADS.lacentrale = ADS.sites.register((() => {
     const seen = new Set()
     return collect(found, isCard).filter((c) => !seen.has(c.reference) && seen.add(c.reference)).map(card)
   }
-  const fromDocument = (doc) => fromScripts([...doc.querySelectorAll('script')].map((s) => s.textContent || ''))
+  const texts = (doc) => [...doc.querySelectorAll('script')].map((s) => s.textContent || '')
+  const fromDocument = (doc) => fromScripts(texts(doc))
+  // Comment ce site constate que sa charge est là : le nom des globales qui la portent, une
+  // par surface. C'est son contrat — pas un bloc emprunté au vocabulaire d'un autre site.
+  const payload = (doc) => texts(doc).some((t) => /CLASSIFIED_MORE_INFOS|__PRELOADED_STATE_LISTING__/.test(t))
 
   // Le libellé plafonné, sous le prix.
   const PUBLISHED = /^Publiée il y a .+/i
@@ -97,13 +99,13 @@ ADS.lacentrale = ADS.sites.register((() => {
   // 1 810 jours en ligne et affiche « Publiée il y a 60 jours » ; au-delà de ce plafond,
   // son libellé ne distingue plus rien, et l'écart, lui, se mesure.
   const CAP_DAYS = 60
-  // Mesuré le 2026-09-06, et la mesure conclut à l'insuffisance : la base porte 24 annonces
-  // du site, toutes d'un seul relevé, dont 5 dans la fenêtre [31, 60] que ce seuil découpe.
-  // Aucune borne ne s'y dessine, et l'absence est vérifiée : en tirant 23 anciennetés au
-  // hasard parmi les 29 188 de leboncoin, le plus grand écart se place n'importe où entre 18
-  // et 56 jours — l'estimateur est du bruit à cet effectif. Il faut environ 500 annonces pour
-  // voir la forme, 2 000 pour y poser une borne. 31 jours reste donc emprunté à leboncoin, où
-  // il a été mesuré ; ici la valeur ne pèse que sur l'appui visuel, jamais sur l'alerte.
+  // Mesuré le 2026-09-06, et la mesure conclut à l'insuffisance : la base porte 24 annonces du
+  // site, toutes d'un seul relevé, dont 5 dans la fenêtre [31, 60] que ce seuil découpe. Aucune
+  // borne ne s'y dessine, et l'absence est vérifiée : en tirant 23 anciennetés au hasard parmi
+  // les 29 188 de leboncoin, le plus grand écart se place n'importe où entre 18 et 56 jours —
+  // du bruit à cet effectif. Il faut environ 500 annonces pour voir la forme, 2 000 pour y poser
+  // une borne. 31 jours reste emprunté à leboncoin, où il a été mesuré ; ici la valeur ne pèse
+  // que sur l'appui visuel, jamais sur l'alerte.
   const OLD_MIN_DAYS = 31
   // Non mesuré non plus, et volontairement sans effet sur l'alerte : 22 des 23 cartes
   // relevées portent un `lastUpdate` postérieur de plus d'un jour à la mise en ligne.
@@ -112,19 +114,18 @@ ADS.lacentrale = ADS.sites.register((() => {
   const BUMP_MIN_MS = DAY
 
   const signals = (listed, now) => {
-    const online = Math.floor((now - listed.publishedAt) / DAY)
-    const bumped = !!listed.bumpedAt && listed.bumpedAt - listed.publishedAt > BUMP_MIN_MS
-    const capped = online > CAP_DAYS
+    // Une charge peut porter la clé de date sans valeur : `null` compté en millisecondes rendrait
+    // l'époque Unix, cinquante-six ans énoncés d'autorité. Sans date, aucun âge, et rien qui suive.
+    const online = listed.publishedAt ? Math.floor((now - listed.publishedAt) / DAY) : null
+    const bumped = online != null && !!listed.bumpedAt && listed.bumpedAt - listed.publishedAt > BUMP_MIN_MS
+    // L'alerte est le plafond, et lui seul : passé 60 jours le libellé du site est faux
+    // par omission. En deçà il dit l'âge exact — appuyé, jamais mis en alerte.
+    const capped = online != null && online > CAP_DAYS
+    // Ce qui dépasse le seuil du site, alerte ou non : le résumé le compte.
+    const old = online != null && online >= OLD_MIN_DAYS
     return {
-      onlineDays: online, bumped,
+      onlineDays: online, bumped, capped, notable: capped, dormant: !capped && old, old,
       bumpedDaysAgo: bumped ? Math.floor((now - listed.bumpedAt) / DAY) : null,
-      capped,
-      // L'alerte est le plafond, et lui seul : passé 60 jours le libellé du site est faux
-      // par omission. En deçà il dit l'âge exact — appuyé, jamais mis en alerte.
-      notable: capped,
-      dormant: !capped && online >= OLD_MIN_DAYS,
-      // Ce qui dépasse le seuil du site, alerte ou non : le résumé le compte.
-      old: online >= OLD_MIN_DAYS,
     }
   }
 
@@ -132,9 +133,8 @@ ADS.lacentrale = ADS.sites.register((() => {
   // « Réactualisée » y affirmerait une remontée que la page ne donne pas.
   const words = { bump: () => 'modifiée', bumpLabel: 'Modifiée' }
 
-  // La contradiction, nommée : le site dit soixante jours faute de savoir en dire
-  // davantage, quand la page porte la date exacte.
-  // `days` dit ce qu'elle couvre de l'axe : au plafond, les soixante derniers.
+  // La contradiction, nommée : le site dit soixante jours faute de savoir en dire davantage,
+  // quand la page porte la date exacte. `days` dit ce qu'elle couvre : les soixante derniers.
   const claim = (s, says) =>
     s.capped && says
       ? { label: 'La Centrale affiche', says, days: CAP_DAYS, note: `compteur plafonné à ${CAP_DAYS} jours` }
@@ -143,7 +143,7 @@ ADS.lacentrale = ADS.sites.register((() => {
   return {
     id: SITE, name: 'La Centrale', origins: ['https://www.lacentrale.fr'],
     urlId, card: cardOf, dateNode, words, claim, displayed,
-    fromDocument, fromScripts, signals,
+    fromDocument, fromScripts, payload, signals,
   }
 })())
 

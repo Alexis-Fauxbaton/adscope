@@ -10,13 +10,20 @@ ADS.view = (() => {
   // prix a été perdu de vue, et il a pu bouger et revenir sans témoin.
   const CHECKED_MAX_DAYS = 8
 
+  // Une annonce dont la charge ne porte aucune date n'a pas d'âge à énoncer. Le
+  // dire est le constat ; en fabriquer un serait exactement ce que le produit
+  // combat — un nombre faux, énoncé avec autorité.
+  const UNDATED = 'date absente de la page'
+
   // Ce qui frappe d'abord est la durée : c'est elle qui décide, la mise à jour
   // n'est qu'un aggravant. Ce que cette mise à jour atteste, en revanche, dépend
   // du site : lui seul fournit le mot.
-  const age = (s, site) =>
-    s.bumped
+  const age = (s, site) => {
+    if (s.onlineDays == null) return UNDATED
+    return s.bumped
       ? `${duration(s.onlineDays)} en ligne · ⟳ ${site.words.bump(s)} ${ago(s.bumpedDaysAgo)}`
       : `${duration(s.onlineDays)} en ligne`
+  }
 
   // Une baisse de prix n'est lisible nulle part sur la page : elle suppose
   // d'avoir vu l'annonce avant.
@@ -64,7 +71,11 @@ ADS.view = (() => {
   // et ce que sa page affiche de faux ne se transposent pas d'un site à l'autre.
   const panel = (listing, s, r, displayed, site = ADS.sites.current()) => ({
     page: [
-      { label: 'En ligne depuis', value: duration(s.onlineDays), strong: s.notable || s.dormant },
+      {
+        label: 'En ligne depuis',
+        value: s.onlineDays == null ? UNDATED : duration(s.onlineDays),
+        strong: s.notable || s.dormant,
+      },
       ...(s.bumped ? [{ label: site.words.bumpLabel, value: ago(s.bumpedDaysAgo) }] : []),
       { label: 'Vendeur', value: listing.sellerType === 'pro' ? 'professionnel' : 'particulier' },
     ],
