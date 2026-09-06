@@ -59,13 +59,19 @@
 
   const stampOf = (siteId) => (ADS.sync.of(siteId) ? 'sync' : 'page')
 
+  // Quelle annonce est lue : l'URL le dit, le panneau déjà posé non — sur une
+  // application monopage il survit au passage à la fiche suivante. Hors fiche
+  // (page de résultats) l'URL ne porte pas d'identifiant, son marquage fait foi.
+  const readId = (el) => (location.pathname.match(/\d{6,}/) || [])[0] || el.getAttribute(MARK)
+
   // L'observateur rejoue ce rendu à chaque lot de mutations de la fiche, qui en
-  // produit sans cesse. L'estampille se lit sur le panneau déjà posé : tant
-  // qu'elle correspond, ni le JSON de la page ni le balayage du DOM ne sont
+  // produit sans cesse. Tant que le panneau posé porte l'annonce lue et la même
+  // origine de données, ni le JSON de la page ni le balayage du DOM ne sont
   // refaits.
   const render = () => {
     let el = document.querySelector(`[${MARK}]`)
-    if (el && el.getAttribute(SRC) === stampOf(el.getAttribute(MARK))) return
+    const id = el && readId(el)
+    if (el && el.getAttribute(MARK) === id && el.getAttribute(SRC) === stampOf(id)) return
     const listings = fromDocument(document)
     const [listing] = listings
     if (!listing) return
@@ -76,9 +82,9 @@
       const target = node || document.querySelector('h1')
       if (!target) return
       el = document.createElement('div')
-      el.setAttribute(MARK, listing.siteId)
       target.parentElement.insertBefore(el, target.nextSibling)
     }
+    el.setAttribute(MARK, listing.siteId)
     el.setAttribute(SRC, remote ? 'sync' : 'page')
     fill(el, listing, remote, node && node.textContent.trim())
   }

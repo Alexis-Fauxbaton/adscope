@@ -8,7 +8,9 @@ import assert from 'node:assert/strict'
 const here = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 const src = (f) => join(here, '../src/', f)
-const NEXT_DATA = JSON.stringify({ ads: JSON.parse(readFileSync(join(here, 'fixtures/leboncoin-ads.json'), 'utf8')) })
+const FIXTURE = JSON.parse(readFileSync(join(here, 'fixtures/leboncoin-ads.json'), 'utf8'))
+const NEXT_DATA = JSON.stringify({ ads: FIXTURE })
+const ad = (id) => FIXTURE.find((a) => String(a.list_id) === id)
 
 // Un DOM minimal : juste ce que les deux content scripts touchent réellement.
 class El {
@@ -77,9 +79,16 @@ const world = (targetId) => {
   ADS.leboncoin.fromDocument = (d) => (counts.extract++, extract(d))
   ADS.sync = { send() {}, onSignals: (fn) => listeners.push(fn), of: (id) => signals[id] || null }
 
+  // Une navigation monopage : l'URL et la charge JSON changent, le DOM survit.
+  const visit = (a) => {
+    globalThis.location = { pathname: `/ad/voitures/${a.list_id}` }
+    nextData.textContent = JSON.stringify({ props: { ad: a } })
+  }
+
   return {
     counts,
     card,
+    visit,
     panel: () => body.querySelector('[data-adscope-detail]'),
     badge: () => card.querySelector('[data-adscope]'),
     mutate: (n) => { for (let i = 0; i < n; i++) for (const fn of batches) fn() },
@@ -116,4 +125,20 @@ test('la pastille pose un nœud par origine', () => {
   assert.equal(tracked.className, 'adscope-badge-tracked')
   assert.match(tracked.textContent, /^▼ −800/)
   assert.ok(!page.textContent.includes('▼'))
+})
+
+test('la fiche suivante chasse la précédente en navigation monopage', () => {
+  const w = world('0')
+  w.visit(ad('3254194817'))
+  w.load('detail.js')
+  assert.equal(w.panel().getAttribute('data-adscope-detail'), '3254194817')
+  assert.match(w.panel().textContent, /professionnel/)
+
+  // Le panneau posé survit au passage à la fiche suivante : le laisser tel quel
+  // afficherait l'ancienneté du véhicule que le lecteur vient de quitter.
+  w.visit(ad('3263931610'))
+  w.mutate(1)
+  assert.equal(w.panel().getAttribute('data-adscope-detail'), '3263931610')
+  assert.match(w.panel().textContent, /particulier/)
+  assert.doesNotMatch(w.panel().textContent, /professionnel/)
 })
