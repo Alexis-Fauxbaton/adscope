@@ -441,6 +441,31 @@ là depuis quatre jours.*
 La donnée qui permet de le dire est déjà dans la page que le marchand a ouverte. Aucune
 requête supplémentaire, aucune base, aucun historique préalable.
 
+## 10 quater. Pagination : le bloc de données se périme — constaté le 2026-09-06
+
+**Constaté en navigation réelle : aucune pastille n'apparaît en page 2.** Un rechargement
+complet les fait revenir.
+
+Cause établie hors ligne. leboncoin utilise le **Pages Router** de Next.js : `__NEXT_DATA__`
+est écrit une seule fois au rendu serveur. Une navigation interne récupère les nouvelles
+données sur `/_next/data/{buildId}/…` et met à jour l'affichage **sans jamais réécrire ce
+bloc**. Le HTML servi ne contient d'ailleurs aucun lien `?page=` : les contrôles de
+pagination sont créés en JavaScript, donc empruntent ce mécanisme.
+
+L'extension lit donc les annonces de la page 1 pendant que l'utilisateur regarde la page 2.
+Les identifiants ne correspondant à aucune carte présente, aucune pastille n'est posée.
+Le mode de défaillance est heureusement silencieux plutôt que trompeur — rien ne s'affiche,
+au lieu d'afficher du faux.
+
+**Correction retenue** : un content script déclaré `"world": "MAIN"` observe, dans le
+contexte de la page, les données que le navigateur a **déjà reçues** au fil de la
+navigation, et les transmet au reste de l'extension par événement. Aucune requête
+supplémentaire n'est émise : on lit ce que la page a chargé pour l'utilisateur, exactement
+comme on le fait déjà avec `__NEXT_DATA__`, mais à la source qui reste à jour.
+
+Ce défaut vaudra pour tout site en application monopage. À vérifier sur chaque nouveau
+site : le bloc de données initial suit-il la navigation ?
+
 ## 11. Affichage
 
 ### Encart, sous le prix de la fiche
