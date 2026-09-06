@@ -34,11 +34,12 @@ el('key-replace').onclick = () => {
   showKey()
 }
 
-// Le domaine de production n'est pas connu à la compilation : l'accès à
-// l'adresse configurée se demande sur geste de l'utilisateur — enregistrer
-// en est un, et sans cet accès l'extension ne peut rien envoyer.
-const access = (apiBase) =>
-  chrome.permissions.request({ origins: [`${new URL(apiBase).origin}/*`] }).catch(() => false)
+// Le domaine de production n'est pas connu à la compilation : l'accès se
+// demande sur geste — enregistrer en est un, et sans lui rien ne part.
+const origins = (apiBase) => ({ origins: [`${new URL(apiBase).origin}/*`] })
+const access = (apiBase) => chrome.permissions.request(origins(apiBase)).catch(() => false)
+// Sans geste, on ne demande pas : on vérifie ce qui est déjà accordé.
+const granted = (apiBase) => chrome.permissions.contains(origins(apiBase)).catch(() => false)
 
 el('api-save').onclick = async () => {
   const value = base(el('api').value)
@@ -98,9 +99,8 @@ const diagnose = (status) => {
   if (text) box.append(hint(text, bad))
 }
 
-// Ce que la fiche ouverte ne dit pas : le stock du marchand. La demande à
-// l'API est elle-même la mesure d'usage de la fonctionnalité — rien d'autre
-// n'est à collecter.
+// Ce que la fiche ouverte ne dit pas : ce qu'adscope a vu de ce marchand. La
+// demande est elle-même la mesure d'usage — rien d'autre n'est collecté.
 const lead = (text) => {
   const d = document.createElement('div')
   d.className = 'lead'
@@ -108,11 +108,14 @@ const lead = (text) => {
   return d
 }
 
+// La seule demande qui parte sans geste de l'utilisateur — et elle porte la
+// clé de licence. Sa destination se vérifie donc comme ailleurs : une adresse
+// bien formée, et un accès déjà accordé.
 const showSeller = async (status) => {
-  if (!status || status.kind !== 'detail' || !status.sellerId) return
-  const stats = await ADS.seller.fetch(
-    base(el('api').value), key, status.site || 'lbc', status.sellerId,
-  )
+  if (!status || status.kind !== 'detail' || !status.sellerId || !key) return
+  const apiBase = base(el('api').value)
+  if (!isBase(apiBase) || !(await granted(apiBase))) return
+  const stats = await ADS.seller.fetch(apiBase, key, status.site || 'lbc', status.sellerId)
   const block = ADS.seller.block(stats)
   if (!block) return
   el('seller-title').textContent = block.title
@@ -128,8 +131,7 @@ const ask = (msg) => chrome.runtime.sendMessage(msg).catch(() => null)
 
 const showCache = async () => {
   const stats = await ask({ type: 'cache-stats' })
-  const box = el('cache')
-  box.replaceChildren(stats ? line(occupancy(stats)) : hint('Cache illisible.'))
+  el('cache').replaceChildren(stats ? line(occupancy(stats)) : hint('Cache illisible.'))
 }
 
 el('cache-clear').onclick = async () => {

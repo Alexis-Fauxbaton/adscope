@@ -39,7 +39,13 @@ const detail = (over = {}) => ({
   sellerId: '73911', sellerName: 'ENTREPOT 222', sources: { cache: 0, network: 1 }, ...over,
 })
 
-const open = async ({ status, answer = async () => ({ ok: true, json: async () => stats() }) }) => {
+const open = async ({
+  status,
+  answer = async () => ({ ok: true, json: async () => stats() }),
+  apiBase = 'http://api',
+  licenseKey = 'adsc_' + 'a'.repeat(32),
+  granted = true,
+}) => {
   // La section vendeur est écrite masquée dans popup.html : c'est l'état de
   // départ que ce document reproduit.
   const nodes = { 'seller-box': new El() }
@@ -51,12 +57,14 @@ const open = async ({ status, answer = async () => ({ ok: true, json: async () =
   }
   globalThis.chrome = {
     storage: {
-      local: {
-        get: async () => ({ licenseKey: 'adsc_' + 'a'.repeat(32), apiBase: 'http://api', status }),
-        set: async () => {},
-      },
+      local: { get: async () => ({ licenseKey, apiBase, status }), set: async () => {} },
     },
     runtime: { sendMessage: async () => ({ entries: 0, bytes: 0, quota: 1000 }) },
+    // L'accès à l'adresse configurée : accordé sur geste, vérifié sans geste.
+    permissions: {
+      contains: async () => granted,
+      request: async () => granted,
+    },
   }
   globalThis.fetch = (url, init) => (asked.push(url), answer(url, init))
   globalThis.ADS = undefined
@@ -116,4 +124,24 @@ test('la note du petit échantillon arrive jusqu’à la fenêtre', async () => 
     answer: async () => ({ ok: true, json: async () => stats({ listings: 3, aged: 3, over_a_month: 1, over_a_month_share: 0.333, median_age_days: 12 }) }),
   })
   assert.match(nodes.seller.text, /3 annonces/)
+})
+
+
+// Le bloc vendeur part au chargement, sans geste de l'utilisateur, et sa
+// demande porte la clé de licence : c'est le seul appel qui l'envoyait sans
+// avoir validé sa destination, contrairement au test et à l'enregistrement.
+test("une adresse d'API mal formée ne reçoit pas la clé", async () => {
+  const { asked } = await open({ status: detail(), apiBase: 'pas une adresse' })
+  assert.equal(asked.length, 0)
+})
+
+test("une adresse dont l'accès n'est pas accordé ne reçoit pas la clé", async () => {
+  const { asked, nodes } = await open({ status: detail(), granted: false })
+  assert.equal(asked.length, 0)
+  assert.equal(nodes['seller-box'].hidden, true)
+})
+
+test('sans clé de licence, aucune demande ne part', async () => {
+  const { asked } = await open({ status: detail(), licenseKey: '' })
+  assert.equal(asked.length, 0)
 })
