@@ -17,6 +17,22 @@ uv lock --upgrade                 # met à jour le verrou, délibérément
 Ne pas installer avec `pip` : le verrou serait contourné et l'écart de versions ne se
 verrait qu'au déploiement.
 
+## Schéma
+
+```sh
+cd api && ./.venv/bin/python scripts/migrate.py
+```
+
+`create_all` pose les tables manquantes ; il ne touche jamais à une table qui existe
+déjà. Les altérations passent donc par un registre — `adscope_api/migrations.py` — qui
+applique chaque migration une fois et l'inscrit dans `schema_migrations`. Les
+instructions sont elles-mêmes idempotentes (`ADD COLUMN IF NOT EXISTS`), ce qui rattrape
+une base déjà modifiée à la main.
+
+La commande se rejoue sans risque et ne détruit rien : sauvegarder d'abord
+(`pg_dump -d adscope -Fc -f avant.dump`) reste la précaution d'usage. Redémarrer le
+service après coup.
+
 ## Installation du service
 
 ```sh

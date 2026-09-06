@@ -22,9 +22,9 @@ def require_license(authorization: str = Header(default=""), session=Depends(get
 
 @app.post("/v1/observations")
 def post_observations(payload: ObservationsIn, session=Depends(get_session),
-                      _=Depends(require_license)):
+                      license_=Depends(require_license)):
     for item in payload.items:
-        record(session, item, source="user")
+        record(session, item, source="user", license_=license_)
     session.commit()
     return {"accepted": len(payload.items)}
 

@@ -10,7 +10,8 @@ FINGERPRINT_FIELDS = ("brand", "model", "version", "year", "mileage")
 VEHICLE_FIELDS = FINGERPRINT_FIELDS + ("postal_code", "seller_type")
 
 
-def record(session, observation: ObservationIn, source: str, now=None) -> Listing:
+def record(session, observation: ObservationIn, source: str, license_=None,
+           now=None) -> Listing:
     if now is None:
         now = datetime.now(timezone.utc)
 
@@ -71,9 +72,12 @@ def record(session, observation: ObservationIn, source: str, now=None) -> Listin
             .limit(1)
         )
         if latest is None or latest.price != observation.price:
+            # Qui a envoyé quoi : la seule mesure d'usage du produit, prise
+            # sur ce qu'on enregistrait déjà.
             session.add(PricePoint(
                 listing_id=listing.id, observed_at=now,
                 price=observation.price, source=source,
+                license_key_hash=license_.key_hash if license_ is not None else None,
             ))
 
     return listing

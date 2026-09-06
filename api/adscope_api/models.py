@@ -1,6 +1,8 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean, Date, DateTime, ForeignKey, Index, String, UniqueConstraint, func,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -49,6 +51,11 @@ class Listing(Base):
 
 class PricePoint(Base):
     __tablename__ = "price_points"
+    # L'index qui sert la mesure d'usage : par licence, dans l'ordre du temps.
+    # Nommé ici pour que la migration et `create_all` produisent le même schéma.
+    __table_args__ = (
+        Index("ix_price_points_license", "license_key_hash", "observed_at"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     listing_id: Mapped[int] = mapped_column(
@@ -57,6 +64,12 @@ class PricePoint(Base):
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     price: Mapped[int]
     source: Mapped[str] = mapped_column(String(8))
+    # Qui a émis l'observation. Nul pour le crawler et pour tout ce qui a été
+    # enregistré avant cette colonne. Une licence supprimée laisse ses points de
+    # prix en place : c'est de l'historique de marché, pas de la donnée de compte.
+    license_key_hash: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("licenses.key_hash", ondelete="SET NULL"), default=None
+    )
 
     listing: Mapped[Listing] = relationship(back_populates="prices")
 

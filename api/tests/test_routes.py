@@ -113,3 +113,8 @@ def test_source_claimed_by_the_client_is_ignored(client, session, key):
     client.post("/v1/observations",
                 json={"source": "crawler", "items": [observation()]}, headers=auth(key))
     assert session.query(PricePoint).one().source == "user"
+
+
+def test_observations_are_attributed_to_the_calling_license(client, session, key):
+    client.post("/v1/observations", json={"items": [observation()]}, headers=auth(key))
+    assert session.query(PricePoint).one().license_key_hash == hash_key(key)
