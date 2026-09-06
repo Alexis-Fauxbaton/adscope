@@ -466,6 +466,52 @@ comme on le fait déjà avec `__NEXT_DATA__`, mais à la source qui reste à jou
 Ce défaut vaudra pour tout site en application monopage. À vérifier sur chaque nouveau
 site : le bloc de données initial suit-il la navigation ?
 
+## 10 quinquies. Mesure de marché — 2026-09-06, 1 792 annonces
+
+Premier relevé à volume réel, sur des annonces automobiles leboncoin.
+
+| | annonces | réactualisées | taux |
+|---|---|---|---|
+| **professionnels** | 249 | 194 | **78 %** |
+| particuliers | 1 787 | 108 | 6 % |
+
+**Un facteur treize.** Quatre annonces de marchand sur cinq sont remises en avant, contre
+une sur seize chez les particuliers. Ce sont deux comportements distincts, et le produit
+rend visible celui que le site rémunère.
+
+Âge réel des annonces réactualisées : **155 sur 285 dépassent le mois**. Ce n'est donc pas
+du bruit de fraîcheur, c'est du stock qui ne tourne pas.
+
+Cas les plus parlants du relevé :
+
+```
+BMW 635        en ligne 2 235 j (6 ans)   réactualisée il y a 2 j    15 000 €
+Peugeot 5008   en ligne   823 j           réactualisée le jour même  17 890 €
+Citroën        en ligne   571 j           réactualisée la veille     23 980 €
+Volvo S60      en ligne   383 j           réactualisée il y a 3 j    27 870 €
+```
+
+### Ce que ce chiffre change dans la conception
+
+À 78 %, **la réactualisation n'est plus un signal** : c'est le comportement normal d'un
+marchand, qui paie pour rester visible. Une alerte qui se déclenche sur quatre cartes
+professionnelles sur cinq ne discrimine rien — c'est le défaut déjà rencontré avec les
+pastilles « moins d'un jour », sous une autre forme.
+
+Le signal est **l'annonce ancienne qui est réactualisée** : celle dont le vendeur maintient
+artificiellement la visibilité parce qu'elle ne part pas.
+
+L'affichage doit donc mettre l'ancienneté au premier plan et la réactualisation en
+aggravant, et non l'inverse. Le seuil d'alerte devient « en ligne depuis plus d'un mois
+**et** réactualisée récemment » plutôt que « réactualisée ». Sur ce relevé, cela ramène les
+alertes professionnelles d'environ 194 à 130, chacune désignant réellement du stock dormant.
+
+### Usage commercial
+
+« 78 % des annonces de marchands sont remises en avant » explique en une phrase pourquoi le
+classement de leboncoin n'est pas fiable. Suivi de la BMW de six ans, l'argument se passe de
+démonstration.
+
 ## 11. Affichage
 
 ### Encart, sous le prix de la fiche
