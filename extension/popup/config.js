@@ -21,8 +21,9 @@ ADS.config = (() => {
     if (!res.ok) return { state: 'unreachable', status: res.status }
     const body = await res.json().catch(() => null)
     // Un 200 qui ne porte pas la réponse de /v1/me (page d'accueil, portail
-    // captif) dit une adresse erronée, pas une licence valide.
-    if (!body || !('label' in body)) return { state: 'unreachable' }
+    // captif, corps réduit à « ok ») dit une adresse erronée, pas une licence
+    // valide. Le corps est du JSON quelconque : rien ne garantit un objet.
+    if (!body || typeof body !== 'object' || !('label' in body)) return { state: 'unreachable' }
     return { state: 'ok', label: body.label, expiresAt: body.expires_at }
   }
 

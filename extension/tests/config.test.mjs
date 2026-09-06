@@ -76,6 +76,16 @@ test('un 200 qui n\'est pas /v1/me dénonce l\'adresse, pas la licence', async (
   assert.deepEqual(other, { state: 'unreachable' })
 })
 
+// Un proxy, un portail captif ou un serveur mal réglé répondent ce qu'ils
+// veulent : « ok », un nombre, un booléen sont du JSON valide.
+for (const body of ['ok', 5, true]) {
+  test(`un corps JSON réduit à ${JSON.stringify(body)} ne fige pas le test`, async () => {
+    const r = await probe('https://adscope.fr', KEY, server(() => json(200, body)).fetch)
+    assert.deepEqual(r, { state: 'unreachable' })
+    assert.match(outcome(r, 'https://adscope.fr').text, /adresse erronée/)
+  })
+}
+
 test('une panne serveur reste une API en défaut, pas une licence en cause', async () => {
   const r = await probe('http://localhost:8000', KEY, server(() => json(500, {})).fetch)
   assert.deepEqual(r, { state: 'unreachable', status: 500 })
