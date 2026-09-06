@@ -106,7 +106,11 @@ def test_same_observation_twice_keeps_one_price_point(client, key):
         client.post("/v1/observations", json={"items": [observation()]}, headers=auth(key))
     body = client.get("/v1/listings/lc/1", headers=auth(key)).json()
     assert body["observations"] == 2
-    assert body["price_history"] == [{"at": body["price_history"][0]["at"], "price": 9900}]
+    assert body["price_history"] == [
+        {"at": body["price_history"][0]["at"], "price": 9900, "confirmation": False},
+    ]
+    # Deux passages dans la même seconde : rien à confirmer avant la semaine.
+    assert (body["price_checks"], body["price_gap_days"]) == (0, 0)
 
 
 def test_source_claimed_by_the_client_is_ignored(client, session, key):

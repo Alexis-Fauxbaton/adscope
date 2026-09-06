@@ -74,6 +74,14 @@ class PricePoint(Base):
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     price: Mapped[int]
     source: Mapped[str] = mapped_column(String(8))
+    # Un point écrit parce que la semaine est passée, non parce que le prix a
+    # bougé. Sans cette marque, `price_history` montrerait « 9 900 € → 9 900 € »
+    # comme s'il s'était passé quelque chose, et toute variation partirait de
+    # travers. Faux pour tout ce qui a été enregistré avant : c'étaient des
+    # changements.
+    confirmation: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false"
+    )
     # Qui a émis l'observation. Nul pour le crawler et pour tout ce qui a été
     # enregistré avant cette colonne. Une licence supprimée laisse ses points de
     # prix en place : c'est de l'historique de marché, pas de la donnée de compte.

@@ -40,6 +40,9 @@ class BatchIn(BaseModel):
 class PricePointOut(BaseModel):
     at: datetime
     price: int
+    # Le point n'a été écrit que parce que la semaine était passée : le prix
+    # n'a pas bougé, il a été revu.
+    confirmation: bool
 
 
 class SignalsOut(BaseModel):
@@ -62,7 +65,14 @@ class SignalsOut(BaseModel):
     price_history: list[PricePointOut]
     price_delta_since_first: int | None
     price_delta_days_since_first: int | None
+    # Depuis le dernier *changement*, jamais depuis la dernière confirmation.
     stable_days: int | None
+    # De quoi lire cette stabilité : combien de fois le prix a été revu depuis,
+    # et le plus long intervalle pendant lequel personne ne l'a regardé. Un
+    # simple compteur ne suffirait pas — quarante relevés d'une semaine et
+    # quarante étalés sur deux mois donneraient le même nombre.
+    price_checks: int | None
+    price_gap_days: int | None
 
 
 class SellerStatsOut(BaseModel):

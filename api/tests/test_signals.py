@@ -202,3 +202,63 @@ def test_bump_boundary_just_under_one_day_is_not(session):
                      source="user", now=LATER)
     session.commit()
     assert signals_for(listing, now=LATER)["republished"] is False
+
+
+# Ce que la confirmation hebdomadaire change pour la lecture : « stable depuis »
+# reste la durée depuis le dernier *changement*, et deux nombres disent si cette
+# stabilité a été vérifiée ou seulement supposée.
+
+
+def weekly(session, days_, price=9900):
+    listing = None
+    for day in days_:
+        listing = record(session, obs(price=price), source="user",
+                         now=NOW + timedelta(days=day))
+    session.commit()
+    return listing
+
+
+def test_stable_days_counts_from_the_change_not_from_the_confirmation(session):
+    listing = weekly(session, range(0, 57, 7))
+    out = signals_for(listing, now=NOW + timedelta(days=56))
+    assert out["stable_days"] == 56
+    assert out["price_checks"] == 8
+    assert out["price_gap_days"] == 7
+    assert out["price_delta_since_first"] is None
+
+
+def test_a_price_stable_but_never_rechecked_says_so(session):
+    listing = weekly(session, [0])
+    out = signals_for(listing, now=NOW + timedelta(days=56))
+    assert out["stable_days"] == 56
+    assert out["price_checks"] == 0
+    assert out["price_gap_days"] == 56
+
+
+# Le trou du milieu : huit semaines sans regarder, puis une confirmation. Le
+# prix a pu descendre et remonter sans témoin, et l'écart le dit.
+def test_the_longest_unobserved_interval_is_reported(session):
+    listing = weekly(session, [0, 7, 50])
+    out = signals_for(listing, now=NOW + timedelta(days=50))
+    assert out["stable_days"] == 50
+    assert out["price_checks"] == 2
+    assert out["price_gap_days"] == 43
+
+
+def test_a_confirmation_is_not_a_change_in_the_history(session):
+    listing = weekly(session, [0, 7])
+    out = signals_for(listing, now=NOW + timedelta(days=7))
+    assert [p["confirmation"] for p in out["price_history"]] == [False, True]
+    assert [p["price"] for p in out["price_history"]] == [9900, 9900]
+
+
+def test_the_delta_since_first_ignores_the_confirmations(session):
+    record(session, obs(price=10900), source="user", now=NOW)
+    record(session, obs(price=10900), source="user", now=NOW + timedelta(days=7))
+    listing = record(session, obs(price=9900), source="user", now=NOW + timedelta(days=10))
+    session.commit()
+    out = signals_for(listing, now=NOW + timedelta(days=10))
+    assert out["price_delta_since_first"] == -1000
+    assert out["price_delta_days_since_first"] == 10
+    assert out["stable_days"] == 0
+    assert out["price_checks"] == 0

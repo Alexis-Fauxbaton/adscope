@@ -52,6 +52,13 @@ MIGRATIONS = (
         " NOT NULL DEFAULT false",
         "UPDATE licenses SET automated = true WHERE label = 'crawler'",
     )),
+    # L'échantillonnage dans le temps : un point de prix peut désormais dire
+    # « inchangé cette semaine ». Les 12 918 points déjà enregistrés l'ont tous
+    # été sur un changement — le défaut les laisse tels quels.
+    ("004_price_points_confirmation", (
+        "ALTER TABLE price_points ADD COLUMN IF NOT EXISTS confirmation boolean"
+        " NOT NULL DEFAULT false",
+    )),
 )
 
 

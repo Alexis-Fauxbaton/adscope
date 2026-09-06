@@ -9,6 +9,7 @@ from adscope_api.migrations import MIGRATIONS, apply_migrations
 
 
 def to_old_shape(session):
+    session.execute(text("ALTER TABLE price_points DROP COLUMN IF EXISTS confirmation"))
     session.execute(text("ALTER TABLE licenses DROP COLUMN IF EXISTS automated"))
     session.execute(text("DROP INDEX IF EXISTS ix_listings_seller"))
     session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS seller_id"))
@@ -127,3 +128,21 @@ def test_the_crawler_license_is_marked_automated_and_the_others_are_not(session)
         text("SELECT label, automated FROM licenses ORDER BY label")
     ).all()
     assert rows == [("alexis", False), ("crawler", True)]
+
+
+# L'échantillonnage arrive sur une base qui porte 12 918 points de prix, tous
+# écrits sur un changement : ils sont des changements, la colonne les laisse
+# tels quels.
+def test_migration_adds_the_confirmation_flag(session):
+    to_old_shape(session)
+    assert "confirmation" not in columns(session, "price_points")
+    apply_migrations(session.connection())
+    assert "confirmation" in columns(session, "price_points")
+
+
+def test_the_points_already_recorded_stay_changes(session):
+    to_old_shape(session)
+    with_history(session)
+    apply_migrations(session.connection())
+    rows = session.execute(text("SELECT price, confirmation FROM price_points")).all()
+    assert rows == [(9900, False)]

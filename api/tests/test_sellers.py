@@ -19,8 +19,9 @@ def listing(session, site_id, published=10, seen=0, seller="76697703",
         published_at=days(published),
     )
     row.prices = [
-        PricePoint(observed_at=days(at), price=price, source="user")
-        for at, price in prices
+        PricePoint(observed_at=days(at), price=price, source="user",
+                   confirmation=bool(kind))
+        for at, price, *kind in prices
     ]
     session.add(row)
     session.flush()
@@ -110,3 +111,22 @@ def test_a_listing_not_seen_for_a_month_leaves_the_population(session):
     listing(session, "1", published=100, seen=40)
     listing(session, "2", published=10, seen=1)
     assert stats(session)["listings"] == 1
+
+
+# La confirmation hebdomadaire dit que le prix n'a pas bougé. Comptée comme un
+# point de plus, elle ferait passer un catalogue immobile pour un catalogue qui
+# bouge — de zéro.
+def test_a_confirmed_price_is_not_a_changed_price(session):
+    listing(session, "1", published=60, prices=((30, 9000), (2, 9000, "confirm")))
+    s = stats(session)
+    assert s["price_changed_listings"] == 0
+    assert s["price_drop_listings"] == 0
+    assert s["price_drop_rate"] is None
+
+
+# Le délai « baisse au bout de N jours » se compte jusqu'à la baisse, pas
+# jusqu'à la confirmation qui la suit : sinon chaque semaine sans changement
+# repousserait la date de la baisse.
+def test_the_drop_delay_stops_at_the_drop_not_at_the_last_confirmation(session):
+    listing(session, "1", published=60, prices=((30, 10000), (20, 9000), (1, 9000, "confirm")))
+    assert stats(session)["price_drop_after_days"] == 40

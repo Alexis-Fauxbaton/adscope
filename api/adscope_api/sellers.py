@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from .models import Listing
+from .signals import utc
 
 # La population : le stock en ligne, pas l'archive. Une annonce leboncoin vit
 # soixante jours ; celle que personne n'a revue depuis un mois a de fortes
@@ -35,13 +36,23 @@ def age_days(listing, now) -> int | None:
     return None
 
 
+def changes(listing) -> list:
+    """Les points de prix qui en sont un.
+
+    La confirmation hebdomadaire dit que le prix n'a pas bougé. Comptée comme
+    un point de plus, elle ferait passer un catalogue immobile pour un
+    catalogue qui bouge — de zéro.
+    """
+    return [p for p in listing.prices if not p.confirmation]
+
+
 def _drop(listing) -> float | None:
     """Baisse relative entre le premier et le dernier prix connus.
 
     Premier contre dernier, pas point à point : un aller-retour reste jugé sur
     son résultat. Une hausse rend une valeur positive, écartée plus loin.
     """
-    points = listing.prices
+    points = changes(listing)
     if len(points) < 2 or not points[0].price:
         return None
     return (points[-1].price - points[0].price) / points[0].price
@@ -68,16 +79,18 @@ def stats_for(session, site: str, seller_id: str, now=None) -> dict | None:
     known = [days for _, days in ages if days is not None]
     old = [days for days in known if days >= OLD_MIN_DAYS]
 
-    changes = [(l, _drop(l)) for l in listings]
-    changed = [(l, rate) for l, rate in changes if rate is not None]
+    moves = [(l, _drop(l)) for l in listings]
+    changed = [(l, rate) for l, rate in moves if rate is not None]
     dropped = [(l, rate) for l, rate in changed if rate < 0]
     # Le délai se compte depuis la publication, pas depuis notre première
     # observation : la base ne suit ces annonces que depuis quelques jours,
     # tandis qu'elles sont en ligne depuis des mois. Mesuré sur notre fenêtre,
     # le délai ne dirait que la durée du suivi ; mesuré depuis la publication,
     # il dit « ses annonces baissent au bout de N jours en ligne ».
+    # Jusqu'à la baisse, pas jusqu'à la confirmation qui la suit : sans quoi
+    # chaque semaine sans changement repousserait la date de cette baisse.
     delays = [
-        (l.prices[-1].observed_at - l.published_at).days
+        (utc(changes(l)[-1].observed_at) - utc(l.published_at)).days
         for l, _ in dropped
         if l.published_at is not None
     ]

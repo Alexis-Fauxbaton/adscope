@@ -125,3 +125,60 @@ def test_an_observation_without_seller_type_changes_nothing(session):
     listing = record(session, obs(), source="user", now=NOW + timedelta(days=1))
     session.commit()
     assert listing.seller_id == "1"
+
+
+# L'échantillonnage dans le temps. Un point n'était écrit qu'au changement de
+# prix : entre deux points, l'intervalle restait un trou qu'aucune relecture ne
+# peut combler. Un point par semaine au plus le referme, et seulement pour les
+# annonces effectivement revues.
+
+
+def test_an_unchanged_price_is_confirmed_after_a_week(session):
+    record(session, obs(), source="user", now=NOW)
+    listing = record(session, obs(), source="user", now=NOW + timedelta(days=7))
+    session.commit()
+    assert [(p.price, p.confirmation) for p in listing.prices] == [
+        (9900, False), (9900, True),
+    ]
+
+
+def test_an_unchanged_price_adds_nothing_within_the_week(session):
+    record(session, obs(), source="user", now=NOW)
+    listing = record(session, obs(), source="user",
+                     now=NOW + timedelta(days=6, hours=23))
+    session.commit()
+    assert len(listing.prices) == 1
+
+
+def test_the_first_point_is_a_change_never_a_confirmation(session):
+    listing = record(session, obs(), source="user", now=NOW)
+    session.commit()
+    assert [p.confirmation for p in listing.prices] == [False]
+
+
+def test_a_change_is_written_at_once_even_within_the_week(session):
+    record(session, obs(price=10900), source="user", now=NOW)
+    listing = record(session, obs(price=9900), source="user", now=NOW + timedelta(hours=1))
+    session.commit()
+    assert [(p.price, p.confirmation) for p in listing.prices] == [
+        (10900, False), (9900, False),
+    ]
+
+
+# Le volume : une annonce leboncoin vit soixante jours, vue tous les jours elle
+# ne produit qu'un point par semaine.
+def test_daily_observation_over_a_whole_life_stays_weekly(session):
+    listing = None
+    for day in range(60):
+        listing = record(session, obs(), source="user", now=NOW + timedelta(days=day))
+    session.commit()
+    assert len(listing.prices) == 9
+    assert [p.confirmation for p in listing.prices] == [False] + [True] * 8
+
+
+def test_the_confirmation_resets_the_week_not_the_price(session):
+    record(session, obs(price=9900), source="user", now=NOW)
+    record(session, obs(price=9900), source="user", now=NOW + timedelta(days=7))
+    listing = record(session, obs(price=9900), source="user", now=NOW + timedelta(days=13))
+    session.commit()
+    assert len(listing.prices) == 2

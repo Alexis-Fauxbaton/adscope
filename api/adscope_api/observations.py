@@ -10,6 +10,14 @@ from .usage import bump
 FINGERPRINT_FIELDS = ("brand", "model", "version", "year", "mileage")
 VEHICLE_FIELDS = FINGERPRINT_FIELDS + ("postal_code", "seller_type")
 
+# Un point de prix au changement seulement laissait entre deux points un
+# intervalle qu'aucune relecture ne peut combler : entre le 1er juillet à
+# 10 900 € et le 27 août à 9 900 €, le prix a pu descendre et remonter sans
+# témoin. Passé ce délai sans point, l'annonce revue en produit un — inchangé,
+# mais daté. C'est la distribution sur l'axe du temps qui manquait, et un point
+# par semaine suffit : neuf au plus sur les soixante jours de vie d'une annonce.
+CONFIRM_AFTER = timedelta(days=7)
+
 
 def record(session, observation: ObservationIn, source: str, license_=None,
            now=None) -> Listing:
@@ -89,12 +97,15 @@ def record(session, observation: ObservationIn, source: str, license_=None,
             .order_by(PricePoint.observed_at.desc(), PricePoint.id.desc())
             .limit(1)
         )
-        if latest is None or latest.price != observation.price:
+        changed = latest is None or latest.price != observation.price
+        due = latest is not None and now - latest.observed_at >= CONFIRM_AFTER
+        if changed or due:
             # Qui a envoyé quoi : la seule mesure d'usage du produit, prise
             # sur ce qu'on enregistrait déjà.
             session.add(PricePoint(
                 listing_id=listing.id, observed_at=now,
                 price=observation.price, source=source,
+                confirmation=not changed,
                 license_key_hash=license_.key_hash if license_ is not None else None,
             ))
 
