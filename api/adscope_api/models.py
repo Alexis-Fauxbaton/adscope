@@ -12,7 +12,12 @@ class Base(DeclarativeBase):
 
 class Listing(Base):
     __tablename__ = "listings"
-    __table_args__ = (UniqueConstraint("site", "site_id", name="uq_listing_site_id"),)
+    # L'index qui sert l'agrégation par vendeur, nommé pour que la migration et
+    # `create_all` produisent le même schéma.
+    __table_args__ = (
+        UniqueConstraint("site", "site_id", name="uq_listing_site_id"),
+        Index("ix_listings_seller", "site", "seller_id"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     site: Mapped[str] = mapped_column(String(8), index=True)
@@ -31,6 +36,11 @@ class Listing(Base):
     observations: Mapped[int] = mapped_column(default=0)
 
     seller_type: Mapped[str | None] = mapped_column(String(8), index=True, default=None)
+    # Le vendeur n'est nommé que s'il est professionnel : identifiant de
+    # boutique et raison commerciale, donnée d'entreprise. Pour un particulier
+    # la colonne reste vide — pas anonymisée, vide.
+    seller_id: Mapped[str | None] = mapped_column(String(32), default=None)
+    seller_name: Mapped[str | None] = mapped_column(String(128), default=None)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     bumped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     site_published_first: Mapped[date | None] = mapped_column(Date, default=None)

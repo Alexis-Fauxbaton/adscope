@@ -27,6 +27,8 @@ const toObservation = (l) => ({
   year: l.year ?? null,
   mileage: l.mileage ?? null,
   seller_type: l.sellerType ?? null,
+  seller_id: l.sellerId ?? null,
+  seller_name: l.sellerName ?? null,
   published_at: l.publishedAt ?? null,
   bumped_at: l.bumpedAt ?? null,
 })

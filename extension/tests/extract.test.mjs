@@ -145,3 +145,40 @@ test('le type de vendeur est porté comme donnée, pas comme booléen', () => {
   assert.deepEqual([...types].sort(), ['private', 'pro'])
   assert.equal(listings.filter((l) => l.sellerType === 'private').length, 28)
 })
+
+// Relevé sur une page réelle le 2026-09-06 : `owner` porte `store_id`, `name`,
+// `user_id` et `siren` — **pour les particuliers aussi**, avec un prénom en
+// guise de nom. Le tri ne peut donc pas se faire sur la présence du champ : il
+// se fait sur le type de vendeur, et seul le professionnel est retenu.
+test("l'identifiant du vendeur professionnel est retenu", () => {
+  const l = normalize({
+    list_id: 3, price: [1], attributes: [],
+    first_publication_date: '2026-09-01 10:00:00', index_date: '2026-09-01 10:00:00',
+    owner: {
+      store_id: '76697703', user_id: 'b4ac8071-8ad0-4b14-9b21-eee8960795e8',
+      type: 'pro', name: 'CVD AUTOMOBILES', siren: '984694505',
+    },
+  })
+  assert.equal(l.sellerId, '76697703')
+  assert.equal(l.sellerName, 'CVD AUTOMOBILES')
+})
+
+test("celui d'un particulier ne l'est pas, son nom encore moins", () => {
+  const l = normalize({
+    list_id: 4, price: [1], attributes: [],
+    first_publication_date: '2026-09-01 10:00:00', index_date: '2026-09-01 10:00:00',
+    owner: { store_id: '27784407', user_id: '62d41a2e', type: 'private', name: 'Fra' },
+  })
+  assert.equal(l.sellerId, null)
+  assert.equal(l.sellerName, null)
+})
+
+test("ni le siren ni l'identifiant de compte ne sortent de la page", () => {
+  const l = normalize({
+    list_id: 5, price: [1], attributes: [],
+    first_publication_date: '2026-09-01 10:00:00', index_date: '2026-09-01 10:00:00',
+    owner: { store_id: '1', user_id: 'u', type: 'pro', name: 'X', siren: '984694505' },
+  })
+  assert.equal(JSON.stringify(l).includes('984694505'), false)
+  assert.equal(JSON.stringify(l).includes('"u"'), false)
+})

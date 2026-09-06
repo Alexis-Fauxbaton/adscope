@@ -144,3 +144,22 @@ test("un message qui ne le concerne pas n'est pas capté", () => {
   ask({ type: 'autre-chose' }).then(() => (answered = true))
   assert.equal(answered, false)
 })
+
+// Le contrat d'observation porte le vendeur professionnel — c'est ce qui permet
+// à l'API d'agréger ses annonces. Un particulier n'a pas d'identifiant à
+// transmettre : le champ part vide plutôt qu'absent, l'API tranche de même.
+test("le vendeur professionnel voyage avec l'observation", async () => {
+  const { calls, ask } = boot()
+  await ask({
+    type: 'sync', site: 'lbc',
+    listings: [
+      { ...listing('1'), sellerType: 'pro', sellerId: '76697703', sellerName: 'CVD AUTOMOBILES' },
+      { ...listing('2'), sellerType: 'private', sellerId: null, sellerName: null },
+    ],
+  })
+  const [pro, individual] = calls[0].body.items
+  assert.equal(pro.seller_id, '76697703')
+  assert.equal(pro.seller_name, 'CVD AUTOMOBILES')
+  assert.equal(individual.seller_id, null)
+  assert.equal(individual.seller_name, null)
+})

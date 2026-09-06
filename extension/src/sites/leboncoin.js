@@ -32,14 +32,27 @@ ADS.leboncoin = (() => {
     return out
   }
 
+  // Relevé le 2026-09-06 sur une page réelle : `owner` porte `store_id`, `name`,
+  // `user_id` et `siren`, **quel que soit le type de vendeur** — un particulier
+  // y figure avec un prénom. La présence du champ ne dit donc rien ; le type,
+  // si. Seul le marchand est retenu : agréger ses annonces publiées est de la
+  // donnée d'entreprise, celles d'un particulier seraient de la donnée
+  // personnelle. `user_id` et `siren` ne sortent jamais de la page.
+  const seller = (owner) =>
+    owner.type === 'pro' && owner.store_id
+      ? { sellerId: String(owner.store_id), sellerName: owner.name || null }
+      : { sellerId: null, sellerName: null }
+
   const normalize = (ad) => {
     const attr = attributes(ad)
+    const owner = ad.owner || {}
     return {
       site: 'lbc',
       siteId: String(ad.list_id),
       url: ad.url,
       title: ad.subject,
-      sellerType: (ad.owner || {}).type === 'pro' ? 'pro' : 'private',
+      sellerType: owner.type === 'pro' ? 'pro' : 'private',
+      ...seller(owner),
       price: Array.isArray(ad.price) ? ad.price[0] : ad.price,
       publishedAt: parseDate(ad.first_publication_date),
       bumpedAt: parseDate(ad.index_date),

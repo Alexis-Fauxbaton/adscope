@@ -18,6 +18,10 @@ class ObservationIn(BaseModel):
     mileage: int | None = None
     postal_code: str | None = None
     seller_type: SellerType | None = None
+    # Transmis pour les professionnels seuls ; l'API le vérifie plutôt que
+    # de faire confiance à l'émetteur.
+    seller_id: str | None = Field(default=None, max_length=32)
+    seller_name: str | None = Field(default=None, max_length=128)
     published_days_ago: int | None = Field(default=None, ge=0, le=3650)
     published_precision: Precision = "day"
     published_at: datetime | None = None

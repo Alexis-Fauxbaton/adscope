@@ -37,6 +37,13 @@ MIGRATIONS = (
         "CREATE INDEX IF NOT EXISTS ix_price_points_license"
         " ON price_points (license_key_hash, observed_at)",
     )),
+    # Le vendeur professionnel : deux colonnes vides sur les annonces déjà
+    # enregistrées, et l'index qui sert l'agrégation par boutique.
+    ("002_listings_seller", (
+        "ALTER TABLE listings ADD COLUMN IF NOT EXISTS seller_id varchar(32)",
+        "ALTER TABLE listings ADD COLUMN IF NOT EXISTS seller_name varchar(128)",
+        "CREATE INDEX IF NOT EXISTS ix_listings_seller ON listings (site, seller_id)",
+    )),
 )
 
 

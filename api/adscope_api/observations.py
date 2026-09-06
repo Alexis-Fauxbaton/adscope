@@ -32,6 +32,18 @@ def record(session, observation: ObservationIn, source: str, license_=None,
         if value is not None:
             setattr(listing, field, value)
 
+    # Le vendeur n'est retenu que pour les professionnels. `store_id` existe
+    # aussi chez les particuliers — accompagné d'un prénom — et serait alors de
+    # la donnée personnelle : le tri se fait sur le type, jamais sur la présence
+    # du champ. Une observation muette sur le type n'apprend rien : elle laisse
+    # en place ce qu'on savait.
+    if observation.seller_type == "pro":
+        if observation.seller_id is not None:
+            listing.seller_id = observation.seller_id
+            listing.seller_name = observation.seller_name
+    elif observation.seller_type is not None:
+        listing.seller_id = listing.seller_name = None
+
     details = [getattr(listing, field) for field in FINGERPRINT_FIELDS]
     if any(value is not None for value in details):
         listing.fingerprint = fingerprint(*details)

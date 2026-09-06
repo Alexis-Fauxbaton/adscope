@@ -84,3 +84,44 @@ def test_vehicle_details_seen_later_set_the_fingerprint(session):
     listing = record(session, obs(), source="user", now=NOW + timedelta(days=1))
     session.commit()
     assert listing.fingerprint == "54b22edbd39c"
+
+
+# Le vendeur professionnel est de la donnée d'entreprise, le particulier non :
+# la ligne se tient au stockage, et pas seulement à l'affichage. leboncoin
+# expose `store_id` pour les deux — le tri se fait donc sur le type.
+def test_a_professional_seller_is_kept(session):
+    listing = record(session, obs(seller_type="pro", seller_id="76697703",
+                                 seller_name="CVD AUTOMOBILES"), source="user", now=NOW)
+    session.commit()
+    assert listing.seller_id == "76697703"
+    assert listing.seller_name == "CVD AUTOMOBILES"
+
+
+def test_a_private_seller_leaves_the_field_empty(session):
+    listing = record(session, obs(seller_type="private", seller_id="27784407",
+                                 seller_name="Fra"), source="user", now=NOW)
+    session.commit()
+    assert listing.seller_id is None
+    assert listing.seller_name is None
+
+
+# Une annonce passée de pro à particulier — vendeur qui change de statut, ou
+# première observation mal typée — ne doit pas garder l'identifiant.
+def test_becoming_private_clears_the_seller(session):
+    record(session, obs(seller_type="pro", seller_id="1", seller_name="X"),
+           source="user", now=NOW)
+    listing = record(session, obs(seller_type="private"), source="user",
+                     now=NOW + timedelta(days=1))
+    session.commit()
+    assert listing.seller_id is None
+    assert listing.seller_name is None
+
+
+# Une observation sans vendeur — une charge partielle, un autre site — n'efface
+# pas ce qu'on savait : elle n'apprend rien sur ce point.
+def test_an_observation_without_seller_type_changes_nothing(session):
+    record(session, obs(seller_type="pro", seller_id="1", seller_name="X"),
+           source="user", now=NOW)
+    listing = record(session, obs(), source="user", now=NOW + timedelta(days=1))
+    session.commit()
+    assert listing.seller_id == "1"
