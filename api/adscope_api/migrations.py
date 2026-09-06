@@ -44,6 +44,14 @@ MIGRATIONS = (
         "ALTER TABLE listings ADD COLUMN IF NOT EXISTS seller_name varchar(128)",
         "CREATE INDEX IF NOT EXISTS ix_listings_seller ON listings (site, seller_id)",
     )),
+    # Un émetteur automatique n'est pas un utilisateur. La licence du crawler
+    # est déjà frappée et sa clé est entre les mains de son propriétaire : on ne
+    # la refrappe pas, on la marque là où elle est.
+    ("003_licenses_automated", (
+        "ALTER TABLE licenses ADD COLUMN IF NOT EXISTS automated boolean"
+        " NOT NULL DEFAULT false",
+        "UPDATE licenses SET automated = true WHERE label = 'crawler'",
+    )),
 )
 
 

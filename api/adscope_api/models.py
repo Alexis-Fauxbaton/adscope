@@ -90,9 +90,14 @@ class License(Base):
     key_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     label: Mapped[str] = mapped_column(String(64))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Un émetteur automatique — le crawler local — poste avec une licence comme
+    # l'extension. Sans cette marque ses observations passent pour l'usage d'un
+    # humain, et la mesure n'est plus que du bruit.
+    automated: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+

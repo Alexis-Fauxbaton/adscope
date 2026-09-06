@@ -9,6 +9,7 @@ from adscope_api.migrations import MIGRATIONS, apply_migrations
 
 
 def to_old_shape(session):
+    session.execute(text("ALTER TABLE licenses DROP COLUMN IF EXISTS automated"))
     session.execute(text("DROP INDEX IF EXISTS ix_listings_seller"))
     session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS seller_id"))
     session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS seller_name"))
@@ -100,3 +101,29 @@ def test_the_index_serving_the_seller_aggregate_exists(session):
         "SELECT indexname FROM pg_indexes WHERE tablename = 'listings'"
     ))
     assert "ix_listings_seller" in {row[0] for row in indexes}
+
+
+def with_licenses(session):
+    session.execute(text(
+        "INSERT INTO licenses (key_hash, label, active) VALUES"
+        " ('a', 'alexis', true), ('b', 'crawler', true)"
+    ))
+
+
+def test_migration_adds_the_automated_flag(session):
+    to_old_shape(session)
+    assert "automated" not in columns(session, "licenses")
+    apply_migrations(session.connection())
+    assert "automated" in columns(session, "licenses")
+
+
+# La licence du crawler est déjà frappée et sa clé est entre les mains de son
+# propriétaire : on ne la refrappe pas, on la marque là où elle est.
+def test_the_crawler_license_is_marked_automated_and_the_others_are_not(session):
+    to_old_shape(session)
+    with_licenses(session)
+    apply_migrations(session.connection())
+    rows = session.execute(
+        text("SELECT label, automated FROM licenses ORDER BY label")
+    ).all()
+    assert rows == [("alexis", False), ("crawler", True)]
