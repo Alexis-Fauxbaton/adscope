@@ -66,13 +66,14 @@ test('la courbe distingue les changements de prix des vérifications', async () 
   assert.ok(big >= small * 2, `${big} contre ${small}`)
 })
 
-// L'exigence : jamais un mot seul. La hachure dit à partir de quand on regarde.
-test('la hachure porte une date explicite', async () => {
+// L'exigence : jamais un mot seul. La hachure dit à partir de quand on regarde,
+// et elle le dit sous l'axe — la seule ligne où aucun montant ne passe.
+test('la hachure porte une date explicite, sous l’axe', async () => {
   const { nodes } = await open({
     status: detail({ card: card({ onlineDays: 1810, publishedAt: ago(1810), notable: true }) }),
   })
-  const said = [nodes.hatch.text, ...nodes.plot.all.map((n) => n.textContent)].join(' ')
-  assert.match(said, /aucune observation avant le \d+ \p{L}+/u)
+  assert.equal(nodes.hatch.hidden, false)
+  assert.match(nodes.hatch.text, /aucune observation avant le \d+ \p{L}+/u)
 })
 
 test("la hachure reste lisible même quand la période aveugle est étroite", async () => {
@@ -80,8 +81,27 @@ test("la hachure reste lisible même quand la période aveugle est étroite", as
     first_seen: ago(110),
     price_history: [{ at: ago(110), price: 12900, confirmation: false }],
   }) })
-  const said = [nodes.hatch.text, ...nodes.plot.all.map((n) => n.textContent)].join(' ')
-  assert.match(said, /aucune observation avant le \d+ \p{L}+/u)
+  assert.equal(nodes.hatch.hidden, false)
+  assert.match(nodes.hatch.text, /aucune observation avant le \d+ \p{L}+/u)
+})
+
+// Ce que le tracé cède quand la place manque, le relevé le porte : un montant
+// retiré du dessin ne disparaît pas de la fenêtre.
+test('le montant qui cède sa place se retrouve au relevé', async () => {
+  const { nodes } = await open({
+    status: detail({ card: card({ onlineDays: 1810, publishedAt: ago(1810) }) }),
+    cached: signals({
+      price_history: [
+        { at: ago(118), price: 22900, confirmation: false },
+        { at: ago(60), price: 21500, confirmation: false },
+        { at: ago(2), price: 22700, confirmation: false },
+      ],
+    }),
+  })
+  const drawn = nodes.plot.all.filter((n) => n.tag === 'text' && n.getAttribute('class'))
+  assert.equal(drawn.length, 1, drawn.map((n) => n.textContent).join(' | '))
+  assert.match(drawn[0].textContent, /22\u202f700/)
+  assert.match(nodes['points-rows'].text, /22\u202f900\u00a0€/)
 })
 
 // Un seul usage pour la bande rouge : ce que le site montre de son côté.

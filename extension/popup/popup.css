@@ -17,9 +17,9 @@
 .today { fill: var(--ink); }
 .hit { fill: transparent; cursor: default; }
 
-.amount { font: 600 11px var(--mono); fill: var(--ink); }
+/* Le liseré de papier détoure les montants : la hachure leur mangerait les jambages. */
+.amount { font: 600 11px var(--mono); fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
 .amount.fell { fill: var(--stamp); }
-.blind-text { font: 10px var(--mono); fill: var(--mute); }
 
 .row {
   display: flex;

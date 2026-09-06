@@ -3,7 +3,8 @@ globalThis.ADS = globalThis.ADS || {}
 // Le tracé de la courbe, en SVG et sans balisage : le modèle rend des fractions
 // d'axe, ce module les pose en coordonnées. Trois signes, chacun à sens unique —
 // la hachure pour ce qu'on n'a pas vu, le gros point pour un changement de prix,
-// le petit pour une vérification qui n'a rien trouvé.
+// le petit pour une vérification qui n'a rien trouvé. Le tracé ne porte aucune
+// phrase : la date de la hachure se lit sous l'axe, où elle a sa ligne à elle.
 ADS.chart = (() => {
   const NS = 'http://www.w3.org/2000/svg'
   const { money, number } = ADS.format
@@ -16,8 +17,6 @@ ADS.chart = (() => {
   const BOT = 48
   const FRAME = [4, 56]
   const BASE = 64
-  // En deçà, la phrase ne tient pas dans la hachure : elle se lit sous l'axe.
-  const ROOMY = 0.45
 
   const node = (name, attrs = {}, text = null) => {
     const el = document.createElementNS(NS, name)
@@ -49,15 +48,25 @@ ADS.chart = (() => {
     return d + ` H ${px(1)}`
   }
 
-  // Le montant se pose du côté où il reste de la place : sous un point bas, au
-  // dessus d'un point haut — sinon il vient s'écrire sur la marche voisine.
-  const label = (p, text, cls) => {
-    const left = p.x < 0.5
-    return node('text', {
-      x: left ? px(p.x) + 8 : px(p.x) - 6,
-      y: p.y < 0.5 ? py(p.y) + 13 : py(p.y) - 8,
-      'text-anchor': left ? 'start' : 'end', class: cls,
-    }, text)
+  // Ce que le placeur a besoin de savoir d'un point : où il est, de quel côté
+  // il laisse de la place, et vers où le texte part sans sortir du cadre.
+  const at = (p) => ({ cx: px(p.x), cy: py(p.y), low: p.y < 0.5, start: p.x < 0.5 })
+
+  // Le dernier prix d'abord : c'est celui qu'on est venu lire, et il porte la
+  // baisse. Le prix d'origine ensuite, s'il reste une place où il ne recouvre
+  // rien — sinon le relevé s'en charge, en toutes lettres.
+  const amounts = (points) => {
+    const last = points[points.length - 1]
+    const first = points[0]
+    const fell = last.price < first.price
+    const marks = [{
+      ...at(last), cls: fell ? 'amount fell' : 'amount',
+      text: money(last.price) + (fell ? ` · −${number(first.price - last.price)}` : ''),
+    }]
+    if (first !== last && first.price !== last.price) {
+      marks.push({ ...at(first), cls: 'amount', text: money(first.price) })
+    }
+    return ADS.labels.place(marks, W)
   }
 
   // La couche de survol : un disque large et invisible par point, assez espacé
@@ -109,13 +118,6 @@ ADS.chart = (() => {
       }))
     }
 
-    const roomy = model.blind && model.blind.w >= ROOMY
-    if (roomy) {
-      svg.append(node('text', {
-        x: px(model.blind.w / 2), y: BASE - 5, 'text-anchor': 'middle', class: 'blind-text',
-      }, model.blind.text))
-    }
-
     svg.append(node('line', { x1: 0, y1: BASE, x2: W, y2: BASE, class: 'base' }))
 
     if (model.points.length) {
@@ -129,17 +131,15 @@ ADS.chart = (() => {
         }))
       })
       const last = model.points[model.points.length - 1]
-      const first = model.points[0]
       // Le repère d'aujourd'hui, sauf quand la dernière observation y est déjà :
       // il recouvrirait le point d'origine d'une annonce vue une seule fois.
       if (last.x < 0.995) svg.append(node('circle', { cx: px(1), cy: py(last.y), r: 3.5, class: 'today' }))
-      if (first !== last && first.price !== last.price) svg.append(label(first, money(first.price), 'amount'))
-      const fell = last.price < first.price
-      svg.append(label(last, money(last.price) + (fell ? ` · −${number(first.price - last.price)}` : ''),
-        fell ? 'amount fell' : 'amount'))
+      for (const m of amounts(model.points)) {
+        svg.append(node('text', { x: m.x, y: m.y, class: m.cls }, m.text))
+      }
       for (const p of model.points) svg.append(reach(p, onHover))
     }
-    return { svg, captioned: Boolean(model.blind) && !roomy }
+    return svg
   }
 
   return { draw }

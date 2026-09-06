@@ -98,16 +98,15 @@ ADS.fiche = (() => {
       history: (signals && signals.price_history) || [],
       claimDays: card.claim ? card.claim.days : null,
     })
-    const { svg, captioned } = ADS.chart.draw(model, hover)
-    el('plot').replaceChildren(svg)
+    el('plot').replaceChildren(ADS.chart.draw(model, hover))
     el('axis-start').textContent = model.axis.start
     el('axis-end').textContent = model.axis.end
     el('readout').textContent = ''
 
-    // La hachure porte sa date où qu'elle tienne : dans la bande quand elle est
-    // large, sous l'axe quand elle est trop étroite pour un mot.
-    el('hatch').textContent = captioned ? model.blind.text : ''
-    el('hatch').hidden = !captioned
+    // La phrase datée de la hachure ne se négocie pas : elle a sa ligne sous
+    // l'axe, large ou étroite, où aucun montant ne vient s'écrire par-dessus.
+    el('hatch').textContent = model.blind ? model.blind.text : ''
+    el('hatch').hidden = !model.blind
     fill('points-rows', model.points.map((p) => row(observation(p))))
     el('points').hidden = !model.points.length
     fill('claim', claim(card))
