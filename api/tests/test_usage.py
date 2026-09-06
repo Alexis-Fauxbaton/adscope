@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from adscope_api.models import License, UsageDay
-from adscope_api.usage import by_day
+from adscope_api.usage import by_day, by_license
 from adscope_api.observations import record
 from adscope_api.intake import ObservationIn
 
@@ -104,3 +104,52 @@ def test_an_automated_license_is_left_out_of_the_usage(session):
 
 def test_a_license_is_human_unless_it_says_otherwise(session):
     assert license_(session, "alexis", "a" * 64).automated is False
+
+
+# La mesure n'avait aucun lecteur : ni route, ni script, ni commande. Ce
+# regroupement est ce qu'une commande a besoin de dire — qui a utilisé le
+# produit, quels jours, et s'il a décroché.
+def test_the_usage_is_readable_license_by_license(session):
+    lic = license_(session, "alexis", "a" * 64)
+    record(session, obs("1", 9900), source="user", license_=lic, now=NOW)
+    record(session, obs("2", 8000), source="user", license_=lic, now=NOW)
+    record(session, obs("1", 9900), source="user", license_=lic, now=NOW + timedelta(days=3))
+    session.commit()
+    one = by_license(by_day(session))
+    assert len(one) == 1
+    assert one[0]["label"] == "alexis"
+    assert [(r["day"], r["listings"]) for r in one[0]["days"]] == [
+        (NOW.date(), 2), ((NOW + timedelta(days=3)).date(), 1),
+    ]
+
+
+# « A-t-il décroché au bout de trois jours » : deux jours actifs sur quatre
+# écoulés se lit d'un coup d'œil, trois jours d'absence à la fin aussi.
+def test_the_reading_says_whether_a_license_dropped_off(session):
+    lic = license_(session, "alexis", "a" * 64)
+    record(session, obs("1", 9900), source="user", license_=lic, now=NOW)
+    record(session, obs("2", 8000), source="user", license_=lic, now=NOW + timedelta(days=3))
+    session.commit()
+    one = by_license(by_day(session))[0]
+    assert (one["active_days"], one["span_days"]) == (2, 4)
+    assert (one["first"], one["last"]) == (NOW.date(), (NOW + timedelta(days=3)).date())
+
+
+def test_two_licenses_are_read_apart(session):
+    first = license_(session, "premier", "a" * 64)
+    second = license_(session, "second", "b" * 64)
+    record(session, obs("1", 9900), source="user", license_=first, now=NOW)
+    record(session, obs("2", 8000), source="user", license_=second, now=NOW)
+    session.commit()
+    assert [lic["label"] for lic in by_license(by_day(session))] == ["premier", "second"]
+
+
+# Deux licences peuvent porter le même libellé — la base en a deux. Elles ne
+# doivent pas fondre en une seule ligne de lecture.
+def test_two_licenses_sharing_a_label_stay_apart(session):
+    first = license_(session, "alexis", "a" * 64)
+    second = license_(session, "alexis", "b" * 64)
+    record(session, obs("1", 9900), source="user", license_=first, now=NOW)
+    record(session, obs("2", 8000), source="user", license_=second, now=NOW)
+    session.commit()
+    assert len(by_license(by_day(session))) == 2

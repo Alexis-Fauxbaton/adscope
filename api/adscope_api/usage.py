@@ -51,3 +51,32 @@ def by_day(session, since=None) -> list[dict]:
          "listings": listings, "observations": int(observations)}
         for key, label, day, listings, observations in session.execute(query)
     ]
+
+
+def by_license(rows) -> list[dict]:
+    """Le même relevé, regroupé par licence : qui, quels jours, et jusqu'à quand.
+
+    Deux licences peuvent porter le même libellé — la base en a deux : le
+    regroupement se fait sur l'empreinte de la clé, jamais sur le nom.
+
+    `active_days` contre `span_days` répond à la question qui fait la mesure :
+    a-t-il décroché au bout de trois jours.
+    """
+    grouped: dict[str, list[dict]] = {}
+    for row in rows:
+        grouped.setdefault(row["license_key_hash"], []).append(row)
+    out = []
+    for key, days in grouped.items():
+        first, last = days[0]["day"], days[-1]["day"]
+        out.append({
+            "license_key_hash": key,
+            "label": days[0]["label"],
+            "days": days,
+            "active_days": len(days),
+            "span_days": (last - first).days + 1,
+            "first": first,
+            "last": last,
+            "listings": sum(day["listings"] for day in days),
+            "observations": sum(day["observations"] for day in days),
+        })
+    return sorted(out, key=lambda lic: (lic["label"], lic["license_key_hash"]))
