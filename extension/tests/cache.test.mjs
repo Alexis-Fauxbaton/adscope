@@ -115,3 +115,46 @@ test('la purge manuelle vide les annonces et laisse le reste', async () => {
   assert.equal(await cache.clear(), 1)
   assert.deepEqual(Object.keys(store.data).sort(), ['_meta', 'licenseKey'])
 })
+
+const point = (i, confirmation) => ({ at: `j${i}`, price: 10000 - i, confirmation })
+
+// Un point par semaine s'ajoute désormais sans que le prix ait bougé. Le
+// plafond ne doit pas se remplir de « rien n'a changé » en évinçant les
+// changements, qui sont le signal.
+test('le plafond garde les changements et sacrifie les confirmations', async () => {
+  const { store, cache } = fresh()
+  const points = [
+    ...Array.from({ length: 10 }, (_, i) => point(i, false)),
+    ...Array.from({ length: 20 }, (_, i) => point(10 + i, true)),
+  ]
+  await cache.write('lbc', { 1: { at: NOW, sig: 'a', signals: { price_history: points } } })
+  const kept = store.data[key('1')].signals.price_history
+  assert.equal(kept.length, 21)
+  assert.equal(kept.filter((p) => !p.confirmation).length, 10)
+  // Les confirmations retenues sont les plus récentes.
+  assert.equal(kept[10].at, 'j19')
+  assert.equal(kept[20].at, 'j29')
+})
+
+test('quand les changements débordent seuls, ce sont les plus récents qui restent', async () => {
+  const { store, cache } = fresh()
+  const points = Array.from({ length: 30 }, (_, i) => point(i, false))
+  await cache.write('lbc', { 1: { at: NOW, sig: 'a', signals: { price_history: points } } })
+  const kept = store.data[key('1')].signals.price_history
+  assert.deepEqual([kept.length, kept[0].at, kept[1].at, kept[20].at], [21, 'j0', 'j10', 'j29'])
+})
+
+// Un historique déjà saturé de changements ne laisse aucune place : les
+// confirmations qui le suivent ne doivent pas s'y faire une place quand même.
+test('des changements plus nombreux que le plafond ne laissent passer aucune confirmation', async () => {
+  const { store, cache } = fresh()
+  const points = [
+    ...Array.from({ length: 25 }, (_, i) => point(i, false)),
+    ...Array.from({ length: 10 }, (_, i) => point(25 + i, true)),
+  ]
+  await cache.write('lbc', { 1: { at: NOW, sig: 'a', signals: { price_history: points } } })
+  const kept = store.data[key('1')].signals.price_history
+  assert.equal(kept.length, 21)
+  assert.equal(kept.filter((p) => p.confirmation).length, 0)
+  assert.deepEqual([kept[0].at, kept[1].at, kept[20].at], ['j0', 'j5', 'j24'])
+})

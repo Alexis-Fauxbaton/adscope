@@ -145,3 +145,54 @@ test('les montants portent les espaces insécables du français', () => {
   assert.equal(money(-1000), `1${NARROW}000${NB}€`)
   assert.equal(money(800), `800${NB}€`)
 })
+
+// Un prix stable ne vaut que ce que valent les observations qui l'ont vu :
+// vérifié chaque semaine, il dit quelque chose ; jamais revérifié depuis deux
+// mois, il ne dit rien de plus que « on n'a pas regardé ».
+const stable = (over) => ({
+  price: 9900, stable_days: 56, price_checks: 8, price_gap_days: 7,
+  price_delta_since_first: null, tracked_days: 56, observations: 60, ...over,
+})
+
+const priceOf = (r) => {
+  const [l, s] = of('3254194817')
+  return view.panel(l, s, r, null).tracked.find((x) => x.label === 'Prix').value
+}
+
+test('un prix stable vérifié chaque semaine le dit', () => {
+  assert.equal(priceOf(stable()), 'stable depuis 1 mois · vérifié chaque semaine')
+})
+
+test('un prix stable que personne n\'a revérifié le dit aussi', () => {
+  assert.equal(
+    priceOf(stable({ price_checks: 0, price_gap_days: 56 })),
+    'stable depuis 1 mois · jamais revérifié',
+  )
+})
+
+// Le trou du milieu : revu depuis, mais six semaines sans témoin pendant
+// lesquelles le prix a pu bouger et revenir.
+test('un trou dans le suivi se nomme, il ne se tait pas', () => {
+  assert.equal(
+    priceOf(stable({ price_checks: 2, price_gap_days: 43 })),
+    'stable depuis 1 mois · non vérifié pendant 1 mois',
+  )
+})
+
+test("un prix frais ne s'encombre d'aucune mention", () => {
+  assert.equal(priceOf(stable({ stable_days: 5, price_checks: 0, price_gap_days: 5 })), 'stable depuis 5 j')
+})
+
+// Le cache garde des signaux d'avant l'échantillonnage : sans les deux nombres,
+// la ligne ne doit rien affirmer.
+test('un relevé sans échantillonnage ne prétend rien sur la vérification', () => {
+  const old = stable()
+  delete old.price_checks
+  delete old.price_gap_days
+  assert.equal(priceOf(old), 'stable depuis 1 mois')
+})
+
+test('une baisse reste une baisse, la vérification ne la commente pas', () => {
+  const [, , r] = of('3254194817')
+  assert.equal(priceOf(r), `29${NARROW}190${NB}€  ▼ −800${NB}€ en 12 j`)
+})

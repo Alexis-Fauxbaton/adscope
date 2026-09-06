@@ -5,6 +5,11 @@ globalThis.ADS = globalThis.ADS || {}
 ADS.view = (() => {
   const { duration, ago, money } = ADS.format
 
+  // L'API pose un point par semaine sur les annonces qu'elle revoit. Au delà
+  // d'une semaine et un jour de battement, l'intervalle n'en est plus une : le
+  // prix a été perdu de vue, et il a pu bouger et revenir sans témoin.
+  const CHECKED_MAX_DAYS = 8
+
   // Ce qui frappe d'abord est la durée : c'est elle qui décide, la
   // réactualisation n'est qu'un aggravant. « Encore » n'a de sens que sur une
   // annonce déjà ancienne — c'est exactement le cas de l'alerte.
@@ -26,6 +31,18 @@ ADS.view = (() => {
   // `tracked` n'existe que parce que l'annonce a déjà été vue avant.
   const badge = (s, r) => ({ page: age(s), tracked: drop(r) })
 
+  // « Stable depuis deux mois » ne vaut que ce que valent les observations qui
+  // l'ont vu : vérifié chaque semaine, c'est un fait sur le vendeur ; jamais
+  // revérifié, ce n'est qu'un aveu sur notre suivi. La ligne dit lequel des
+  // deux. Sans les deux nombres — un signal d'avant l'échantillonnage, gardé
+  // en cache —, elle n'affirme rien.
+  const checked = (r) => {
+    if (r.price_gap_days == null || r.stable_days < CHECKED_MAX_DAYS) return ''
+    if (!r.price_checks) return ' · jamais revérifié'
+    if (r.price_gap_days <= CHECKED_MAX_DAYS) return ' · vérifié chaque semaine'
+    return ` · non vérifié pendant ${duration(r.price_gap_days)}`
+  }
+
   const tracking = (r) => {
     const rows = []
     if (!r) return rows
@@ -35,7 +52,9 @@ ADS.view = (() => {
     }
     const fall = drop(r)
     if (fall) rows.push({ label: 'Prix', value: `${money(r.price)}  ${fall}`, strong: true })
-    else if (r.stable_days != null) rows.push({ label: 'Prix', value: `stable depuis ${duration(r.stable_days)}` })
+    else if (r.stable_days != null) {
+      rows.push({ label: 'Prix', value: `stable depuis ${duration(r.stable_days)}${checked(r)}` })
+    }
     return rows
   }
 

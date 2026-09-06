@@ -22,11 +22,25 @@ ADS.cache = (() => {
   // depuis l'origine, qui est le signal vendeur ; les intermédiaires anciens
   // n'ont pas de lecteur. Sans ce plafond, quelques annonces suivies longtemps
   // remplissent le quota et l'enregistrement cesse en silence.
+  //
+  // Depuis l'échantillonnage hebdomadaire, l'historique porte aussi des
+  // confirmations — « le prix n'avait pas bougé ce jour-là ». Prises au même
+  // rang que les changements, elles rempliraient le plafond et évinceraient
+  // précisément ce qui se lit. Elles ne prennent donc que la place qui reste,
+  // les plus récentes d'abord.
   const trim = (entry) => {
     const points = entry.signals && entry.signals.price_history
     if (!Array.isArray(points) || points.length <= HISTORY_MAX + 1) return entry
-    const kept = [points[0], ...points.slice(-HISTORY_MAX)]
-    return { ...entry, signals: { ...entry.signals, price_history: kept } }
+    const rest = points.slice(1)
+    const changes = rest.filter((p) => !p.confirmation)
+    // `slice(-0)` rendrait tout le tableau : sans place, aucune confirmation.
+    const room = Math.max(0, HISTORY_MAX - changes.length)
+    const spared = new Set(room ? rest.filter((p) => p.confirmation).slice(-room) : [])
+    const kept = rest.filter((p) => !p.confirmation || spared.has(p))
+    return {
+      ...entry,
+      signals: { ...entry.signals, price_history: [points[0], ...kept.slice(-HISTORY_MAX)] },
+    }
   }
 
   // La purge des trente jours ne libère rien quand tout est récent : celle-ci

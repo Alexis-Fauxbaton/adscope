@@ -17,12 +17,22 @@
   "republished_at": null,
   "price": 29190,
   "price_history": [
-   { "at": "2026-08-24T09:12:00Z", "price": 29990 },
-   { "at": "2026-09-05T08:30:00Z", "price": 29190 }
+   {
+    "at": "2026-08-24T09:12:00Z",
+    "price": 29990,
+    "confirmation": false
+   },
+   {
+    "at": "2026-09-05T08:30:00Z",
+    "price": 29190,
+    "confirmation": false
+   }
   ],
   "price_delta_since_first": -800,
   "price_delta_days_since_first": 12,
-  "stable_days": 0
+  "stable_days": 0,
+  "price_checks": 0,
+  "price_gap_days": 0
  },
  {
   "site": "lbc",
@@ -41,9 +51,17 @@
   "republished": false,
   "republished_at": null,
   "price": 19990,
-  "price_history": [{ "at": "2026-08-31T07:00:00Z", "price": 19990 }],
-  "price_delta_since_first": 0,
-  "price_delta_days_since_first": 5,
-  "stable_days": 5
+  "price_history": [
+   {
+    "at": "2026-08-31T07:00:00Z",
+    "price": 19990,
+    "confirmation": false
+   }
+  ],
+  "price_delta_since_first": null,
+  "price_delta_days_since_first": null,
+  "stable_days": 5,
+  "price_checks": 0,
+  "price_gap_days": 5
  }
 ]
