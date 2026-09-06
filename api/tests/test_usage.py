@@ -248,7 +248,10 @@ def test_the_first_batch_of_the_day_closes_the_days_that_passed(session):
 def test_the_observations_route_closes_the_days_that_passed(client, key, session):
     item = {"site": "lc", "site_id": "1", "price": 9900}
     client.post("/v1/observations", json={"items": [item]}, headers=auth(key))
-    session.execute(update(UsageDay).values(day=date.today() - timedelta(days=RETENTION_DAYS)))
+    # Le jour d'usage est celui d'UTC, jamais celui du fuseau local : entre minuit
+    # et deux heures à Paris, date.today() désigne le lendemain et le test échouait.
+    today = datetime.now(timezone.utc).date()
+    session.execute(update(UsageDay).values(day=today - timedelta(days=RETENTION_DAYS)))
     session.commit()
     usage._closed_on = None
     client.post("/v1/observations", json={"items": [item]}, headers=auth(key))
