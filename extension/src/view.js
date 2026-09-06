@@ -5,10 +5,13 @@ globalThis.ADS = globalThis.ADS || {}
 ADS.view = (() => {
   const { duration, ago, money } = ADS.format
 
+  // Ce qui frappe d'abord est la durée : c'est elle qui décide, la
+  // réactualisation n'est qu'un aggravant. « Encore » n'a de sens que sur une
+  // annonce déjà ancienne — c'est exactement le cas de l'alerte.
   const age = (s) =>
     s.bumped
-      ? `⟳ réactualisée ${ago(s.bumpedDaysAgo)} · en ligne depuis ${duration(s.onlineDays)}`
-      : `en ligne depuis ${duration(s.onlineDays)}`
+      ? `${duration(s.onlineDays)} en ligne · ⟳ ${s.notable ? 'encore ' : ''}réactualisée ${ago(s.bumpedDaysAgo)}`
+      : `${duration(s.onlineDays)} en ligne`
 
   // Une baisse de prix n'est lisible nulle part sur la page : elle suppose
   // d'avoir vu l'annonce avant.
@@ -43,10 +46,13 @@ ADS.view = (() => {
       ? { label: 'leboncoin affiche', says: displayed, note: 'date de réactualisation, pas de publication' }
       : null
 
+  // Même hiérarchie que la pastille : la durée porte le poids dès qu'elle est le
+  // sujet — ancienne et poussée, ou ancienne et dormante — et la réactualisation
+  // reste une ligne ordinaire.
   const panel = (listing, s, r, displayed) => ({
     page: [
-      { label: 'En ligne depuis', value: duration(s.onlineDays), strong: s.bumped },
-      ...(s.bumped ? [{ label: 'Réactualisée', value: ago(s.bumpedDaysAgo), strong: true }] : []),
+      { label: 'En ligne depuis', value: duration(s.onlineDays), strong: s.notable || s.dormant },
+      ...(s.bumped ? [{ label: 'Réactualisée', value: ago(s.bumpedDaysAgo) }] : []),
       { label: 'Vendeur', value: listing.sellerType === 'pro' ? 'professionnel' : 'particulier' },
     ],
     claim: claim(s, displayed),

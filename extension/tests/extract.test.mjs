@@ -85,32 +85,59 @@ test('une antériorité ne produit jamais « il y a aujourd\'hui »', () => {
   for (const n of [0, 1, 2, 30, 400]) assert.ok(!ago(n).includes("il y a aujourd'hui"))
 })
 
-test('une annonce banale n\'est pas signalée', () => {
-  const fresh = normalize({
+// Une annonce d'âge choisi : les horodatages sont écrits en heure locale, comme
+// ceux de leboncoin, pour que l'écart avec NOW soit exact sous tout fuseau.
+const stamp = (days) => {
+  const t = new Date(NOW - days * 86400000)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}:${p(t.getSeconds())}`
+}
+
+const aged = (onlineDays, bumpedDaysAgo = null) =>
+  normalize({
     list_id: 9, price: [1], owner: { type: 'pro' }, attributes: [],
-    first_publication_date: '2026-09-05 20:59:10',
-    index_date: '2026-09-05 20:59:10',
+    first_publication_date: stamp(onlineDays),
+    index_date: stamp(bumpedDaysAgo === null ? onlineDays : bumpedDaysAgo),
   })
-  assert.equal(signals(fresh, NOW).notable, false)
+
+test('une annonce banale n\'est pas signalée', () => {
+  assert.equal(signals(aged(0), NOW).notable, false)
 })
 
-test('une annonce ancienne ou réactualisée est signalée', () => {
-  const old = normalize({
-    list_id: 10, price: [1], owner: { type: 'pro' }, attributes: [],
-    first_publication_date: '2026-08-20 10:00:00',
-    index_date: '2026-08-20 10:00:00',
-  })
-  assert.equal(signals(old, NOW).notable, true)
-
-  const bumped = listings.find((l) => l.siteId === '3254194817')
-  assert.equal(signals(bumped, NOW).notable, true)
+// Mesuré sur les 7 110 annonces en base le 2026-09-06 : 76 % des annonces
+// professionnelles sont réactualisées. Alerter là-dessus, c'est alerter sur tout.
+test('la réactualisation seule ne suffit plus à alerter', () => {
+  assert.equal(signals(aged(6, 1), NOW).notable, false)
+  assert.equal(signals(aged(20, 2), NOW).notable, false)
 })
 
-test('seule une minorité des annonces pro est notable', () => {
-  const pro = listings.filter((l) => l.sellerType === 'pro')
-  const notable = pro.filter((l) => signals(l, NOW).notable)
-  assert.ok(notable.length < pro.length, 'tout est notable, le tri ne sert à rien')
-  assert.ok(notable.length >= 1, 'rien n est notable, le seuil est trop haut')
+test('l\'alerte demande l\'ancienneté et la réactualisation ensemble', () => {
+  assert.equal(signals(aged(31, 2), NOW).notable, true)
+  // La borne : à 30 j la pastille compte encore en jours, l'alerte attend le mois.
+  assert.equal(signals(aged(30, 2), NOW).notable, false)
+  // La BMW du relevé du 2026-09-06 : six ans en ligne, réactualisée l'avant-veille.
+  assert.equal(signals(aged(2235, 2), NOW).notable, true)
+})
+
+test('une réactualisation qui date ne maintient plus rien en avant', () => {
+  assert.equal(signals(aged(400, 14), NOW).notable, true)
+  assert.equal(signals(aged(400, 15), NOW).notable, false)
+})
+
+// Du stock qui dort sans qu'on paie pour le cacher : la page dit déjà son âge,
+// il n'y a aucune contradiction à dénoncer — la mention discrète suffit.
+test('l\'annonce ancienne jamais réactualisée est appuyée, pas alertée', () => {
+  const s = signals(aged(45), NOW)
+  assert.equal(s.bumped, false)
+  assert.equal(s.notable, false)
+  assert.equal(s.dormant, true)
+  assert.equal(signals(aged(20), NOW).dormant, false)
+  assert.equal(signals(aged(45, 2), NOW).dormant, false)
+})
+
+test('une page de résultats triée par fraîcheur reste silencieuse', () => {
+  const loud = listings.filter((l) => signals(l, NOW).notable || signals(l, NOW).dormant)
+  assert.deepEqual(loud, [], 'une page de fraîcheur ne contient rien à signaler')
 })
 
 test('le type de vendeur est porté comme donnée, pas comme booléen', () => {

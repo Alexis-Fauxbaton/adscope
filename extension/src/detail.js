@@ -50,7 +50,9 @@
   const fill = (el, listing, remote, displayed) => {
     const s = signals(listing, new Date())
     const model = ADS.view.panel(listing, s, remote, displayed)
-    el.className = 'adscope-panel' + (s.bumped ? ' adscope-panel--bumped' : '')
+    // Le cadre du panneau porte le même poids que la pastille de la carte.
+    el.className =
+      'adscope-panel' + (s.notable ? ' adscope-panel--notable' : s.dormant ? ' adscope-panel--dormant' : '')
     const nodes = [caption('Lu sur la page'), ...model.page.map((r) => row(r))]
     if (model.claim) nodes.push(claimBlock(model.claim))
     if (model.tracked.length) nodes.push(caption('Suivi adscope'), ...model.tracked.map((r) => row(r, true)))

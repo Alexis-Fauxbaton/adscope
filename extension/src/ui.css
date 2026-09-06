@@ -22,6 +22,13 @@
   font-weight: 600;
 }
 
+/* L'ancienne jamais réactualisée : rien à dénoncer, mais la durée mérite l'œil. */
+.adscope-badge--dormant {
+  border-color: #a1a1aa;
+  color: #3f3f46;
+  font-weight: 600;
+}
+
 .adscope-panel {
   margin: 10px 0;
   padding: 10px 12px;
@@ -33,10 +40,14 @@
   max-width: 420px;
 }
 
-.adscope-panel--bumped {
+.adscope-panel--notable {
   border-color: #f5a524;
   border-left-color: #f5a524;
   background: #fef6e7;
+}
+
+.adscope-panel--dormant {
+  border-left-color: #3f3f46;
 }
 
 .adscope-row {

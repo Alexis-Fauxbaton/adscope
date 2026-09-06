@@ -506,6 +506,29 @@ aggravant, et non l'inverse. Le seuil d'alerte devient « en ligne depuis plus d
 **et** réactualisée récemment » plutôt que « réactualisée ». Sur ce relevé, cela ramène les
 alertes professionnelles d'environ 194 à 130, chacune désignant réellement du stock dormant.
 
+### Seuils retenus — mesurés le 2026-09-06 sur les 7 110 annonces en base
+
+`notable` = **en ligne depuis 31 jours ou plus** *et* **réactualisée** *et* **réactualisée
+il y a 14 jours ou moins**.
+
+- **31 jours** : la borne où l'affichage cesse de compter en jours et dit « 1 mois ».
+  L'alerte s'allume exactement quand le libellé change d'unité.
+- **14 jours** : sur les annonces pro anciennes et réactualisées, 1 903 sur 1 948 le sont
+  depuis moins de 14 jours ; les 45 restantes s'étalent jusqu'à 55 jours. La coupure tombe
+  dans un creux de la distribution, et écarte les remises en avant qui ne soutiennent plus
+  rien.
+
+Effet mesuré sur la base : la part des cartes professionnelles en alerte passe de **87,8 %
+à 47,3 %** (3 533 → 1 904), celle des particuliers de **76,0 % à 1,4 %** (2 349 → 44).
+Rapporté au relevé de 1 792 annonces, cela ramène les alertes professionnelles de 194 à
+environ 121.
+
+**L'annonce ancienne jamais réactualisée** (`dormant`, 228 pro et 904 particuliers) reçoit
+un poids intermédiaire, pas l'alerte : le site affiche déjà sa vraie date, il n'y a aucune
+contradiction à dénoncer. Elle est de surcroît plafonnée — aucune annonce non réactualisée
+ne dépasse 60 jours en base, durée de vie d'une annonce leboncoin. L'alerte est réservée à
+l'écart entre ce que le site montre et ce qui est vrai.
+
 ### Usage commercial
 
 « 78 % des annonces de marchands sont remises en avant » explique en une phrase pourquoi le

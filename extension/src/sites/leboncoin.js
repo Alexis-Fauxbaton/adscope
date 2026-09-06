@@ -55,21 +55,35 @@ ADS.leboncoin = (() => {
   // indexer à quelques heures d'écart est le fonctionnement normal du site.
   const BUMP_MIN_MS = 24 * 3600 * 1000
 
-  // En dessous, l'annonce est banale : le dire encombrerait la page sans
-  // rien apprendre. Le tri par défaut de leboncoin étant l'ordre de
-  // fraîcheur, une pastille sur chaque carte serait presque toujours
-  // « moins d'un jour ».
-  const STALE_MIN_DAYS = 7
+  // Réactualiser n'est pas un signal : 76 % des annonces professionnelles en base
+  // le sont (5 % chez les particuliers). Le signal est l'annonce ancienne qu'on
+  // maintient en avant parce qu'elle ne part pas. Un mois : c'est là que
+  // l'affichage cesse de compter en jours, et la borne coupe l'alerte pro de
+  // 3 041 à 1 903 sur les 7 110 annonces mesurées le 2026-09-06.
+  const OLD_MIN_DAYS = 31
+
+  // Réactualisée « récemment » : au-delà de deux semaines, la remise en avant est
+  // passée et n'explique plus la position de l'annonce. Sur les annonces pro
+  // anciennes et réactualisées, 1 903 sur 1 948 le sont depuis moins de 14 jours ;
+  // les 45 autres s'étalent jusqu'à 55 — la coupure tombe dans un creux.
+  const BUMP_RECENT_DAYS = 14
 
   const signals = (listing, now) => {
     const online = Math.floor((now - listing.publishedAt) / 86400000)
     const gap = listing.bumpedAt - listing.publishedAt
     const bumped = gap > BUMP_MIN_MS
+    const bumpedDaysAgo = bumped ? Math.floor((now - listing.bumpedAt) / 86400000) : null
+    const old = online >= OLD_MIN_DAYS
     return {
       onlineDays: online,
       bumped,
-      bumpedDaysAgo: bumped ? Math.floor((now - listing.bumpedAt) / 86400000) : null,
-      notable: bumped || online >= STALE_MIN_DAYS,
+      bumpedDaysAgo,
+      // L'alerte : ancienne, et encore poussée. La page dit « aujourd'hui », la
+      // voiture est là depuis des mois.
+      notable: old && bumped && bumpedDaysAgo <= BUMP_RECENT_DAYS,
+      // Du stock qui dort sans qu'on paie pour le cacher : rien à dénoncer, la
+      // page affiche déjà son âge. Appuyé, pas mis en alerte.
+      dormant: old && !bumped,
     }
   }
 

@@ -25,11 +25,31 @@ const of = (siteId) => {
 const NB = '\u00a0'
 const NARROW = '\u202f'
 
+// Les signaux, écrits à la main : la hiérarchie d'affichage se juge sur des cas
+// que la fixture — une page de résultats fraîche — ne contient pas.
+const OLD = { onlineDays: 2235, bumped: true, bumpedDaysAgo: 2, notable: true, dormant: false }
+const DORMANT = { onlineDays: 45, bumped: false, bumpedDaysAgo: null, notable: false, dormant: true }
+
 test('la pastille dit « réactualisée », jamais « remontée »', () => {
   const [, s] = of('3254194817')
   const { page } = view.badge(s, null)
-  assert.match(page, /⟳ réactualisée il y a 2 j · en ligne depuis 14 j/)
+  assert.match(page, /réactualisée il y a 2 j/)
   assert.ok(!page.includes('remont'))
+})
+
+test("la durée se lit d'abord, la réactualisation ensuite", () => {
+  const [, s] = of('3254194817')
+  const { page } = view.badge(s, null)
+  assert.equal(page, '14 j en ligne · ⟳ réactualisée il y a 2 j')
+  assert.ok(page.indexOf('en ligne') < page.indexOf('réactualisée'))
+})
+
+test("l'annonce ancienne encore poussée se lit comme telle", () => {
+  assert.equal(view.badge(OLD, null).page, '6 ans en ligne · ⟳ encore réactualisée il y a 2 j')
+})
+
+test("l'annonce jamais réactualisée dit sa seule durée", () => {
+  assert.equal(view.badge(DORMANT, null).page, '1 mois en ligne')
 })
 
 test('sans API la pastille tient avec la seule page', () => {
@@ -76,6 +96,21 @@ test('sans réactualisation ou sans date lue, aucune contradiction n\'est invent
     first_publication_date: '2026-09-01 10:00:00', index_date: '2026-09-01 10:02:00',
   })
   assert.equal(view.panel(calm, signals(calm, NOW), null, "aujourd'hui à 21:14").claim, null)
+})
+
+test('le panneau suit la hiérarchie de la pastille : la durée porte le poids', () => {
+  const [l] = of('3254194817')
+  const p = view.panel(l, OLD, null, null)
+  assert.deepEqual(p.page.map((x) => x.label), ['En ligne depuis', 'Réactualisée', 'Vendeur'])
+  assert.equal(p.page[0].value, '6 ans')
+  assert.equal(p.page[0].strong, true)
+  assert.ok(!p.page[1].strong, 'la réactualisation est un aggravant, pas le sujet')
+})
+
+test('une annonce fraîche mais réactualisée ne met sa durée en avant', () => {
+  const [l, s] = of('3254194817')
+  assert.ok(!view.panel(l, s, null, null).page[0].strong)
+  assert.equal(view.panel(l, DORMANT, null, null).page[0].strong, true)
 })
 
 test('le panneau sépare ce qui est lu de ce qui est suivi', () => {

@@ -52,3 +52,28 @@ test('plusieurs annonces dans le bloc ne font pas rejouer le rendu à chaque lot
   assert.deepEqual(w.counts, { extract: 1, scan: 1 })
   assert.equal(w.panel().getAttribute('data-adscope-detail'), PRIVATE)
 })
+
+// Un horodatage d'annonce, écrit en heure locale comme ceux de leboncoin.
+const stamp = (days) => {
+  const t = new Date(Date.now() - days * 86400000)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}:${p(t.getSeconds())}`
+}
+
+const aged = (onlineDays, bumpedDaysAgo) => ({
+  ...ad(PRO),
+  list_id: 4000000001,
+  first_publication_date: stamp(onlineDays),
+  index_date: stamp(bumpedDaysAgo),
+})
+
+test('le panneau suit le seuil de la pastille, pas la seule réactualisation', () => {
+  const recent = world('0', { path: `/ad/voitures/${PRO}`, data: block(ad(PRO)) })
+  recent.load('detail.js')
+  assert.equal(recent.panel().className, 'adscope-panel')
+
+  const old = world('0', { path: '/ad/voitures/4000000001', data: block(aged(400, 2)) })
+  old.load('detail.js')
+  assert.equal(old.panel().className, 'adscope-panel adscope-panel--notable')
+  assert.match(old.panel().textContent, /1 an/)
+})
