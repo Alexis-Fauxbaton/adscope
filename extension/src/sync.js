@@ -54,12 +54,15 @@ ADS.sync = (() => {
     // Marquées avant la réponse, relâchées si elle est mauvaise : deux envois
     // simultanés ne portent jamais la même annonce, et rien ne se perd.
     for (const l of fresh) queued.add(l.siteId)
+    // Le site vient des annonces, jamais du code : c'est la page ouverte qui le
+    // dit, et l'API le range tel quel. Un lot ne porte jamais deux sites.
+    const site = fresh[0].site
     // Le cache d'abord : ce qu'on savait s'affiche sans attendre le réseau, et
     // hors ligne c'est la seule réponse qui viendra.
-    ask({ type: 'cached', site: 'lbc', ids: fresh.map((l) => l.siteId) }, (res) => {
+    ask({ type: 'cached', site, ids: fresh.map((l) => l.siteId) }, (res) => {
       if (merge(res.signals, 'cache')) notify()
     })
-    ask({ type: 'sync', site: 'lbc', listings: fresh }, (res) => {
+    ask({ type: 'sync', site, listings: fresh }, (res) => {
       acked += res.sent || 0
       merge(res.signals, 'network')
       // Même sans signal nouveau, l'accusé de réception change ce que le

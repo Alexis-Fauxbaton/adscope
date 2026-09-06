@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { ad, block } from './world.mjs'
 
 const require = createRequire(import.meta.url)
-const TAP = join(dirname(fileURLToPath(import.meta.url)), '../src/page/tap.js')
+const TAP = join(dirname(fileURLToPath(import.meta.url)), '../src/sites/leboncoin-tap.js')
 
 // Le script de monde MAIN tourne dans la page : il n'a ni `ADS` ni `document`,
 // seulement `window.fetch` et l'émission d'événements.

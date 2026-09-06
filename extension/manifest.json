@@ -18,6 +18,8 @@
       "matches": ["https://www.leboncoin.fr/*"],
       "js": [
         "src/context.js",
+        "src/sites.js",
+        "src/sites/read.js",
         "src/sites/leboncoin.js",
         "src/format.js",
         "src/view.js",
@@ -32,9 +34,27 @@
     },
     {
       "matches": ["https://www.leboncoin.fr/*"],
-      "js": ["src/page/tap.js"],
+      "js": ["src/sites/leboncoin-tap.js"],
       "world": "MAIN",
       "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.lacentrale.fr/*"],
+      "js": [
+        "src/context.js",
+        "src/sites.js",
+        "src/sites/read.js",
+        "src/sites/lacentrale.js",
+        "src/format.js",
+        "src/view.js",
+        "src/diag.js",
+        "src/sync.js",
+        "src/feed.js",
+        "src/listing.js",
+        "src/detail.js"
+      ],
+      "css": ["src/ui.css"],
+      "run_at": "document_idle"
     }
   ]
 }

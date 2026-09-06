@@ -4,77 +4,20 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { CARDS, FICHES, fiche, results } from './lc-page.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const site = createRequire(import.meta.url)(join(here, '../src/sites/lacentrale.js'))
+const require = createRequire(import.meta.url)
+// Le module de site se déclare au registre et lit la page avec les outils
+// communs : les deux se chargent avant lui, comme le manifeste les déclare.
+require(join(here, '../src/sites.js'))
+require(join(here, '../src/sites/read.js'))
+const site = require(join(here, '../src/sites/lacentrale.js'))
 const { fromDocument, fromScripts, signals, claim, displayed } = site
-
-const read = (f) => JSON.parse(readFileSync(join(here, 'fixtures', f), 'utf8'))
-const FICHES = read('lacentrale-fiches.json')
-const CARDS = read('lacentrale-resultats.json')
 
 // Le jour du relevé : 23 jours après la mise en ligne de la fiche non plafonnée.
 const NOW = new Date('2026-09-06T18:00:00Z')
 const days = (l) => signals(l, NOW).onlineDays
-
-// Les squelettes reproduisent les deux pages sauvegardées le 2026-09-06 : La
-// Centrale pose ses charges dans des scripts en ligne — `var
-// CLASSIFIED_MORE_INFOS` sur une fiche, `window.__PRELOADED_STATE_LISTING__`
-// sur des résultats — et le JSON-LD `Car` dans un script à part.
-const fiche = (f, { sellerName = null, lastname = null } = {}) => [
-  `var CLASSIFIED_MORE_INFOS=  ${JSON.stringify({
-    config: { source: 'LC', vertical: 'auto' },
-    data: {
-      classified: { year: String(new Date(f.firstCirculationDate).getUTCFullYear()) },
-      vehicle: { make: f.brand.toUpperCase(), model: f.model, label: '1.2 VTI 82 ACTIVE 5P' },
-      financing: {
-        combined: {
-          price: f.price,
-          mileage: f.mileage,
-          classifiedReference: f.reference,
-          customerType: f.customerType,
-          firstCirculationDate: f.firstCirculationDate,
-          customerReference: 'C045122',
-          creationDate: f.creationDate,
-          energy: 'ESSENCE',
-        },
-      },
-    },
-  })}`,
-  `var SellerInformationData= ${JSON.stringify({
-    customerType: f.customerType,
-    refrence: f.reference,
-    classified: { contacts: lastname ? { lastname } : { phone1: { note: 'SERVICE COMMERCIAL' } } },
-    ...(sellerName ? { account: { publishedName: sellerName, address: { zipCode: '92120' } } } : {}),
-  })}`,
-  JSON.stringify({
-    '@context': 'https://schema.org',
-    '@type': 'Car',
-    name: f.name,
-    brand: f.brand,
-    model: f.model,
-    dateVehicleFirstRegistered: String(new Date(f.firstCirculationDate).getUTCFullYear()),
-    mileageFromOdometer: { '@type': 'QuantitativeValue', value: String(f.mileage), unitText: 'km' },
-    offers: { '@type': 'Offer', price: String(f.price), priceCurrency: 'EUR' },
-  }),
-]
-
-const item = (c) => ({
-  reference: c.reference,
-  customerType: c.customerType,
-  price: c.price,
-  lastUpdate: c.lastUpdate,
-  firstOnlineDate: c.firstOnlineDate,
-  customerReference: 'C000077',
-  contacts: { ville: 'PARIS', nomPublie: c.sellerName, siret: '34051417300012' },
-  vehicle: { make: 'PEUGEOT', model: '208', version: '1.2 PURETECH 110 5P', year: 2018, mileage: 52626 },
-})
-
-const results = (cards) => [
-  `window.__PRELOADED_STATE_LISTING__ = ${JSON.stringify({
-    search: { hits: cards.map((c) => ({ item: item(c) })) },
-  })};if( window.tc_vars ) {window.tc_vars['listing_nb_resultat'] = 9541;}`,
-]
 
 const listings = fromScripts(results(CARDS))
 const uncapped = fromScripts(fiche(FICHES.uncapped, { sellerName: 'CW AUTOMOBILES' }))[0]

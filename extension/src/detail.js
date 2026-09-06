@@ -1,18 +1,13 @@
 ;(() => {
-  const { signals } = ADS.leboncoin
+  // Le site de la page ouverte : lui seul sait quel libellé d'ancienneté sa fiche
+  // affiche, quelle contradiction elle porte, et comment son URL nomme l'annonce.
+  const site = ADS.sites.current()
+  if (!site) return
   const MARK = 'data-adscope-detail'
   const SRC = 'data-adscope-src'
 
-  // Le libellé que leboncoin affiche : « il y a 3 jours à 15:36 ».
-  const DISPLAYED_DATE = /il y a .+ à \d{1,2}:\d{2}|(?:hier|aujourd'hui) à \d{1,2}:\d{2}/i
-
-  const dateNode = () => {
-    for (const n of document.querySelectorAll('p, span, div, time')) {
-      // Le panneau cite lui-même cette date : ne pas la relire dans son propre texte.
-      if (n.children.length === 0 && DISPLAYED_DATE.test(n.textContent) && !n.closest(`[${MARK}]`)) return n
-    }
-    return null
-  }
+  // Le panneau cite lui-même cette date : ne pas la relire dans son propre texte.
+  const dateNode = () => site.dateNode(document, `[${MARK}]`)
 
   const span = (cls, text) => {
     const el = document.createElement('span')
@@ -48,7 +43,7 @@
   }
 
   const fill = (el, listing, remote, displayed) => {
-    const s = signals(listing, new Date())
+    const s = site.signals(listing, new Date())
     const model = ADS.view.panel(listing, s, remote, displayed)
     // Le cadre du panneau porte le même poids que la pastille de la carte.
     el.className =
@@ -66,7 +61,7 @@
   // Quelle annonce est lue : l'URL le dit, le panneau déjà posé non — sur une
   // application monopage il survit au passage à la fiche suivante. Hors fiche
   // (page de résultats) l'URL ne porte pas d'identifiant, son marquage fait foi.
-  const urlId = () => (location.pathname.match(/\d{6,}/) || [])[0]
+  const urlId = () => site.urlId(location.pathname)
   const readId = (el) => urlId() || el.getAttribute(MARK)
 
   // Plusieurs annonces sont connues à la fois — une fiche et ses annonces

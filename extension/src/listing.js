@@ -1,12 +1,10 @@
 ;(() => {
-  const { signals } = ADS.leboncoin
+  // Le site de la page ouverte : c'est lui qui sait lire ses cartes et poser ses
+  // seuils. Hors des pages qu'un site déclare couvrir, il n'y a rien à faire.
+  const site = ADS.sites.current()
+  if (!site) return
   const MARK = 'data-adscope'
   const SRC = 'data-adscope-src'
-
-  const cardFor = (siteId) => {
-    const link = document.querySelector(`a[href*="/ad/voitures/${siteId}"], a[href$="/${siteId}"]`)
-    return link && (link.closest('article') || link)
-  }
 
   const span = (cls, text) => {
     const el = document.createElement('span')
@@ -33,7 +31,7 @@
       el.setAttribute(MARK, listing.siteId)
       card.appendChild(el)
     }
-    const s = signals(listing, now)
+    const s = site.signals(listing, now)
     const { page, tracked } = ADS.view.badge(s, remote)
     const weight = s.notable || tracked ? 'notable' : s.dormant ? 'dormant' : 'quiet'
     el.className =
@@ -57,7 +55,7 @@
     const listings = ADS.feed.listings(document)
     let placed = 0
     for (const listing of listings) {
-      const card = cardFor(listing.siteId)
+      const card = site.card(document, listing)
       if (card && paint(card, listing, now)) placed++
     }
     ADS.sync.send(listings)

@@ -6,9 +6,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const { normalize, signals } = createRequire(import.meta.url)(
-  join(here, '../src/sites/leboncoin.js'),
-)
+const require = createRequire(import.meta.url)
+require(join(here, '../src/sites.js'))
+require(join(here, '../src/sites/read.js'))
+const { normalize, signals } = require(join(here, '../src/sites/leboncoin.js'))
 
 const ads = JSON.parse(readFileSync(join(here, 'fixtures/leboncoin-ads.json'), 'utf8'))
 const listings = ads.map(normalize)

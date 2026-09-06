@@ -1,6 +1,6 @@
 globalThis.ADS = globalThis.ADS || {}
 
-ADS.leboncoin = (() => {
+ADS.leboncoin = ADS.sites.register((() => {
   const KEPT = new Set(['brand', 'model', 'u_car_version', 'regdate', 'mileage'])
 
   const parseDate = (s) => (s ? new Date(s.replace(' ', 'T')) : null)
@@ -112,7 +112,39 @@ ADS.leboncoin = (() => {
     return tag ? fromPayload(JSON.parse(tag.textContent)) : []
   }
 
-  return { fromDocument, fromPayload, normalize, signals, findAds }
-})()
+  // Ce que l'URL d'une fiche porte : une suite d'au moins six chiffres.
+  const urlId = (path) => (path.match(/\d{6,}/) || [])[0] || null
+
+  // La carte des résultats qui porte cette annonce, et le bloc qui l'entoure.
+  const card = (doc, l) => {
+    const link = doc.querySelector(`a[href*="/ad/voitures/${l.siteId}"], a[href$="/${l.siteId}"]`)
+    return link && (link.closest('article') || link)
+  }
+
+  // Le libellé que la fiche affiche sous le titre : « il y a 3 jours à 15:36 ».
+  const DISPLAYED = /il y a .+ à \d{1,2}:\d{2}|(?:hier|aujourd'hui) à \d{1,2}:\d{2}/i
+  const dateNode = (doc, skip) => ADS.read.leaf(doc, DISPLAYED, skip)
+
+  // Le vocabulaire du site : `index_date` atteste une réactualisation, et
+  // « encore » n'a de sens que sur une annonce déjà ancienne — l'alerte, donc.
+  const words = {
+    bump: (s) => `${s.notable ? 'encore ' : ''}réactualisée`,
+    bumpLabel: 'Réactualisée',
+  }
+
+  // La contradiction, nommée : le site montre une date d'indexation là où le
+  // lecteur comprend une date de mise en ligne.
+  const claim = (s, says) =>
+    s.bumped && says
+      ? { label: 'leboncoin affiche', says, note: 'date de réactualisation, pas de publication' }
+      : null
+
+  return {
+    id: 'lbc',
+    origins: ['https://www.leboncoin.fr'],
+    urlId, card, dateNode, words, claim,
+    fromDocument, fromPayload, normalize, signals, findAds,
+  }
+})())
 
 if (typeof module !== 'undefined') module.exports = ADS.leboncoin

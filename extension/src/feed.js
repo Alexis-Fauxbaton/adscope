@@ -6,6 +6,12 @@ globalThis.ADS = globalThis.ADS || {}
 // mêlent pas — une fiche porte ses annonces similaires, qui passeraient pour
 // des résultats.
 ADS.feed = (() => {
+  // Le site de la page ouverte. Tous n'ont pas de charge publiée par le monde
+  // MAIN : celui qui n'en publie pas n'a rien à lire, et sa page fait foi.
+  const site = ADS.sites.current() || {}
+  const fromDocument = (doc) => (site.fromDocument ? site.fromDocument(doc) : [])
+  const fromPayload = (json) => (site.fromPayload ? site.fromPayload(json) : [])
+
   // Le monde MAIN ne publie qu'une chaîne : rien d'un objet de la page ne
   // traverse la frontière des mondes. Gardé : ce monde-là n'est pas orphelin
   // après une mise à jour et continue de publier.
@@ -13,7 +19,7 @@ ADS.feed = (() => {
     addEventListener(
       `adscope:${name}`,
       ADS.context.guard((e) => {
-        const ads = ADS.leboncoin.fromPayload(JSON.parse(e.detail))
+        const ads = fromPayload(JSON.parse(e.detail))
         if (ads.length) fn(ads)
       }),
     )
@@ -39,13 +45,13 @@ ADS.feed = (() => {
   })
 
   return {
-    listings: (doc) => latest || ADS.leboncoin.fromDocument(doc),
+    listings: (doc) => latest || fromDocument(doc),
     source: () => (latest ? 'live' : 'page'),
     onData: (fn) => listeners.push(fn),
     // Le bloc de la page d'abord : c'est lui qui fait foi là où l'URL ne
     // désigne aucune annonce. Les fiches reçues depuis viennent ensuite.
     details: (doc) => {
-      const ads = ADS.leboncoin.fromDocument(doc)
+      const ads = fromDocument(doc)
       const ids = new Set(ads.map((a) => a.siteId))
       return [...ads, ...[...seen.values()].filter((a) => !ids.has(a.siteId))]
     },

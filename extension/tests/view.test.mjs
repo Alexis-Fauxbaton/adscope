@@ -7,6 +7,11 @@ import assert from 'node:assert/strict'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
+// Les mots affichés sont ceux du site de la page ouverte : le registre les
+// résout par son origine, et ces libellés-ci sont ceux de leboncoin.
+globalThis.location = { origin: 'https://www.leboncoin.fr' }
+require(join(here, '../src/sites.js'))
+require(join(here, '../src/sites/read.js'))
 const { normalize, signals } = require(join(here, '../src/sites/leboncoin.js'))
 require(join(here, '../src/format.js'))
 const view = require(join(here, '../src/view.js'))

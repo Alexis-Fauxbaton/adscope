@@ -91,7 +91,7 @@ const hint = (text, bad) => {
 const diagnose = (status) => {
   const box = el('state')
   if (!status) {
-    box.append(hint('Aucune page analysée. Ouvre une liste de résultats ou une annonce voiture sur leboncoin, puis rouvre cette fenêtre.'))
+    box.append(hint('Aucune page analysée. Ouvre une liste de résultats ou une annonce voiture sur un site couvert, puis rouvre cette fenêtre.'))
     return
   }
   box.append(...rows(status).map(line))
@@ -115,7 +115,7 @@ const showSeller = async (status) => {
   if (!status || status.kind !== 'detail' || !status.sellerId || !key) return
   const apiBase = base(el('api').value)
   if (!isBase(apiBase) || !(await granted(apiBase))) return
-  const stats = await ADS.seller.fetch(apiBase, key, status.site || 'lbc', status.sellerId)
+  const stats = await ADS.seller.fetch(apiBase, key, status.site, status.sellerId)
   const block = ADS.seller.block(stats)
   if (!block) return
   el('seller-title').textContent = block.title

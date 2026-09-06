@@ -5,8 +5,12 @@ globalThis.ADS = globalThis.ADS || {}
 // toutes les pages du site, mais une page n'a qu'un diagnostic : le type de page
 // désigne son auteur — l'identifiant que porte l'URL fait la fiche, son absence
 // les résultats. C'est la règle que suit déjà detail.js pour choisir l'annonce.
+// Comment cet identifiant s'écrit, en revanche, est l'affaire du site.
 ADS.diag = (() => {
-  const urlId = (path) => (path.match(/\d{6,}/) || [])[0] || null
+  const urlId = (path) => {
+    const site = ADS.sites.current()
+    return (site && site.urlId(path)) || null
+  }
 
   // Gardé : sur un onglet resté ouvert à travers une mise à jour, le stockage
   // de l'extension n'existe plus.

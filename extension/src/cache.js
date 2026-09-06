@@ -4,7 +4,7 @@ globalThis.ADS = globalThis.ADS || {}
 // C'est un cache et un repli hors ligne : ce qu'on savait s'affiche sans
 // attendre le réseau, et sans réseau il s'affiche quand même.
 //
-// Une clé par annonce, `a:lbc:3254194817`, portant les derniers signaux connus
+// Une clé par annonce, `a:<site>:<identifiant>`, portant les derniers signaux connus
 // et leur horodatage. Le quota reste celui par défaut : `unlimitedStorage`
 // n'est pas demandée, ce cache n'a pas à être durable.
 ADS.cache = (() => {
