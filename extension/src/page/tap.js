@@ -5,16 +5,21 @@
 // on publie une copie de ce que le navigateur a déjà reçu pour l'utilisateur —
 // aucune requête n'est émise ici.
 ;(() => {
-  // Une charge de résultats, pas une fiche : Next préfetche les fiches liées, et
-  // leurs annonces similaires ressemblent à s'y méprendre à des résultats.
-  const results = (url) =>
-    (url.includes('/_next/data/') && !url.includes('/ad/')) || url.includes('/finder/search')
+  // Résultats et fiches sont publiés sous deux noms : Next préfetche les fiches
+  // liées, et leurs annonces similaires passeraient pour des résultats. Ce qui
+  // les sépare est le nom de l'événement, pas l'exclusion de la fiche — elle,
+  // c'est le panneau qui l'attend.
+  const kind = (url) => {
+    if (url.includes('/finder/search')) return 'payload'
+    if (!url.includes('/_next/data/')) return null
+    return url.includes('/ad/') ? 'detail' : 'payload'
+  }
 
   const carries = (body) => body.includes('"list_id"') && body.includes('"first_publication_date"')
 
-  const publish = (res) =>
+  const publish = (res, name) =>
     res.text().then((body) => {
-      if (carries(body)) dispatchEvent(new CustomEvent('adscope:payload', { detail: body }))
+      if (carries(body)) dispatchEvent(new CustomEvent(`adscope:${name}`, { detail: body }))
     })
 
   const inner = window.fetch
@@ -22,7 +27,12 @@
     const call = inner.apply(this, args)
     // La copie se lit en marge : l'appelant reçoit la réponse d'origine, et une
     // erreur de lecture ne doit pas remonter dans la page.
-    call.then((res) => (results(String(res.url || args[0])) ? publish(res.clone()) : null)).catch(() => {})
+    call
+      .then((res) => {
+        const name = kind(String(res.url || args[0]))
+        return name ? publish(res.clone(), name) : null
+      })
+      .catch(() => {})
     return call
   }
 })()

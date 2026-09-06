@@ -21,14 +21,16 @@ ADS.diag = (() => {
     }),
   )
 
-  // Sur une fiche, le doute porte sur l'annonce décrite : le bloc de données en
-  // porte plusieurs et seule l'URL dit laquelle est lue.
-  const detail = (listings, picked) => {
+  // Sur une fiche, le doute porte sur l'annonce décrite : plusieurs sont connues
+  // à la fois, seule l'URL dit laquelle est lue, et la source dit si elle vient
+  // du bloc du rendu serveur ou de la charge reçue pour la fiche ouverte.
+  const detail = (listings, picked, source) => {
     const id = urlId(location.pathname)
     if (!id) return
     write({
       kind: 'detail',
       listings: listings.length,
+      source,
       pickedId: picked.siteId,
       urlId: id,
       matchesUrl: picked.siteId === id,

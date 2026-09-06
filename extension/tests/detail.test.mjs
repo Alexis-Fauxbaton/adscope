@@ -77,3 +77,34 @@ test('le panneau suit le seuil de la pastille, pas la seule réactualisation', (
   assert.equal(old.panel().className, 'adscope-panel adscope-panel--notable')
   assert.match(old.panel().textContent, /1 an/)
 })
+
+// La navigation monopage telle qu'elle se produit : le navigateur reçoit la
+// fiche suivante et `__NEXT_DATA__` reste celui de la fiche d'entrée — il n'est
+// jamais réécrit après le rendu serveur.
+test('la fiche suivante est lue dans la charge reçue, pas dans le bloc figé', () => {
+  const w = world('0', { path: `/ad/voitures/${PRO}`, data: block(ad(PRO)) })
+  w.load('detail.js')
+  assert.match(w.panel().textContent, /professionnel/)
+
+  w.goto(PRIVATE)
+  w.receive({ props: { ad: ad(PRIVATE) } }, 'detail')
+  assert.equal(w.panel().getAttribute('data-adscope-detail'), PRIVATE)
+  assert.match(w.panel().textContent, /particulier/)
+  assert.doesNotMatch(w.panel().textContent, /professionnel/)
+  // Et l'annonce entre au suivi, comme celles d'une page de résultats.
+  assert.deepEqual(w.queued(), [PRO, PRIVATE])
+})
+
+test("une fiche préchargée attend que l'URL la désigne", () => {
+  // Next préfetche les fiches liées : leur charge arrive avant tout clic, et
+  // c'est l'URL — jamais l'ordre d'arrivée — qui dit laquelle est lue.
+  const w = world('0', { path: `/ad/voitures/${PRO}`, data: block(ad(PRO)) })
+  w.load('detail.js')
+  w.receive({ props: { ad: ad(PRIVATE) } }, 'detail')
+  assert.equal(w.panel().getAttribute('data-adscope-detail'), PRO)
+
+  w.goto(PRIVATE)
+  w.mutate(1)
+  assert.equal(w.panel().getAttribute('data-adscope-detail'), PRIVATE)
+  assert.match(w.panel().textContent, /particulier/)
+})

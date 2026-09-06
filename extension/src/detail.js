@@ -1,5 +1,5 @@
 ;(() => {
-  const { fromDocument, signals } = ADS.leboncoin
+  const { signals } = ADS.leboncoin
   const MARK = 'data-adscope-detail'
   const SRC = 'data-adscope-src'
 
@@ -67,13 +67,14 @@
   const urlId = () => (location.pathname.match(/\d{6,}/) || [])[0]
   const readId = (el) => urlId() || el.getAttribute(MARK)
 
-  // Une page porte parfois plusieurs annonces dans le même bloc de données — une
-  // fiche et ses annonces similaires, une page de résultats et son bandeau. Seul
-  // l'identifiant de l'URL dit laquelle est lue. Le repli sur la première n'est
-  // juste que là où l'URL n'en désigne aucune ; quand elle en désigne une qui
-  // manque au bloc (navigation monopage prise entre deux états), il vaut mieux
-  // un panneau que rien : son marquage restera en désaccord avec l'URL, donc le
-  // rendu sera rejoué jusqu'à ce que la bonne annonce arrive.
+  // Plusieurs annonces sont connues à la fois — une fiche et ses annonces
+  // similaires, les fiches reçues depuis, une page de résultats et son bandeau.
+  // Seul l'identifiant de l'URL dit laquelle est lue. Le repli sur la première
+  // n'est juste que là où l'URL n'en désigne aucune ; quand elle en désigne une
+  // qui manque encore (navigation monopage prise entre deux états), il vaut
+  // mieux un panneau que rien : son marquage restera en désaccord avec l'URL,
+  // donc le rendu sera rejoué jusqu'à ce que la bonne annonce arrive — et elle
+  // arrive, par la charge que le navigateur reçoit pour la fiche ouverte.
   const pick = (listings, id = urlId()) => listings.find((l) => l.siteId === id) || listings[0]
 
   // L'observateur rejoue ce rendu à chaque lot de mutations de la fiche, qui en
@@ -84,7 +85,7 @@
     let el = document.querySelector(`[${MARK}]`)
     const id = el && readId(el)
     if (el && el.getAttribute(MARK) === id && el.getAttribute(SRC) === stampOf(id)) return
-    const listings = fromDocument(document)
+    const listings = ADS.feed.details(document)
     const listing = pick(listings)
     if (!listing) return
     ADS.sync.send(listings)
@@ -99,10 +100,13 @@
     el.setAttribute(MARK, listing.siteId)
     el.setAttribute(SRC, remote ? 'sync' : 'page')
     fill(el, listing, remote, node && node.textContent.trim())
-    ADS.diag.detail(listings, listing)
+    ADS.diag.detail(listings, listing, ADS.feed.detailSource(listing.siteId))
   })
 
   render()
   ADS.sync.onSignals(render)
+  // La fiche suivante n'est pas garantie de produire un lot de mutations qu'on
+  // observe : sa charge, elle, arrive toujours.
+  ADS.feed.onDetail(render)
   ADS.context.observe(render)
 })()

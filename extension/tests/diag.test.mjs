@@ -67,3 +67,16 @@ test("sur une fiche, les cartes d'annonces similaires n'écrasent pas son diagno
   w.load('listing.js')
   assert.equal(w.status().kind, 'detail')
 })
+
+test("sur une fiche, le diagnostic dit d'où vient l'annonce lue", () => {
+  // Le bloc `__NEXT_DATA__` décrit la fiche d'entrée ; la suivante n'arrive que
+  // par la charge que le navigateur reçoit. La popup doit distinguer les deux.
+  const w = world('0', { path: `/ad/voitures/${PRO}`, data: block(ad(PRO)) })
+  w.load('detail.js')
+  assert.equal(w.status().source, 'page')
+
+  w.goto(PRIVATE)
+  w.receive({ props: { ad: ad(PRIVATE) } }, 'detail')
+  assert.equal(w.status().pickedId, PRIVATE)
+  assert.equal(w.status().source, 'live')
+})
