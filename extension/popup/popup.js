@@ -61,7 +61,7 @@ el('test').onclick = async () => {
   el('dot').className = `dot ${r.tone}`
 }
 
-const row = (label, value, bad) => {
+const row = (label, value, bad, mark) => {
   const d = document.createElement('div')
   d.className = 'row'
   const l = document.createElement('span')
@@ -69,15 +69,52 @@ const row = (label, value, bad) => {
   const v = document.createElement('span')
   v.textContent = value
   if (bad) v.className = 'bad'
+  if (mark) {
+    const m = document.createElement('span')
+    m.className = 'mark'
+    m.textContent = mark
+    v.append(m)
+  }
   d.append(l, v)
   return d
 }
 
-const hint = (text) => {
+const hint = (text, bad) => {
   const d = document.createElement('div')
-  d.className = 'hint'
+  d.className = 'hint' + (bad ? ' bad' : '')
   d.textContent = text
   return d
+}
+
+const found = (s) => row('Données trouvées', s.nextData ? 'oui' : 'non', !s.nextData)
+
+// Sur une fiche, la question est « quelle annonce l'extension a-t-elle retenue ».
+// L'accord avec l'URL ne mérite qu'une coche ; le désaccord passe la ligne en
+// alerte et la note nomme les deux identifiants — c'est le défaut qu'on cherche.
+const detailRows = (s) => [
+  row('Fiche', s.url),
+  found(s),
+  row('Annonces dans le bloc', String(s.listings), !s.listings),
+  row('Annonce retenue', s.pickedId, !s.matchesUrl, s.matchesUrl ? '\u00a0✓' : '\u00a0≠ URL'),
+  row('Vendeur', s.sellerType === 'pro' ? 'professionnel' : 'particulier'),
+]
+
+const listingRows = (s) => [
+  row('Résultats', s.url),
+  found(s),
+  row('Annonces lues', String(s.listings), !s.listings),
+  row('Pro / particuliers', `${s.pro} / ${s.listings - s.pro}`),
+  row('Pastilles posées', String(s.badges), !s.badges),
+]
+
+const trouble = (s) => {
+  if (!s.nextData) return { text: 'La page ne contient pas le bloc de données attendu — la structure du site a changé.' }
+  if (!s.listings) return { text: 'Données présentes mais aucune annonce reconnue.' }
+  if (s.kind === 'detail')
+    return s.matchesUrl
+      ? {}
+      : { text: `L'URL désigne l'annonce ${s.urlId}, le panneau décrit ${s.pickedId} : il ne parle pas de l'annonce ouverte.`, bad: true }
+  return s.badges ? {} : { text: 'Annonces lues mais aucune carte correspondante : les sélecteurs sont à revoir.' }
 }
 
 const diagnose = (status) => {
@@ -86,16 +123,9 @@ const diagnose = (status) => {
     box.append(hint('Aucune page analysée. Ouvre une liste de résultats ou une annonce voiture sur leboncoin, puis rouvre cette fenêtre.'))
     return
   }
-  box.append(
-    row('Page', status.url),
-    row('Données trouvées', status.nextData ? 'oui' : 'non', !status.nextData),
-    row('Annonces lues', String(status.listings), status.listings === 0),
-    row('Professionnelles', String(status.pro)),
-    row('Pastilles posées', String(status.badges), status.badges === 0),
-  )
-  if (!status.nextData) box.append(hint('La page ne contient pas le bloc de données attendu — la structure du site a changé.'))
-  else if (status.listings === 0) box.append(hint('Données présentes mais aucune annonce reconnue.'))
-  else if (status.badges === 0) box.append(hint('Annonces lues mais aucune carte correspondante : les sélecteurs sont à revoir.'))
+  box.append(...(status.kind === 'detail' ? detailRows(status) : listingRows(status)))
+  const { text, bad } = trouble(status)
+  if (text) box.append(hint(text, bad))
 }
 
 chrome.storage.local.get(['licenseKey', 'apiBase', 'status']).then((stored) => {

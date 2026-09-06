@@ -53,12 +53,7 @@ section:last-of-type {
   padding-bottom: 0;
 }
 
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--line);
-}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
 
 .dot.ok { background: var(--ok); }
 .dot.warn { background: var(--warn); }
@@ -130,9 +125,9 @@ button.wide {
   padding: 2px 0;
 }
 
-.row span:first-child { color: var(--mute); }
+.row > span:first-child { color: var(--mute); }
 
-.row span:last-child {
+.row > span:last-child {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -141,9 +136,10 @@ button.wide {
   font-weight: 600;
 }
 
-.hint {
-  margin-top: 8px;
-  color: var(--mute);
-}
+.hint { margin-top: 8px; color: var(--mute); }
 
 .bad { color: var(--bad); }
+
+/* L'accord se contente d'une coche discrète, le désaccord prend l'alerte. */
+.mark { font-weight: 400; color: var(--mute); }
+.bad .mark { color: inherit; }

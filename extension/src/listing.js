@@ -56,16 +56,7 @@
     }
     if (placed || !reported) {
       reported = true
-      chrome.storage.local.set({
-        status: {
-          url: location.pathname,
-          nextData: !!document.getElementById('__NEXT_DATA__'),
-          listings: listings.length,
-          pro: listings.filter((l) => l.sellerType === 'pro').length,
-          badges: document.querySelectorAll(`[${MARK}]`).length,
-          at: Date.now(),
-        },
-      })
+      ADS.diag.listing(listings, document.querySelectorAll(`[${MARK}]`).length)
     }
     ADS.sync.send(listings)
   }

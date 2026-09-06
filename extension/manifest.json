@@ -20,6 +20,7 @@
         "src/sites/leboncoin.js",
         "src/format.js",
         "src/view.js",
+        "src/diag.js",
         "src/sync.js",
         "src/listing.js",
         "src/detail.js"

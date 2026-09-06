@@ -56,7 +56,8 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
     body,
     getElementById: (id) => (id === '__NEXT_DATA__' ? nextData : null),
     createElement: (t) => new El(t),
-    querySelectorAll: () => (counts.scan++, body.descendants),
+    querySelectorAll: (sel) =>
+      (counts.scan++, sel.startsWith('[') ? body.descendants.filter((n) => n.matches(sel)) : body.descendants),
     querySelector: (sel) =>
       sel.startsWith('a[href') ? (sel.match(/\/(\d+)"/)[1] === targetId ? link : null) : body.querySelector(sel),
   }
@@ -65,14 +66,15 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
   let signals = {}
   const batches = []
   globalThis.document = doc
-  globalThis.chrome = { storage: { local: { set() {} } } }
+  const stored = {}
+  globalThis.chrome = { storage: { local: { set: (o) => Object.assign(stored, o) } } }
   globalThis.location = { pathname: path }
   globalThis.MutationObserver = class {
     constructor(fn) { batches.push(fn) }
     observe() {}
   }
   globalThis.ADS = undefined
-  for (const f of ['sites/leboncoin.js', 'format.js', 'view.js']) {
+  for (const f of ['sites/leboncoin.js', 'format.js', 'view.js', 'diag.js']) {
     delete require.cache[require.resolve(src(f))]
     require(src(f))
   }
@@ -90,6 +92,7 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
     counts,
     card,
     visit,
+    status: () => stored.status,
     panel: () => body.querySelector('[data-adscope-detail]'),
     badge: () => card.querySelector('[data-adscope]'),
     mutate: (n) => { for (let i = 0; i < n; i++) for (const fn of batches) fn() },

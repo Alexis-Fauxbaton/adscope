@@ -97,6 +97,7 @@
     el.setAttribute(MARK, listing.siteId)
     el.setAttribute(SRC, remote ? 'sync' : 'page')
     fill(el, listing, remote, node && node.textContent.trim())
+    ADS.diag.detail(listings, listing)
   }
 
   render()
