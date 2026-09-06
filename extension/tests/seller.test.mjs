@@ -95,3 +95,21 @@ test('la demande porte la licence et le vendeur', async () => {
   assert.equal(seen[0][1].headers.Authorization, 'Bearer adsc_x')
   assert.equal(s.seller_name, 'ENTREPOT 222')
 })
+
+// `sellerId` sort de la charge leboncoin : une page tierce le choisit. Sans
+// encodage, un `?`, un `#` ou un `/` change le chemin appelé ou greffe une
+// chaîne de requête sur la demande.
+test("un identifiant venu de la page ne peut pas détourner le chemin appelé", async () => {
+  const seen = []
+  const ok = async (url) => (seen.push(url), { ok: true, json: async () => stats() })
+  await seller.fetch('http://api', 'adsc_x', 'lbc', '../../v1/me?x=1#f', ok)
+  assert.equal(seen[0], 'http://api/v1/sellers/lbc/..%2F..%2Fv1%2Fme%3Fx%3D1%23f')
+  assert.equal(new URL(seen[0]).pathname.split('/').length, 5)
+})
+
+test('le site aussi est encodé, il vient du même relevé', async () => {
+  const seen = []
+  const ok = async (url) => (seen.push(url), { ok: true, json: async () => stats() })
+  await seller.fetch('http://api', 'adsc_x', 'lbc/../..', '73911', ok)
+  assert.equal(seen[0], 'http://api/v1/sellers/lbc%2F..%2F../73911')
+})

@@ -73,9 +73,15 @@ ADS.seller = (() => {
   // L'appel est le signal : demander ces statistiques dit qu'une fiche a été
   // ouverte et laquelle, sans un seul événement de télémétrie. Un vendeur
   // inconnu ou une API muette ne rendent rien — la popup n'en parle pas.
+  //
+  // Les deux segments viennent de la charge leboncoin, donc d'une page tierce :
+  // interpolés tels quels, un `?`, un `#` ou un `/` déplacerait le chemin appelé
+  // ou greffe une chaîne de requête. Encodés, ils restent un segment chacun.
+  const segment = (s) => encodeURIComponent(String(s))
+
   const ask = async (apiBase, licenseKey, site, sellerId, f = fetch) => {
     try {
-      const res = await f(`${apiBase}/v1/sellers/${site}/${sellerId}`, {
+      const res = await f(`${apiBase}/v1/sellers/${segment(site)}/${segment(sellerId)}`, {
         headers: { Authorization: `Bearer ${licenseKey}` },
       })
       return res.ok ? await res.json() : null
