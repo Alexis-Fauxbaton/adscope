@@ -1,0 +1,26 @@
+{
+ "uncapped": {
+  "label": "Publiée il y a 23 jours",
+  "reference": "W103538172",
+  "creationDate": "2026-08-14T13:05:57.895Z",
+  "customerType": "PRO",
+  "firstCirculationDate": "2013-12-30",
+  "price": 4990,
+  "mileage": 108818,
+  "brand": "Peugeot",
+  "model": "208",
+  "name": "Peugeot 208"
+ },
+ "capped": {
+  "label": "Publiée il y a 60 jours",
+  "reference": "B101733515",
+  "creationDate": "2021-09-22T16:17:55.120Z",
+  "customerType": "PART",
+  "firstCirculationDate": "2020-08-25",
+  "price": 22700,
+  "mileage": 3574,
+  "brand": "Peugeot",
+  "model": "208",
+  "name": "Peugeot 208"
+ }
+}
