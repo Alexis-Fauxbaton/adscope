@@ -535,6 +535,50 @@ l'écart entre ce que le site montre et ce qui est vrai.
 classement de leboncoin n'est pas fiable. Suivi de la BMW de six ans, l'argument se passe de
 démonstration.
 
+## 10 sexies. Statistiques par vendeur — décidé le 2026-09-06
+
+### La répartition entre pastille et popup
+
+La pastille **alerte**, la popup **informe**. Tout ce qui mérite d'être lu sans interrompre
+va dans la popup. C'est la réponse structurelle au problème rencontré deux fois — pastilles
+« moins d'un jour » partout, puis alertes de réactualisation sur 88 % des cartes
+professionnelles : une pastille qui parle tout le temps ne dit plus rien.
+
+### Ce que la popup montrera sur une fiche
+
+```
+Ce vendeur — CVD Automobiles
+29 annonces en ligne
+18 depuis plus d'un mois        62 %
+médiane d'ancienneté            47 j
+baisse moyenne constatée        −3,2 % au bout de 6 semaines
+```
+
+Ce n'est plus « cette annonce est vieille » mais **« ce marchand a du stock qui dort et il
+finit par baisser »**. C'est un argument de négociation, et le vendeur ne peut pas le
+masquer : il se déduit de ses propres annonces, publiées volontairement.
+
+### La décision de stockage
+
+**L'identifiant de vendeur n'est retenu que pour les professionnels.** Un `store_id` de
+marchand est de la donnée d'entreprise sur une activité commerciale ; l'identifiant d'un
+particulier serait de la donnée personnelle, et agréger les annonces d'un particulier n'a
+aucun sens — il vend une voiture.
+
+Même ligne que celle tracée pour l'affichage (§ 2), appliquée au stockage, et formulable
+telle quelle dans la politique de confidentialité : *nous agrégeons les annonces des
+vendeurs professionnels, jamais celles des particuliers*.
+
+### Un principe de mesure
+
+La popup interrogera l'API pour calculer ces statistiques : **l'appel est le signal**. On
+saura qu'elle a été ouverte, sur quelle fiche et à quelle fréquence, sans un seul événement
+de télémétrie ni catégorie supplémentaire dans la déclaration Store.
+
+C'est la troisième fois que la mesure tombe gratuitement d'une fonctionnalité existante —
+après le compteur d'observations et le rattachement à la licence. D'où le principe :
+**ne jamais ajouter de collecte pour mesurer ce que l'usage produit de lui-même.**
+
 ## 11. Affichage
 
 ### Encart, sous le prix de la fiche
