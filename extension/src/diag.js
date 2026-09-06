@@ -11,7 +11,7 @@ ADS.diag = (() => {
   const write = (fields) =>
     chrome.storage.local.set({
       status: {
-        url: location.pathname,
+        url: location.pathname + location.search,
         nextData: !!document.getElementById('__NEXT_DATA__'),
         at: Date.now(),
         ...fields,
@@ -33,13 +33,14 @@ ADS.diag = (() => {
     })
   }
 
-  const listing = (listings, badges) => {
+  const listing = (listings, badges, source) => {
     if (urlId(location.pathname)) return
     write({
       kind: 'listing',
       listings: listings.length,
       pro: listings.filter((l) => l.sellerType === 'pro').length,
       badges,
+      source,
     })
   }
 

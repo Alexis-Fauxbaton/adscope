@@ -73,14 +73,19 @@ ADS.leboncoin = (() => {
     }
   }
 
-  const fromDocument = (doc) => {
-    const tag = doc.getElementById('__NEXT_DATA__')
-    if (!tag) return []
-    const ads = findAds(JSON.parse(tag.textContent))
+  // La même lecture pour les deux sources : le bloc du rendu serveur et les
+  // charges que la page reçoit ensuite ont la même forme.
+  const fromPayload = (json) => {
+    const ads = findAds(json)
     return ads ? ads.map(normalize) : []
   }
 
-  return { fromDocument, normalize, signals, findAds }
+  const fromDocument = (doc) => {
+    const tag = doc.getElementById('__NEXT_DATA__')
+    return tag ? fromPayload(JSON.parse(tag.textContent)) : []
+  }
+
+  return { fromDocument, fromPayload, normalize, signals, findAds }
 })()
 
 if (typeof module !== 'undefined') module.exports = ADS.leboncoin

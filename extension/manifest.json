@@ -22,11 +22,18 @@
         "src/view.js",
         "src/diag.js",
         "src/sync.js",
+        "src/feed.js",
         "src/listing.js",
         "src/detail.js"
       ],
       "css": ["src/ui.css"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.leboncoin.fr/*"],
+      "js": ["src/page/tap.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
     }
   ]
 }

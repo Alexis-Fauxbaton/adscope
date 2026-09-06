@@ -99,9 +99,13 @@ const detailRows = (s) => [
   row('Vendeur', s.sellerType === 'pro' ? 'professionnel' : 'particulier'),
 ]
 
+// La source dit d'où viennent les annonces lues : le bloc du rendu serveur, qui
+// décrit la première page, ou la charge reçue depuis — c'est ce qui distingue
+// une page paginée bien suivie d'une page 1 relue en boucle.
 const listingRows = (s) => [
   row('Résultats', s.url),
   found(s),
+  row('Source', s.source === 'live' ? 'navigation en cours' : 'chargement initial'),
   row('Annonces lues', String(s.listings), !s.listings),
   row('Pro / particuliers', `${s.pro} / ${s.listings - s.pro}`),
   row('Pastilles posées', String(s.badges), !s.badges),

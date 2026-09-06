@@ -39,7 +39,8 @@ class El {
 
 // `link` n'est rendu que pour la carte demandée, comme le ferait la page.
 // `path` et `data` décrivent la page ouverte : quelle fiche l'URL désigne, et
-// quelles annonces le bloc `__NEXT_DATA__` porte.
+// quelles annonces le bloc `__NEXT_DATA__` porte. `receive` joue ce que le
+// script de monde MAIN publie quand le navigateur reçoit une nouvelle page.
 export const world = (targetId, { path = '/ad/voitures/3254194817', data = block() } = {}) => {
   const counts = { extract: 0, scan: 0 }
   const body = new El('body')
@@ -68,13 +69,16 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
   globalThis.document = doc
   const stored = {}
   globalThis.chrome = { storage: { local: { set: (o) => Object.assign(stored, o) } } }
-  globalThis.location = { pathname: path }
+  const [pathname, query] = path.split('?')
+  globalThis.location = { pathname, search: query ? `?${query}` : '' }
+  const bus = new EventTarget()
+  globalThis.addEventListener = (type, fn) => bus.addEventListener(type, fn)
   globalThis.MutationObserver = class {
     constructor(fn) { batches.push(fn) }
     observe() {}
   }
   globalThis.ADS = undefined
-  for (const f of ['sites/leboncoin.js', 'format.js', 'view.js', 'diag.js']) {
+  for (const f of ['sites/leboncoin.js', 'format.js', 'view.js', 'diag.js', 'feed.js']) {
     delete require.cache[require.resolve(src(f))]
     require(src(f))
   }
@@ -84,7 +88,7 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
 
   // Une navigation monopage : l'URL et la charge JSON changent, le DOM survit.
   const visit = (a) => {
-    globalThis.location = { pathname: `/ad/voitures/${a.list_id}` }
+    globalThis.location = { pathname: `/ad/voitures/${a.list_id}`, search: '' }
     nextData.textContent = JSON.stringify({ props: { ad: a } })
   }
 
@@ -97,6 +101,8 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
     badge: () => card.querySelector('[data-adscope]'),
     mutate: (n) => { for (let i = 0; i < n; i++) for (const fn of batches) fn() },
     arrive: (byId) => { signals = byId; for (const fn of listeners) fn(signals) },
+    receive: (payload) =>
+      bus.dispatchEvent(new CustomEvent('adscope:payload', { detail: JSON.stringify(payload) })),
     load: (f) => { delete require.cache[require.resolve(src(f))]; require(src(f)) },
   }
 }

@@ -1,5 +1,5 @@
 ;(() => {
-  const { fromDocument, signals } = ADS.leboncoin
+  const { signals } = ADS.leboncoin
   const MARK = 'data-adscope'
   const SRC = 'data-adscope-src'
 
@@ -44,25 +44,31 @@
     return true
   }
 
-  let reported = false
+  // Le diagnostic est réécrit quand la page change d'annonces — même si aucune
+  // carte ne leur correspond encore — et quand des pastilles se posent.
+  let reported = null
 
   const render = () => {
     const now = new Date()
-    const listings = fromDocument(document)
+    const listings = ADS.feed.listings(document)
     let placed = 0
     for (const listing of listings) {
       const card = cardFor(listing.siteId)
       if (card && paint(card, listing, now)) placed++
     }
-    if (placed || !reported) {
-      reported = true
-      ADS.diag.listing(listings, document.querySelectorAll(`[${MARK}]`).length)
+    const seen = listings.map((l) => l.siteId).join()
+    if (placed || seen !== reported) {
+      reported = seen
+      ADS.diag.listing(listings, document.querySelectorAll(`[${MARK}]`).length, ADS.feed.source())
     }
     ADS.sync.send(listings)
   }
 
   render()
   ADS.sync.onSignals(render)
+  // La page suivante n'est pas garantie de produire un lot de mutations qu'on
+  // observe : ses annonces, elles, arrivent toujours.
+  ADS.feed.onData(render)
 
   // Les résultats se rechargent sans navigation : on réobserve le conteneur.
   new MutationObserver(render).observe(document.body, { childList: true, subtree: true })

@@ -58,3 +58,12 @@ test('un seul des deux scripts écrit le diagnostic de la page', () => {
   detail.load('detail.js')
   assert.equal(detail.status().kind, 'detail')
 })
+
+test("sur une fiche, les cartes d'annonces similaires n'écrasent pas son diagnostic", () => {
+  // listing.js tourne aussi sur les fiches : les annonces similaires lui font
+  // poser des pastilles, et son rendu peut suivre celui de la fiche.
+  const w = world(PRO, { path: `/ad/voitures/${PRO}`, data: TWO })
+  w.load('detail.js')
+  w.load('listing.js')
+  assert.equal(w.status().kind, 'detail')
+})
