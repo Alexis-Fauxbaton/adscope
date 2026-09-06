@@ -62,7 +62,17 @@
   // Quelle annonce est lue : l'URL le dit, le panneau déjà posé non — sur une
   // application monopage il survit au passage à la fiche suivante. Hors fiche
   // (page de résultats) l'URL ne porte pas d'identifiant, son marquage fait foi.
-  const readId = (el) => (location.pathname.match(/\d{6,}/) || [])[0] || el.getAttribute(MARK)
+  const urlId = () => (location.pathname.match(/\d{6,}/) || [])[0]
+  const readId = (el) => urlId() || el.getAttribute(MARK)
+
+  // Une page porte parfois plusieurs annonces dans le même bloc de données — une
+  // fiche et ses annonces similaires, une page de résultats et son bandeau. Seul
+  // l'identifiant de l'URL dit laquelle est lue. Le repli sur la première n'est
+  // juste que là où l'URL n'en désigne aucune ; quand elle en désigne une qui
+  // manque au bloc (navigation monopage prise entre deux états), il vaut mieux
+  // un panneau que rien : son marquage restera en désaccord avec l'URL, donc le
+  // rendu sera rejoué jusqu'à ce que la bonne annonce arrive.
+  const pick = (listings, id = urlId()) => listings.find((l) => l.siteId === id) || listings[0]
 
   // L'observateur rejoue ce rendu à chaque lot de mutations de la fiche, qui en
   // produit sans cesse. Tant que le panneau posé porte l'annonce lue et la même
@@ -73,7 +83,7 @@
     const id = el && readId(el)
     if (el && el.getAttribute(MARK) === id && el.getAttribute(SRC) === stampOf(id)) return
     const listings = fromDocument(document)
-    const [listing] = listings
+    const listing = pick(listings)
     if (!listing) return
     ADS.sync.send(listings)
     const remote = ADS.sync.of(listing.siteId)
