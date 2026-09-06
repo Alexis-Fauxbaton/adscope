@@ -6,14 +6,17 @@ import assert from 'node:assert/strict'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
-const PATH = join(here, '../src/sync.js')
+const src = (f) => join(here, '../src/', f)
+const load = (f) => (delete require.cache[require.resolve(src(f))], require(src(f)))
 
 // Un service worker de fabrique : `answer` décide de la réponse, `calls`
 // enregistre ce que le content script a réellement émis.
 const fresh = (answer) => {
   const calls = []
+  globalThis.ADS = undefined
   globalThis.chrome = {
     runtime: {
+      id: 'adscope',
       lastError: null,
       sendMessage(msg, respond) {
         calls.push(msg)
@@ -21,8 +24,8 @@ const fresh = (answer) => {
       },
     },
   }
-  delete require.cache[require.resolve(PATH)]
-  return { sync: require(PATH), calls }
+  load('context.js')
+  return { sync: load('sync.js'), calls }
 }
 
 const ok = { ok: true, sent: 1, signals: { '42': { site_id: '42', tracked_days: 3 } } }
@@ -134,14 +137,6 @@ test('une API injoignable ne fait ni erreur ni signal', () => {
   const { sync } = fresh((respond, runtime) => {
     runtime.lastError = { message: 'Could not establish connection.' }
     respond(undefined)
-  })
-  sync.send(listings)
-  assert.equal(sync.of('42'), null)
-})
-
-test('un contexte d\'extension invalidé ne remonte pas dans la page', () => {
-  const { sync } = fresh(() => {
-    throw new Error('Extension context invalidated.')
   })
   sync.send(listings)
   assert.equal(sync.of('42'), null)

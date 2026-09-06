@@ -73,6 +73,7 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
   globalThis.chrome = {
     storage: { local: { set: (o) => Object.assign(stored, o) } },
     runtime: {
+      id: 'adscope',
       lastError: null,
       sendMessage: (msg, respond) => (emitted.push(msg), pending.push({ msg, respond })),
     },
@@ -82,11 +83,12 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
   const bus = new EventTarget()
   globalThis.addEventListener = (type, fn) => bus.addEventListener(type, fn)
   globalThis.MutationObserver = class {
-    constructor(fn) { batches.push(fn) }
+    constructor(fn) { this.fn = fn; this.live = true; batches.push(this) }
     observe() {}
+    disconnect() { this.live = false }
   }
   globalThis.ADS = undefined
-  for (const f of ['sites/leboncoin.js', 'format.js', 'view.js', 'diag.js', 'sync.js', 'feed.js']) {
+  for (const f of ['context.js', 'sites/leboncoin.js', 'format.js', 'view.js', 'diag.js', 'sync.js', 'feed.js']) {
     delete require.cache[require.resolve(src(f))]
     require(src(f))
   }
@@ -106,7 +108,17 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
     status: () => stored.status,
     panel: () => body.querySelector('[data-adscope-detail]'),
     badge: () => card.querySelector('[data-adscope]'),
-    mutate: (n) => { for (let i = 0; i < n; i++) for (const fn of batches) fn() },
+    mutate: (n) => { for (let i = 0; i < n; i++) for (const o of batches) if (o.live) o.fn() },
+    observing: () => batches.filter((o) => o.live).length,
+    // Une navigation monopage telle qu'elle se produit : l'URL change, le
+    // navigateur reçoit la fiche suivante, et `__NEXT_DATA__` n'est pas réécrit.
+    goto: (id) => { globalThis.location = { pathname: `/ad/voitures/${id}`, search: '' } },
+    // Ce que devient un content script quand l'extension est remplacée : plus
+    // d'identifiant de runtime, et tout appel `chrome.*` qui lève.
+    invalidate: () => {
+      const dead = () => { throw new Error('Extension context invalidated.') }
+      globalThis.chrome = { runtime: { lastError: null, sendMessage: dead }, storage: { local: { set: dead } } }
+    },
     // Ce que le content script a émis : un message par lot, dédoublonné par lui.
     messages: () => emitted,
     queued: () => emitted.flatMap((m) => m.listings.map((l) => l.siteId)),
@@ -118,8 +130,8 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
         respond({ ok: true, sent: msg.listings.length, signals: Object.fromEntries(answered) })
       }
     },
-    receive: (payload) =>
-      bus.dispatchEvent(new CustomEvent('adscope:payload', { detail: JSON.stringify(payload) })),
+    receive: (payload, name = 'payload') =>
+      bus.dispatchEvent(new CustomEvent(`adscope:${name}`, { detail: JSON.stringify(payload) })),
     load: (f) => { delete require.cache[require.resolve(src(f))]; require(src(f)) },
   }
 }

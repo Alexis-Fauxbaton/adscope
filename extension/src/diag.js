@@ -8,7 +8,9 @@ globalThis.ADS = globalThis.ADS || {}
 ADS.diag = (() => {
   const urlId = (path) => (path.match(/\d{6,}/) || [])[0] || null
 
-  const write = (fields) =>
+  // Gardé : sur un onglet resté ouvert à travers une mise à jour, le stockage
+  // de l'extension n'existe plus.
+  const write = ADS.context.guard((fields) =>
     chrome.storage.local.set({
       status: {
         url: location.pathname + location.search,
@@ -16,7 +18,8 @@ ADS.diag = (() => {
         at: Date.now(),
         ...fields,
       },
-    })
+    }),
+  )
 
   // Sur une fiche, le doute porte sur l'annonce décrite : le bloc de données en
   // porte plusieurs et seule l'URL dit laquelle est lue.

@@ -17,6 +17,7 @@
     {
       "matches": ["https://www.leboncoin.fr/*"],
       "js": [
+        "src/context.js",
         "src/sites/leboncoin.js",
         "src/format.js",
         "src/view.js",

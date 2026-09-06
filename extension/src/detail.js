@@ -80,7 +80,7 @@
   // produit sans cesse. Tant que le panneau posé porte l'annonce lue et la même
   // origine de données, ni le JSON de la page ni le balayage du DOM ne sont
   // refaits.
-  const render = () => {
+  const render = ADS.context.guard(() => {
     let el = document.querySelector(`[${MARK}]`)
     const id = el && readId(el)
     if (el && el.getAttribute(MARK) === id && el.getAttribute(SRC) === stampOf(id)) return
@@ -100,9 +100,9 @@
     el.setAttribute(SRC, remote ? 'sync' : 'page')
     fill(el, listing, remote, node && node.textContent.trim())
     ADS.diag.detail(listings, listing)
-  }
+  })
 
   render()
   ADS.sync.onSignals(render)
-  new MutationObserver(render).observe(document.body, { childList: true, subtree: true })
+  ADS.context.observe(render)
 })()

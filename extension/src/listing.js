@@ -49,7 +49,7 @@
   // carte ne leur correspond encore — et quand des pastilles se posent.
   let reported = null
 
-  const render = () => {
+  const render = ADS.context.guard(() => {
     const now = new Date()
     const listings = ADS.feed.listings(document)
     let placed = 0
@@ -66,7 +66,7 @@
       reported = seen
       ADS.diag.listing(listings, document.querySelectorAll(`[${MARK}]`).length, ADS.feed.source())
     }
-  }
+  })
 
   render()
   ADS.sync.onSignals(render)
@@ -75,5 +75,5 @@
   ADS.feed.onData(render)
 
   // Les résultats se rechargent sans navigation : on réobserve le conteneur.
-  new MutationObserver(render).observe(document.body, { childList: true, subtree: true })
+  ADS.context.observe(render)
 })()

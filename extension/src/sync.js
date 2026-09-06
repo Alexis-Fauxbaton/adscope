@@ -11,24 +11,20 @@ ADS.sync = (() => {
   let signals = null
   let acked = 0
 
-  const send = (listings) => {
+  const send = ADS.context.guard((listings) => {
     const fresh = listings.filter((l) => !queued.has(l.siteId))
     if (!fresh.length) return
     // Marquées avant la réponse : un envoi qui échoue n'est pas rejoué, sans quoi
     // une API injoignable serait resollicitée à chaque lot de mutations.
     for (const l of fresh) queued.add(l.siteId)
-    try {
-      chrome.runtime.sendMessage({ type: 'sync', site: 'lbc', listings: fresh }, (res) => {
-        // Lire lastError évite que Chrome le rapporte dans la console de la page.
-        if (chrome.runtime.lastError || !res || !res.ok) return
-        acked += res.sent || 0
-        signals = { ...signals, ...res.signals }
-        for (const fn of listeners) fn(signals)
-      })
-    } catch {
-      // Contexte d'extension invalidé pendant la navigation : sans suite.
-    }
-  }
+    chrome.runtime.sendMessage({ type: 'sync', site: 'lbc', listings: fresh }, (res) => {
+      // Lire lastError évite que Chrome le rapporte dans la console de la page.
+      if (chrome.runtime.lastError || !res || !res.ok) return
+      acked += res.sent || 0
+      signals = { ...signals, ...res.signals }
+      for (const fn of listeners) fn(signals)
+    })
+  })
 
   const onSignals = (fn) => {
     listeners.push(fn)

@@ -9,12 +9,17 @@ ADS.feed = (() => {
 
   // Le monde MAIN ne publie qu'une chaîne : rien d'un objet de la page ne
   // traverse la frontière des mondes.
-  addEventListener('adscope:payload', (e) => {
-    const ads = ADS.leboncoin.fromPayload(JSON.parse(e.detail))
-    if (!ads.length) return
-    latest = ads
-    for (const fn of listeners) fn(latest)
-  })
+  // Gardé : le monde MAIN n'est pas orphelin, lui, et continue de publier ce
+  // que le navigateur reçoit bien après le remplacement de l'extension.
+  addEventListener(
+    'adscope:payload',
+    ADS.context.guard((e) => {
+      const ads = ADS.leboncoin.fromPayload(JSON.parse(e.detail))
+      if (!ads.length) return
+      latest = ads
+      for (const fn of listeners) fn(latest)
+    }),
+  )
 
   return {
     listings: (doc) => latest || ADS.leboncoin.fromDocument(doc),
