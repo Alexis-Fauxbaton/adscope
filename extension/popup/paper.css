@@ -1,0 +1,124 @@
+/*
+  L'univers : le document administratif du métier — carte grise, contrôle
+  technique. Papier pâle légèrement teinté, encre marine, chiffres en chasse
+  fixe, un rouge de tampon réservé à l'alerte. Le ton visé est celui d'un
+  constat, pas d'une alerte commerciale : on pose un document, on ne brandit
+  pas une accusation.
+*/
+:root {
+  color-scheme: light;
+  --paper: #f5f2ec;
+  --card: #fbfaf7;
+  --ink: #1e2b3a;
+  --mute: #6d7683;
+  --faint: #98a0aa;
+  --line: #d8d2c6;
+  --rule: #c2bbac;
+  --stamp: #9f1239;
+  --ok: #15803d;
+  --warn: #b45309;
+  --bad: #9f1239;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+body {
+  width: 340px;
+  margin: 0;
+  padding: 0 14px 14px;
+  font: 13px/1.5 system-ui, -apple-system, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 12px 0 9px;
+  border-bottom: 2px solid var(--ink);
+}
+
+h1 {
+  flex: 1;
+  margin: 0;
+  font: 700 12px/1.4 system-ui, sans-serif;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* Le site de la page lue, comme un cachet en tête de formulaire. */
+.stamp { font: 11px/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); }
+
+section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Les intitulés d'un imprimé : petits, espacés, jamais en concurrence avec la
+   valeur qu'ils annoncent. */
+.label {
+  margin: 0 0 3px;
+  font: 10px/1.4 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+h2.label { font-weight: 400; }
+
+.subject { margin: 0; font: 700 15px/1.3 system-ui, sans-serif; }
+.specs { margin: 2px 0 12px; font: 12px/1.5 var(--mono); color: var(--mute); }
+
+/* Le sujet de la fenêtre : la durée. Elle prend la place qui lui revient, et
+   le compte exact la suit pour qu'on puisse le citer. */
+.age {
+  margin: 0 0 14px;
+  font-size: 27px;
+  font-weight: 300;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.age-days { margin-left: 8px; font: 12px/1 var(--mono); color: var(--mute); }
+.age-days::before { content: "· "; }
+
+.plot-box { margin: 0; }
+.plot { display: block; width: 100%; height: auto; overflow: visible; }
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 1px 0 0;
+  font: 10px/1.4 var(--mono);
+  color: var(--mute);
+}
+
+/* La lecture d'un point survolé : une ligne réservée, qui ne fait pas sauter
+   la mise en page quand elle se remplit. */
+.readout { min-height: 15px; margin: 3px 0 0; font: 11px/1.4 var(--mono); color: var(--ink); }
+
+/* La phrase de la hachure quand la bande est trop étroite pour la porter : le
+   même signe la précède, sinon rien ne dirait de quoi elle parle. */
+.hatch { display: flex; gap: 6px; align-items: center; margin: 4px 0 0; font-size: 11px; color: var(--mute); }
+
+.hatch::before {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 11px;
+  border: 1px solid var(--line);
+  background: repeating-linear-gradient(45deg, var(--rule) 0 1px, transparent 1px 5px);
+}
+
+/* La contradiction que le site affiche, rattachée à sa bande rouge. */
+.claim {
+  margin-top: 10px;
+  padding: 7px 0 7px 10px;
+  border-left: 3px solid var(--stamp);
+}
+
+.claim-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.claim-label { font-weight: 600; }
+.claim-says { font: 11px/1.4 var(--mono); color: var(--mute); }
+
+.claim-note { margin: 3px 0 0; font-size: 12px; color: var(--mute); }

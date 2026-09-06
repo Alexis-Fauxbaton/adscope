@@ -113,16 +113,77 @@ test('chaque site nomme lui-même la contradiction que sa page affiche', () => {
 })
 
 // La promesse de l'architecture : ajouter un site, c'est ajouter un fichier.
-// Elle ne tient que si le code partagé n'en nomme aucun.
+// Elle ne tient que si le code partagé n'en nomme aucun. La garde ne balayait
+// que le premier niveau de `src/` : ni la fenêtre, ni les sous-dossiers — et
+// c'est là qu'un commentaire devenu faux avait survécu.
+const scripts = (dir) =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const path = join(dir, e.name)
+    if (e.isDirectory()) return scripts(path)
+    return e.name.endsWith('.js') ? [path] : []
+  })
+
+// Qui est partagé et qui appartient à un site, le manifeste le dit déjà : un
+// fichier que tous les blocs de content scripts chargent sert les deux sites ;
+// celui qu'un seul charge est le module d'un site. Rien à tenir à jour ici.
+const OWNERS = (() => {
+  const cs = JSON.parse(readFileSync(join(here, '../manifest.json'), 'utf8')).content_scripts
+  const sites = new Set(cs.flatMap((b) => b.matches))
+  const by = {}
+  for (const b of cs) for (const f of b.js) (by[f] ||= new Set()).add(b.matches.join())
+  return { by, count: sites.size }
+})()
+
+const own = (path) => {
+  const rel = path.slice(path.indexOf('/extension/') + '/extension/'.length)
+  return OWNERS.by[rel] && OWNERS.by[rel].size < OWNERS.count
+}
+
 test('aucun module partagé ne nomme un site', () => {
   const NAMED = /leboncoin|lacentrale|la\s*centrale|\blbc\b|\blc\b/i
-  const shared = readdirSync(src('.')).filter((f) => f.endsWith('.js'))
-  assert.ok(shared.includes('sites.js') && shared.includes('view.js'))
-  for (const f of shared) {
-    assert.doesNotMatch(readFileSync(src(f), 'utf8'), NAMED, `${f} nomme un site`)
+  const found = [...scripts(src('.')), ...scripts(join(here, '../popup'))]
+  const shared = found.filter((f) => !own(f))
+  const names = shared.map((f) => f.split('/').pop())
+  // La garde couvre les trois surfaces : le tronc, la fenêtre, et l'outil de
+  // lecture qui vit parmi les modules de site sans en nommer aucun.
+  for (const f of ['sites.js', 'view.js', 'popup.js', 'seller.js', 'read.js', 'sw.js']) {
+    assert.ok(names.includes(f), `${f} échappe à la garde`)
   }
-  // Et tout ce qui en nomme un vit dans le dossier des sites.
-  for (const f of readdirSync(src('sites'))) assert.match(f, /\.js$/)
+  for (const f of shared) {
+    assert.doesNotMatch(readFileSync(f, 'utf8'), NAMED, `${f} nomme un site`)
+  }
+  // Et tout ce qui en nomme un est bien un module de site, déclaré comme tel.
+  for (const f of found.filter(own)) assert.match(f, /\/sites\/[\w-]+\.js$/)
+})
+
+// Le nom lisible d'un site est du vocabulaire de site : la fenêtre l'affiche
+// sans le connaître, elle le demande au registre.
+test('chaque site déclare son nom lisible', () => {
+  assert.equal(sites.at(LBC).name, 'leboncoin')
+  assert.equal(sites.at(LC).name, 'La Centrale')
+  for (const s of sites.all()) assert.equal(typeof s.name, 'string')
+})
+
+// Le résumé d'une page de résultats compte les annonces qui dépassent le seuil
+// d'ancienneté du site. Chaque site pose le sien, aucun ne l'emprunte.
+test("chaque site dit lui-même quelle annonce dépasse son seuil d'ancienneté", () => {
+  const now = new Date()
+  assert.equal(sites.at(LBC).signals(lbcAd(40, 40), now).old, true)
+  assert.equal(sites.at(LBC).signals(lbcAd(20, 20), now).old, false)
+  assert.equal(sites.at(LC).signals(lcAd(40, null), now).old, true)
+  assert.equal(sites.at(LC).signals(lcAd(20, null), now).old, false)
+  // Le plafond est franchi bien après le seuil : une annonce en alerte est
+  // toujours une annonce qui dépasse.
+  assert.equal(sites.at(LC).signals(lcAd(1810, null), now).old, true)
+})
+
+// La bande rouge de la courbe montre ce que le site affiche de son côté : sa
+// durée est du vocabulaire de site, pas une constante de la fenêtre.
+test('la contradiction porte la durée que le site montre', () => {
+  const capped = { bumped: false, capped: true }
+  assert.equal(sites.at(LC).claim(capped, 'Publiée il y a 60 jours').days, 60)
+  const bumped = { bumped: true, capped: false, bumpedDaysAgo: 3 }
+  assert.equal(sites.at(LBC).claim(bumped, "il y a 3 jours à 15:36").days, 3)
 })
 
 test('le manifeste déclare les deux sites avec leurs content scripts', () => {

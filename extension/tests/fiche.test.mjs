@@ -1,0 +1,158 @@
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { ago, card, detail, open, signals } from './popup-dom.mjs'
+
+const here = dirname(fileURLToPath(import.meta.url))
+const html = () => readFileSync(join(here, '../popup/popup.html'), 'utf8')
+
+const kinds = (nodes) =>
+  nodes.plot.all.filter((n) => n.tag === 'circle' && n.getAttribute('data-point'))
+
+// La popup devient la surface principale sur les fiches : l'annonce, son
+// ancienneté réelle, sa courbe. Le sujet est la durée, pas le diagnostic.
+test("sur une fiche, la fenêtre met l'annonce et son ancienneté réelle en sujet", async () => {
+  const { nodes } = await open({ status: detail(), cached: signals() })
+  assert.equal(nodes.fiche.hidden, false)
+  assert.match(nodes['fiche-title'].text, /Peugeot 208 phase 2/)
+  assert.match(nodes['fiche-specs'].text, /12 900 €/)
+  assert.match(nodes['fiche-specs'].text, /3 574 km/)
+  assert.match(nodes['fiche-specs'].text, /2020/)
+  // L'ancienneté réelle en gros, le compte de jours exact à côté.
+  assert.match(nodes['age-main'].text, /3 mois/)
+  assert.match(nodes['age-days'].text, /118 j/)
+})
+
+// La fenêtre ne nomme aucun site : elle demande au registre celui que le
+// diagnostic désigne.
+test('le nom du site vient du registre', async () => {
+  const { nodes } = await open({ status: detail(), cached: signals() })
+  assert.equal(nodes.site.textContent, 'leboncoin')
+  const other = await open({ status: detail({ site: 'lc' }), cached: signals() })
+  assert.equal(other.nodes.site.textContent, 'La Centrale')
+})
+
+test('la courbe distingue les changements de prix des vérifications', async () => {
+  const { nodes } = await open({ status: detail(), cached: signals() })
+  const points = kinds(nodes)
+  assert.equal(points.filter((p) => p.getAttribute('data-point') === 'change').length, 3)
+  assert.equal(points.filter((p) => p.getAttribute('data-point') === 'check').length, 2)
+  // Le gros point et le petit ne se confondent pas à l'œil.
+  const big = Number(points.find((p) => p.getAttribute('data-point') === 'change').getAttribute('r'))
+  const small = Number(points.find((p) => p.getAttribute('data-point') === 'check').getAttribute('r'))
+  assert.ok(big >= small * 2, `${big} contre ${small}`)
+})
+
+// L'exigence : jamais un mot seul. La hachure dit à partir de quand on regarde.
+test('la hachure porte une date explicite', async () => {
+  const { nodes } = await open({
+    status: detail({ card: card({ onlineDays: 1810, publishedAt: ago(1810), notable: true }) }),
+  })
+  const said = [nodes.hatch.text, ...nodes.plot.all.map((n) => n.textContent)].join(' ')
+  assert.match(said, /aucune observation avant le \d+ \p{L}+/u)
+})
+
+test("la hachure reste lisible même quand la période aveugle est étroite", async () => {
+  const { nodes } = await open({ status: detail(), cached: signals({
+    first_seen: ago(110),
+    price_history: [{ at: ago(110), price: 12900, confirmation: false }],
+  }) })
+  const said = [nodes.hatch.text, ...nodes.plot.all.map((n) => n.textContent)].join(' ')
+  assert.match(said, /aucune observation avant le \d+ \p{L}+/u)
+})
+
+// Un seul usage pour la bande rouge : ce que le site montre de son côté.
+test('la bande rouge et la contradiction du site vont ensemble', async () => {
+  const claim = { label: 'La Centrale affiche', says: 'Publiée il y a 60 jours', note: 'compteur plafonné à 60 jours', days: 60 }
+  const { nodes } = await open({
+    status: detail({ site: 'lc', card: card({ onlineDays: 1810, publishedAt: ago(1810), notable: true, claim }) }),
+  })
+  assert.equal(nodes.claim.hidden, false)
+  assert.match(nodes.claim.text, /Publiée il y a 60 jours/)
+  assert.match(nodes.claim.text, /compteur plafonné à 60 jours/)
+  const band = nodes.plot.all.find((n) => n.getAttribute('data-band'))
+  assert.ok(band, 'la bande rouge est tracée')
+  // Dix pixels sur trois cents : soixante jours sur mille huit cent dix.
+  assert.ok(Number(band.getAttribute('width')) < 20, band.getAttribute('width'))
+})
+
+test("sans contradiction, ni bande rouge ni bloc", async () => {
+  const { nodes } = await open({ status: detail(), cached: signals() })
+  assert.equal(nodes.claim.hidden, true)
+  assert.equal(nodes.plot.all.find((n) => n.getAttribute('data-band')), undefined)
+})
+
+// Le suivi mutualisé se lit avec sa date de dernière vérification : « stable
+// depuis deux mois » ne vaut que ce que valent les observations qui l'ont vu.
+test('le suivi mutualisé porte sa date de dernière vérification', async () => {
+  const { nodes } = await open({ status: detail(), cached: signals() })
+  assert.match(nodes.tracking.text, /Suivie depuis/)
+  assert.match(nodes.tracking.text, /Dernière vérification/)
+  assert.match(nodes.tracking.text, /\d+ \p{L}+/u)
+})
+
+test("sans suivi, la fenêtre montre la courbe sans prétendre à un historique", async () => {
+  const { nodes } = await open({ status: detail(), cached: null })
+  assert.equal(nodes.fiche.hidden, false)
+  assert.equal(kinds(nodes).length, 1)
+  assert.equal(nodes.tracking.text, '')
+})
+
+// Le correctif obtenu de haute lutte : la portée se lit avant les chiffres,
+// jamais reléguée après eux.
+test('la portée des statistiques vendeur précède les chiffres', async () => {
+  const { nodes } = await open({ status: detail(), cached: signals() })
+  const scope = nodes.seller.children.findIndex((n) => /catalogue réel nous est inconnu/.test(n.text))
+  const first = nodes.seller.children.findIndex((n) => /Médiane d'ancienneté/.test(n.text))
+  assert.ok(scope >= 0 && first >= 0)
+  assert.ok(scope < first, 'la portée est reléguée après les chiffres')
+})
+
+// Le diagnostic reste accessible, mais c'est un outil de dépannage.
+test('le diagnostic quitte le premier plan', async () => {
+  const page = html()
+  const tools = page.slice(page.indexOf('<details'))
+  for (const id of ['id="state"', 'id="cache"', 'id="key"', 'id="api"']) {
+    assert.ok(tools.includes(id), `${id} devrait vivre sous le repli de dépannage`)
+  }
+  assert.ok(page.indexOf('id="fiche"') < page.indexOf('<details'))
+})
+
+// Sur une page de résultats, le résumé — et rien de la fiche.
+test("sur des résultats, la fenêtre résume la page lue", async () => {
+  const { nodes } = await open({
+    status: { kind: 'listing', site: 'lc', url: '/listing', nextData: true, listings: 23, pro: 21, badges: 23, sent: 23, old: 9, alerts: 4 },
+  })
+  assert.equal(nodes.fiche.hidden, true)
+  assert.equal(nodes.summary.hidden, false)
+  assert.match(nodes['summary-rows'].text, /23/)
+  assert.match(nodes['summary-rows'].text, /9/)
+  assert.match(nodes['summary-rows'].text, /4/)
+})
+
+// La fenêtre sait énumérer les sites pris en charge : elle le demande au
+// registre au lieu de l'ignorer.
+test('sans page analysée, la fenêtre nomme les sites pris en charge', async () => {
+  const { nodes } = await open({ status: undefined })
+  assert.equal(nodes.empty.hidden, false)
+  assert.match(nodes.empty.text, /leboncoin/)
+  assert.match(nodes.empty.text, /La Centrale/)
+})
+
+// Pas d'`innerHTML` : la fenêtre compose des nœuds, elle n'injecte pas de
+// balisage — et elle affiche du texte tiré de pages tierces.
+const scripts = (dir) =>
+  readdirSync(dir).flatMap((f) => {
+    const p = join(dir, f)
+    return statSync(p).isDirectory() ? scripts(p) : p.endsWith('.js') ? [p] : []
+  })
+
+test("aucun module ne construit son affichage par balisage", () => {
+  const found = [...scripts(join(here, '../popup')), ...scripts(join(here, '../src'))]
+  assert.ok(found.length > 10)
+  for (const f of found) {
+    assert.doesNotMatch(readFileSync(f, 'utf8'), /innerHTML|outerHTML|insertAdjacentHTML/, f)
+  }
+})

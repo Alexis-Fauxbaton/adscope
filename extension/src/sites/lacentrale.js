@@ -44,8 +44,7 @@ ADS.lacentrale = ADS.sites.register((() => {
       title: [v.make, v.model, v.version].filter(Boolean).join(' ') || null,
       sellerType: type(c.customerType),
       ...seller(c.customerType, c.customerReference, (c.contacts || {}).nomPublie),
-      price: number(c.price),
-      publishedAt: date(c.firstOnlineDate),
+      price: number(c.price), publishedAt: date(c.firstOnlineDate),
       // `lastUpdate` dit qu'on a touché à l'annonce, pas pourquoi : remontée payée
       // ou simple correction, la page ne les distingue pas.
       bumpedAt: c.lastUpdate ? new Date(c.lastUpdate * 1000) : null,
@@ -58,8 +57,7 @@ ADS.lacentrale = ADS.sites.register((() => {
       title: ld.name || null,
       sellerType: type(c.customerType),
       ...seller(c.customerType, c.customerReference, account.publishedName),
-      price: number((ld.offers || {}).price) || number(c.price),
-      publishedAt: date(c.creationDate),
+      price: number((ld.offers || {}).price) || number(c.price), publishedAt: date(c.creationDate),
       // Rien sur une fiche ne dit qu'elle a été remontée : on n'invente pas.
       bumpedAt: null,
       brand: ld.brand || null, model: ld.model || null, version: vehicle.label || null,
@@ -118,14 +116,15 @@ ADS.lacentrale = ADS.sites.register((() => {
     const bumped = !!listed.bumpedAt && listed.bumpedAt - listed.publishedAt > BUMP_MIN_MS
     const capped = online > CAP_DAYS
     return {
-      onlineDays: online,
-      bumped,
+      onlineDays: online, bumped,
       bumpedDaysAgo: bumped ? Math.floor((now - listed.bumpedAt) / DAY) : null,
       capped,
       // L'alerte est le plafond, et lui seul : passé 60 jours le libellé du site est faux
       // par omission. En deçà il dit l'âge exact — appuyé, jamais mis en alerte.
       notable: capped,
       dormant: !capped && online >= OLD_MIN_DAYS,
+      // Ce qui dépasse le seuil du site, alerte ou non : le résumé le compte.
+      old: online >= OLD_MIN_DAYS,
     }
   }
 
@@ -135,12 +134,14 @@ ADS.lacentrale = ADS.sites.register((() => {
 
   // La contradiction, nommée : le site dit soixante jours faute de savoir en dire
   // davantage, quand la page porte la date exacte.
+  // `days` dit ce qu'elle couvre de l'axe : au plafond, les soixante derniers.
   const claim = (s, says) =>
-    s.capped && says ? { label: 'La Centrale affiche', says, note: `compteur plafonné à ${CAP_DAYS} jours` } : null
+    s.capped && says
+      ? { label: 'La Centrale affiche', says, days: CAP_DAYS, note: `compteur plafonné à ${CAP_DAYS} jours` }
+      : null
 
   return {
-    id: SITE,
-    origins: ['https://www.lacentrale.fr'],
+    id: SITE, name: 'La Centrale', origins: ['https://www.lacentrale.fr'],
     urlId, card: cardOf, dateNode, words, claim, displayed,
     fromDocument, fromScripts, signals,
   }

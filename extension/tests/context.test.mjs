@@ -98,7 +98,7 @@ test("le diagnostic n'écrit plus dans un stockage disparu", () => {
   const w = world(PRO, { path: '/voitures/occasions' })
   w.load('listing.js')
   w.invalidate()
-  assert.doesNotThrow(() => ADS.diag.listing([], 0, 0, 'page'))
+  assert.doesNotThrow(() => ADS.diag.listing([], 0, 0, 'page', { old: 0, alerts: 0 }))
 })
 
 test("l'envoi au suivi ne remonte pas dans la page", () => {

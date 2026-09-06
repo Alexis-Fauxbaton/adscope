@@ -42,8 +42,7 @@
     return el
   }
 
-  const fill = (el, listing, remote, displayed) => {
-    const s = site.signals(listing, new Date())
+  const fill = (el, listing, s, remote, displayed) => {
     const model = ADS.view.panel(listing, s, remote, displayed)
     // Le cadre du panneau porte le même poids que la pastille de la carte.
     el.className =
@@ -53,6 +52,24 @@
     if (model.tracked.length) nodes.push(caption('Suivi adscope'), ...model.tracked.map((r) => row(r, true)))
     el.replaceChildren(...nodes)
   }
+
+  // Ce que la fenêtre montrera de l'annonce. Elle n'a pas la page : tout ce
+  // qu'elle affiche de la fiche passe par là, y compris la contradiction — que
+  // le site nomme, et qu'aucune autre surface ne recompose.
+  const card = (l, s, says) => ({
+    title: l.title || null,
+    price: l.price ?? null,
+    mileage: l.mileage ?? null,
+    year: l.year ?? null,
+    sellerType: l.sellerType,
+    onlineDays: s.onlineDays,
+    // Le stockage de l'extension ne retient pas les dates : elles voyagent en
+    // texte, et la fenêtre les relit.
+    publishedAt: l.publishedAt ? new Date(l.publishedAt).toISOString() : null,
+    notable: !!s.notable,
+    dormant: !!s.dormant,
+    claim: site.claim(s, says),
+  })
 
   // L'origine des signaux, pas leur seule présence : le panneau posé avec ce
   // que le cache savait doit se réécrire quand le réseau répond.
@@ -101,8 +118,10 @@
     }
     el.setAttribute(MARK, listing.siteId)
     el.setAttribute(SRC, stampOf(listing.siteId))
-    fill(el, listing, remote, node && node.textContent.trim())
-    ADS.diag.detail(listings, listing, ADS.feed.detailSource(listing.siteId))
+    const s = site.signals(listing, new Date())
+    const says = node && node.textContent.trim()
+    fill(el, listing, s, remote, says)
+    ADS.diag.detail(listings, listing, ADS.feed.detailSource(listing.siteId), card(listing, s, says))
   })
 
   render()

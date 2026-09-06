@@ -20,6 +20,9 @@ ADS.diag = (() => {
         url: location.pathname + location.search,
         nextData: !!document.getElementById('__NEXT_DATA__'),
         at: Date.now(),
+        // Quel site, pour que la fenêtre le nomme depuis le registre — elle
+        // n'a pas la page, et ne connaît aucun site par elle-même.
+        site: (ADS.sites.current() || {}).id || null,
         // D'où viennent les signaux affichés : le cache répond tout de suite,
         // le réseau les remplace ensuite. La popup doit pouvoir dire lequel
         // des deux tient l'encart sous les yeux du lecteur.
@@ -29,12 +32,20 @@ ADS.diag = (() => {
     }),
   )
 
+  // Le badge de l'icône : seul le service worker sait à quel onglet la page
+  // appartient, et il le lit sur l'expéditeur du message.
+  const tell = ADS.context.guard((alerts) =>
+    chrome.runtime.sendMessage({ type: 'badge', alerts }, () => chrome.runtime.lastError),
+  )
+
   // Sur une fiche, le doute porte sur l'annonce décrite : plusieurs sont connues
   // à la fois, seule l'URL dit laquelle est lue, et la source dit si elle vient
   // du bloc du rendu serveur ou de la charge reçue pour la fiche ouverte.
-  const detail = (listings, picked, source) => {
+  // `card` porte ce que la fenêtre montrera de l'annonce : elle n'a pas la page.
+  const detail = (listings, picked, source, card) => {
     const id = urlId(location.pathname)
     if (!id) return
+    const alerts = card.notable ? 1 : 0
     write({
       kind: 'detail',
       listings: listings.length,
@@ -45,10 +56,12 @@ ADS.diag = (() => {
       sellerType: picked.sellerType,
       // Ce que la popup ne peut pas lire elle-même : elle n'a pas la page. Vide
       // pour un particulier, dont les annonces ne s'agrègent pas.
-      site: picked.site,
       sellerId: picked.sellerId || null,
       sellerName: picked.sellerName || null,
+      card,
+      alerts,
     })
+    tell(alerts)
   }
 
   // `sent` est le nombre d'annonces que l'API a accusées depuis le chargement,
@@ -57,7 +70,9 @@ ADS.diag = (() => {
   // l'expliquer : les annonces que la charge porte et qu'aucune carte ne rend —
   // six sur la page de résultats relevée le 2026-09-06. Elles ne sont ni
   // comptées, ni pastillées, ni transmises ; leur nombre, lui, est dit.
-  const listing = (shown, unshown, badges, source) => {
+  // `counts` est le résumé que la fenêtre affiche : combien dépassent le seuil
+  // d'ancienneté du site, combien sont en alerte.
+  const listing = (shown, unshown, badges, source, counts = { old: 0, alerts: 0 }) => {
     if (urlId(location.pathname)) return
     write({
       kind: 'listing',
@@ -67,7 +82,9 @@ ADS.diag = (() => {
       badges,
       source,
       sent: ADS.sync.sent(),
+      ...counts,
     })
+    tell(counts.alerts)
   }
 
   return { urlId, detail, listing }

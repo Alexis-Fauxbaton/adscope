@@ -1,55 +1,103 @@
 <!doctype html>
 <meta charset="utf-8" />
 <title>adscope</title>
+<link rel="stylesheet" href="paper.css" />
 <link rel="stylesheet" href="popup.css" />
 
 <header>
   <h1>adscope</h1>
-  <span id="dot" class="dot" title="État de la connexion"></span>
+  <span id="site" class="stamp"></span>
 </header>
 
-<section>
-  <h2>Clé de licence</h2>
-  <div id="key-saved" class="field" hidden>
-    <code id="key-mask"></code>
-    <button id="key-replace" class="ghost">Remplacer</button>
-  </div>
-  <div id="key-edit" class="field">
-    <input id="key" type="text" placeholder="adsc_…" spellcheck="false" autocomplete="off" />
-    <button id="key-save">Enregistrer</button>
-  </div>
-  <p id="key-note" class="note" hidden></p>
+<p id="empty" class="hint" hidden></p>
+
+<section id="fiche" hidden>
+  <h2 id="fiche-title" class="subject"></h2>
+  <p id="fiche-specs" class="specs"></p>
+
+  <p class="label">En ligne depuis</p>
+  <p class="age"><span id="age-main"></span><span id="age-days" class="age-days"></span></p>
+
+  <p class="label">Prix observé</p>
+  <div id="plot" class="plot-box"></div>
+  <p class="axis"><span id="axis-start"></span><span id="axis-end"></span></p>
+  <p id="readout" class="readout"></p>
+  <p id="hatch" class="hatch" hidden></p>
+  <div id="claim" class="claim" hidden></div>
+
+  <div id="tracking" hidden></div>
 </section>
 
-<section>
-  <h2>Adresse de l'API</h2>
-  <div class="field">
-    <input id="api" type="text" spellcheck="false" autocomplete="off" />
-    <button id="api-save">Enregistrer</button>
-  </div>
-  <p id="api-note" class="note" hidden></p>
-  <button id="test" class="wide">Tester la connexion</button>
-  <p id="test-note" class="note" hidden></p>
+<section id="summary" hidden>
+  <h2 class="label">Cette page de résultats</h2>
+  <div id="summary-rows"></div>
 </section>
 
 <section id="seller-box" hidden>
-  <h2 id="seller-title">Ce vendeur</h2>
+  <h2 id="seller-title" class="label">Ce vendeur</h2>
   <div id="seller"></div>
 </section>
 
-<section>
-  <h2>Dernière page lue</h2>
-  <div id="state"></div>
-</section>
+<!--
+  Le dépannage : réglages et diagnostic. Accessible, jamais au premier plan —
+  c'est un outil, pas le produit.
+-->
+<details id="tools">
+  <summary>Réglages et diagnostic <span id="dot" class="dot" title="État de la connexion"></span></summary>
 
-<section>
-  <h2>Cache local</h2>
-  <div id="cache"></div>
-  <button id="cache-clear" class="wide ghost">Vider le cache</button>
-  <p id="cache-note" class="note" hidden></p>
-</section>
+  <section>
+    <h2 class="label">Clé de licence</h2>
+    <div id="key-saved" class="field" hidden>
+      <code id="key-mask"></code>
+      <button id="key-replace" class="ghost">Remplacer</button>
+    </div>
+    <div id="key-edit" class="field">
+      <input id="key" type="text" placeholder="adsc_…" spellcheck="false" autocomplete="off" />
+      <button id="key-save">Enregistrer</button>
+    </div>
+    <p id="key-note" class="note" hidden></p>
+  </section>
 
+  <section>
+    <h2 class="label">Adresse de l'API</h2>
+    <div class="field">
+      <input id="api" type="text" spellcheck="false" autocomplete="off" />
+      <button id="api-save">Enregistrer</button>
+    </div>
+    <p id="api-note" class="note" hidden></p>
+    <button id="test" class="wide">Tester la connexion</button>
+    <p id="test-note" class="note" hidden></p>
+  </section>
+
+  <section>
+    <h2 class="label">Dernière page lue</h2>
+    <div id="state"></div>
+  </section>
+
+  <section>
+    <h2 class="label">Cache local</h2>
+    <div id="cache"></div>
+    <button id="cache-clear" class="wide ghost">Vider le cache</button>
+    <p id="cache-note" class="note" hidden></p>
+  </section>
+</details>
+
+<!--
+  Le registre et ses modules de site, comme le manifeste les déclare pour les
+  content scripts : la fenêtre ne nomme aucun site, elle lui demande les noms
+  qu'elle affiche et la liste de ce qui est couvert.
+-->
+<script src="../src/sites.js"></script>
+<script src="../src/sites/read.js"></script>
+<script src="../src/sites/leboncoin.js"></script>
+<script src="../src/sites/lacentrale.js"></script>
+<script src="../src/format.js"></script>
+
+<script src="dom.js"></script>
 <script src="config.js"></script>
 <script src="report.js"></script>
 <script src="seller.js"></script>
+<script src="curve.js"></script>
+<script src="chart.js"></script>
+<script src="fiche.js"></script>
 <script src="popup.js"></script>

@@ -70,6 +70,7 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
   const pending = []
   const emitted = []
   const asked = []
+  const painted = []
   globalThis.chrome = {
     storage: { local: { set: (o) => Object.assign(stored, o) } },
     runtime: {
@@ -79,6 +80,9 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
       // service worker : c'est ce qui permet à l'encart de s'afficher avant
       // le réseau. `cache` dit ce que l'extension savait déjà.
       sendMessage: (msg, respond) => {
+        // Le badge ne touche ni au réseau ni au cache : le service worker le
+        // pose sur l'onglet d'où vient le message.
+        if (msg.type === 'badge') return painted.push(msg), respond({ ok: true })
         if (msg.type !== 'cached') return emitted.push(msg), pending.push({ msg, respond })
         asked.push(msg)
         const hits = msg.ids.filter((id) => id in cache).map((id) => [id, cache[id]])
@@ -126,6 +130,7 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
     // Ce que le content script a émis : un message par lot, dédoublonné par lui.
     messages: () => emitted,
     asked: () => asked,
+    badges: () => painted,
     queued: () => emitted.flatMap((m) => m.listings.map((l) => l.siteId)),
     // L'API ne répond que sur les identifiants du lot qu'on lui a soumis.
     arrive: (byId) => {

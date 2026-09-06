@@ -1,130 +1,35 @@
-:root {
-  color-scheme: light;
-  --ink: #27272a;
-  --mute: #71717a;
-  --line: #e4e4e7;
-  --ok: #15803d;
-  --warn: #b45309;
-  --bad: #b91c1c;
-}
+/* Le tracé de la courbe. Trois signes, chacun à sens unique — et un seul rouge,
+   celui du tampon, réservé à ce que le site affiche de son côté. */
+.hatch-line { stroke: var(--rule); stroke-width: 1; }
+.blind { stroke: none; }
+.band { fill: rgba(159, 18, 57, 0.09); stroke: none; }
+.edge { stroke: var(--stamp); stroke-width: 1; }
+.base { stroke: var(--rule); stroke-width: 1; }
+.line { fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linejoin: miter; }
 
-body {
-  width: 300px;
-  margin: 0;
-  padding: 12px 14px 14px;
-  font: 13px/1.5 system-ui, -apple-system, sans-serif;
-  color: var(--ink);
-  background: #fff;
-}
+/* Gros point : un changement de prix constaté. Creux au départ — la première
+   observation n'est pas un changement, c'est le début du regard. */
+.change { fill: var(--stamp); }
+.change.start { fill: var(--card); stroke: var(--ink); stroke-width: 1.6; }
+/* Petit point : une vérification hebdomadaire, le prix n'avait pas bougé. Le
+   liseré de papier le détache de la ligne sur laquelle il est posé. */
+.check { fill: var(--faint); stroke: var(--paper); stroke-width: 1; }
+.today { fill: var(--ink); }
+.hit { fill: transparent; cursor: default; }
 
-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--line);
-}
-
-h1 {
-  flex: 1;
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-h2 {
-  margin: 0 0 6px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--mute);
-}
-
-section {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--line);
-}
-
-section:last-of-type {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
-
-.dot.ok { background: var(--ok); }
-.dot.warn { background: var(--warn); }
-.dot.bad { background: var(--bad); }
-[hidden] { display: none !important; }
-
-.field {
-  display: flex;
-  gap: 6px;
-  align-items: stretch;
-}
-
-input,
-code {
-  flex: 1;
-  min-width: 0;
-  padding: 5px 7px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
-  color: var(--ink);
-  background: #fafafa;
-}
-
-input:focus {
-  outline: 2px solid #a1a1aa;
-  outline-offset: -1px;
-  background: #fff;
-}
-
-button {
-  padding: 5px 10px;
-  border: 1px solid #3f3f46;
-  border-radius: 4px;
-  font: inherit;
-  font-size: 12px;
-  color: #fafafa;
-  background: #3f3f46;
-  cursor: pointer;
-}
-
-button:hover { background: #27272a; }
-button.ghost {
-  color: var(--ink);
-  background: #fff;
-  border-color: var(--line);
-}
-
-button.ghost:hover { background: #f4f4f5; }
-
-button.wide {
-  width: 100%;
-  margin-top: 10px;
-}
-
-.note {
-  margin: 6px 0 0;
-  color: var(--mute);
-}
-
-.note.ok { color: var(--ok); }
-.note.warn { color: var(--warn); }
-.note.bad { color: var(--bad); }
+.amount { font: 600 11px var(--mono); fill: var(--ink); }
+.amount.fell { fill: var(--stamp); }
+.blind-text { font: 10px var(--mono); fill: var(--mute); }
 
 .row {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 2px 0;
+  padding: 3px 0;
+  border-bottom: 1px dotted var(--line);
 }
 
+.row:last-child { border-bottom: 0; }
 .row > span:first-child { color: var(--mute); }
 
 .row > span:last-child {
@@ -132,22 +37,101 @@ button.wide {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font: 600 12px/1.5 var(--mono);
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
 }
-
-.hint { margin-top: 8px; color: var(--mute); }
-
-.bad { color: var(--bad); }
 
 /* L'accord se contente d'une coche discrète, le désaccord prend l'alerte. */
 .mark { font-weight: 400; color: var(--mute); }
+.bad { color: var(--bad); }
 .bad .mark { color: inherit; }
+
+.hint {
+  margin: 8px 0 0;
+  padding: 7px 9px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--mute);
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.hint.bad { color: var(--bad); border-color: var(--stamp); }
 
 /* Le stock du marchand, lu d'un coup d'œil avant le détail des lignes. */
 .lead {
   margin-bottom: 4px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+
+#tracking { margin-top: 12px; }
+#seller .hint { margin: 0 0 8px; }
+
+/* Les valeurs du vendeur sont des phrases, pas des nombres : les tronquer
+   ferait disparaître la réserve qui les accompagne. */
+#seller .row > span:last-child { white-space: normal; text-align: right; }
+
+/* Le dépannage : présent, replié, sans poids visuel. */
+#tools {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+#tools > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 0;
+  font: 10px/1.4 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mute);
+  cursor: pointer;
+}
+
+#tools section:last-of-type { border-bottom: 0; padding-bottom: 0; }
+
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.dot.ok { background: var(--ok); }
+.dot.warn { background: var(--warn); }
+.dot.bad { background: var(--bad); }
+[hidden] { display: none !important; }
+
+.field { display: flex; gap: 6px; align-items: stretch; }
+
+input,
+code {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 7px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  font: 12px/1.5 var(--mono);
+  color: var(--ink);
+  background: var(--card);
+}
+
+input:focus { outline: 2px solid var(--faint); outline-offset: -1px; background: #fff; }
+
+button {
+  padding: 5px 10px;
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--card);
+  background: var(--ink);
+  cursor: pointer;
+}
+
+button:hover { background: #0f1a26; }
+button.ghost { color: var(--ink); background: var(--card); border-color: var(--rule); }
+button.ghost:hover { background: #eeeae1; }
+button.wide { width: 100%; margin-top: 10px; }
+
+.note { margin: 6px 0 0; font-size: 12px; color: var(--mute); }
+.note.ok { color: var(--ok); }
+.note.warn { color: var(--warn); }
+.note.bad { color: var(--bad); }

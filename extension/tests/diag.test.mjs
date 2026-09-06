@@ -113,3 +113,45 @@ test("un particulier ne laisse aucun identifiant dans le diagnostic", () => {
   assert.equal(w.status().sellerId, null)
   assert.equal(w.status().sellerName, null)
 })
+
+// La popup devient la surface principale sur les fiches : elle n'a pas la page,
+// et tout ce qu'elle montre de l'annonce doit lui parvenir par le diagnostic.
+test("le diagnostic porte de quoi composer la fiche dans la fenêtre", () => {
+  const w = world('0', { path: `/ad/voitures/${PRO}`, data: block(ad(PRO)) })
+  w.load('detail.js')
+  const c = w.status().card
+  assert.ok(c, 'la fiche est décrite pour la fenêtre')
+  assert.equal(typeof c.title, 'string')
+  assert.equal(typeof c.onlineDays, 'number')
+  assert.equal(typeof c.price, 'number')
+  // La mise en ligne voyage en texte : le stockage de l'extension ne garde
+  // pas les dates.
+  assert.equal(typeof c.publishedAt, 'string')
+  assert.equal(new Date(c.publishedAt).getUTCFullYear() > 2000, true)
+  assert.equal(typeof c.notable, 'boolean')
+  // La contradiction est nommée par le site, jamais recomposée par la fenêtre.
+  assert.ok(c.claim === null || typeof c.claim.label === 'string')
+})
+
+// Le résumé d'une page de résultats : annonces lues, combien dépassent le
+// seuil, combien sont en alerte.
+test('le diagnostic des résultats compte ce qui dépasse le seuil et ce qui alerte', () => {
+  const w = world(PRO, { path: '/voitures/occasions', data: TWO })
+  w.load('listing.js')
+  const s = w.status()
+  assert.equal(typeof s.old, 'number')
+  assert.equal(typeof s.alerts, 'number')
+  assert.ok(s.old <= s.listings)
+  assert.ok(s.alerts <= s.old)
+})
+
+// La fenêtre affiche le nom du site : elle le résout dans le registre, encore
+// faut-il que le diagnostic dise lequel — sur les deux surfaces.
+test('le diagnostic nomme le site des deux côtés', () => {
+  const results = world(PRO, { path: '/voitures/occasions', data: TWO })
+  results.load('listing.js')
+  assert.equal(results.status().site, 'lbc')
+  const detail = world('0', { path: `/ad/voitures/${PRO}`, data: block(ad(PRO)) })
+  detail.load('detail.js')
+  assert.equal(detail.status().site, 'lbc')
+})

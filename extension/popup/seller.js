@@ -98,9 +98,10 @@ ADS.seller = (() => {
   // ouverte et laquelle, sans un seul événement de télémétrie. Un vendeur
   // inconnu ou une API muette ne rendent rien — la popup n'en parle pas.
   //
-  // Les deux segments viennent de la charge leboncoin, donc d'une page tierce :
-  // interpolés tels quels, un `?`, un `#` ou un `/` déplacerait le chemin appelé
-  // ou greffe une chaîne de requête. Encodés, ils restent un segment chacun.
+  // Les deux segments viennent de la charge d'une page tierce — c'est le site
+  // ouvert qui les écrit, jamais nous : interpolés tels quels, un `?`, un `#`
+  // ou un `/` déplacerait le chemin appelé ou greffe une chaîne de requête.
+  // Encodés, ils restent un segment chacun.
   //
   // L'encodage ne suffit pourtant pas : le point n'est pas un caractère réservé,
   // `encodeURIComponent('..')` rend `..`, et l'analyseur d'URL résout ce segment

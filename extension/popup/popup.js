@@ -1,7 +1,6 @@
 const { isKey, mask, base, isBase, probe, outcome } = ADS.config
-const { rows, trouble, occupancy } = ADS.report
-
-const el = (id) => document.getElementById(id)
+const { rows, trouble, occupancy, summary } = ADS.report
+const { el, row, hint, fill } = ADS.dom
 
 const note = (id, tone, text) => {
   const n = el(id)
@@ -16,7 +15,6 @@ const showKey = () => {
   el('key-saved').hidden = !key
   el('key-edit').hidden = Boolean(key)
   if (key) el('key-mask').textContent = mask(key)
-  else el('key').focus()
 }
 
 el('key-save').onclick = async () => {
@@ -63,75 +61,61 @@ el('test').onclick = async () => {
   el('dot').className = `dot ${r.tone}`
 }
 
-const line = ({ label, value, bad, mark }) => {
-  const d = document.createElement('div')
-  d.className = 'row'
-  const l = document.createElement('span')
-  l.textContent = label
-  const v = document.createElement('span')
-  v.textContent = value
-  if (bad) v.className = 'bad'
-  if (mark) {
-    const m = document.createElement('span')
-    m.className = 'mark'
-    m.textContent = ` ${mark.trim()}`
-    v.append(m)
-  }
-  d.append(l, v)
-  return d
-}
+// La fenêtre ne connaît aucun site : elle demande au registre le nom de celui
+// que le diagnostic désigne, et la liste de ceux qu'on couvre.
+const named = (id) => (ADS.sites.all().find((s) => s.id === id) || {}).name || ''
 
-const hint = (text, bad) => {
-  const d = document.createElement('div')
-  d.className = 'hint' + (bad ? ' bad' : '')
-  d.textContent = text
-  return d
+const listed = (names) =>
+  names.length > 1 ? `${names.slice(0, -1).join(', ')} ou ${names[names.length - 1]}` : names[0] || ''
+
+const showEmpty = () => {
+  const where = listed(ADS.sites.all().map((s) => s.name))
+  el('empty').textContent =
+    `Aucune page analysée. Ouvre une liste de résultats ou une annonce voiture sur ${where}, puis rouvre cette fenêtre.`
+  el('empty').hidden = false
 }
 
 const diagnose = (status) => {
+  if (!status) return
   const box = el('state')
-  if (!status) {
-    box.append(hint('Aucune page analysée. Ouvre une liste de résultats ou une annonce voiture sur un site couvert, puis rouvre cette fenêtre.'))
-    return
-  }
-  box.append(...rows(status).map(line))
+  box.append(...rows(status).map(row))
   const { text, bad } = trouble(status)
   if (text) box.append(hint(text, bad))
 }
 
 // Ce que la fiche ouverte ne dit pas : ce qu'adscope a vu de ce marchand. La
 // demande est elle-même la mesure d'usage — rien d'autre n'est collecté.
-const lead = (text) => {
-  const d = document.createElement('div')
-  d.className = 'lead'
-  d.textContent = text
-  return d
-}
-
-// La seule demande qui parte sans geste de l'utilisateur — et elle porte la
-// clé de licence. Sa destination se vérifie donc comme ailleurs : une adresse
-// bien formée, et un accès déjà accordé.
+//
+// La seule demande qui parte sans geste de l'utilisateur, et elle porte la clé
+// de licence. Sa destination se vérifie donc comme ailleurs : une adresse bien
+// formée, et un accès déjà accordé.
 const showSeller = async (status) => {
-  if (!status || status.kind !== 'detail' || !status.sellerId || !key) return
+  if (!status.sellerId || !key) return
   const apiBase = base(el('api').value)
   if (!isBase(apiBase) || !(await granted(apiBase))) return
   const stats = await ADS.seller.fetch(apiBase, key, status.site, status.sellerId)
   const block = ADS.seller.block(stats)
   if (!block) return
   el('seller-title').textContent = block.title
-  const box = el('seller')
   // La portée avant les chiffres : elle dit de quelle population ils sortent.
-  box.replaceChildren(lead(block.lead), hint(block.scope), ...block.rows.map(line))
-  if (block.note) box.append(hint(block.note))
+  const nodes = [ADS.dom.tag('div', 'lead', block.lead), hint(block.scope), ...block.rows.map(row)]
+  if (block.note) nodes.push(hint(block.note))
+  fill('seller', nodes)
   el('seller-box').hidden = false
 }
 
-// Le cache est tenu par le service worker : lui seul sait ce qu'il contient.
+// Le cache est tenu par le service worker : lui seul sait ce qu'il contient, et
+// lui seul garde l'historique de prix que la courbe trace.
 const ask = (msg) => chrome.runtime.sendMessage(msg).catch(() => null)
+
+const tracked = async (status) => {
+  const res = await ask({ type: 'cached', site: status.site, ids: [status.pickedId] })
+  return (res && res.signals && res.signals[status.pickedId]) || null
+}
 
 const showCache = async () => {
   const stats = await ask({ type: 'cache-stats' })
-  el('cache').replaceChildren(stats ? line(occupancy(stats)) : hint('Cache illisible.'))
+  el('cache').replaceChildren(stats ? row(occupancy(stats)) : hint('Cache illisible.'))
 }
 
 el('cache-clear').onclick = async () => {
@@ -140,11 +124,16 @@ el('cache-clear').onclick = async () => {
   note('cache-note', 'ok', 'Cache vidé. Les signaux reviendront de l’API à la prochaine page.')
 }
 
-chrome.storage.local.get(['licenseKey', 'apiBase', 'status']).then((stored) => {
+chrome.storage.local.get(['licenseKey', 'apiBase', 'status']).then(async (stored) => {
   key = stored.licenseKey || ''
   el('api').value = stored.apiBase || 'http://localhost:8000'
   showKey()
-  diagnose(stored.status)
   showCache()
-  showSeller(stored.status)
+  const status = stored.status
+  diagnose(status)
+  if (!status) return showEmpty()
+  el('site').textContent = named(status.site)
+  if (status.kind !== 'detail') return fill('summary-rows', summary(status).map(row)), (el('summary').hidden = false)
+  if (status.card) ADS.fiche.show(status.card, await tracked(status))
+  showSeller(status)
 })

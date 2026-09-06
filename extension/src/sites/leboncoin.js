@@ -56,9 +56,7 @@ ADS.leboncoin = ADS.sites.register((() => {
       price: Array.isArray(ad.price) ? ad.price[0] : ad.price,
       publishedAt: parseDate(ad.first_publication_date),
       bumpedAt: parseDate(ad.index_date),
-      brand: attr.brand,
-      model: attr.model,
-      version: attr.u_car_version,
+      brand: attr.brand, model: attr.model, version: attr.u_car_version,
       year: attr.regdate ? Number(attr.regdate) : null,
       mileage: attr.mileage ? Number(attr.mileage) : null,
     }
@@ -83,17 +81,16 @@ ADS.leboncoin = ADS.sites.register((() => {
 
   const signals = (listing, now) => {
     const online = Math.floor((now - listing.publishedAt) / 86400000)
-    const gap = listing.bumpedAt - listing.publishedAt
-    const bumped = gap > BUMP_MIN_MS
+    const bumped = listing.bumpedAt - listing.publishedAt > BUMP_MIN_MS
     const bumpedDaysAgo = bumped ? Math.floor((now - listing.bumpedAt) / 86400000) : null
     const old = online >= OLD_MIN_DAYS
     return {
-      onlineDays: online,
-      bumped,
-      bumpedDaysAgo,
+      onlineDays: online, bumped, bumpedDaysAgo,
       // L'alerte : ancienne, et encore poussée. La page dit « aujourd'hui », la
       // voiture est là depuis des mois.
       notable: old && bumped && bumpedDaysAgo <= BUMP_RECENT_DAYS,
+      // Ce qui dépasse le seuil du site, alerte ou non : le résumé le compte.
+      old,
       // Du stock qui dort sans qu'on paie pour le cacher : rien à dénoncer, la
       // page affiche déjà son âge. Appuyé, pas mis en alerte.
       dormant: old && !bumped,
@@ -134,14 +131,14 @@ ADS.leboncoin = ADS.sites.register((() => {
 
   // La contradiction, nommée : le site montre une date d'indexation là où le
   // lecteur comprend une date de mise en ligne.
+  // `days` dit ce qu'elle couvre de l'axe : pas plus loin que la remontée.
   const claim = (s, says) =>
     s.bumped && says
-      ? { label: 'leboncoin affiche', says, note: 'date de réactualisation, pas de publication' }
+      ? { label: 'leboncoin affiche', says, days: s.bumpedDaysAgo, note: 'date de réactualisation, pas de publication' }
       : null
 
   return {
-    id: 'lbc',
-    origins: ['https://www.leboncoin.fr'],
+    id: 'lbc', name: 'leboncoin', origins: ['https://www.leboncoin.fr'],
     urlId, card, dateNode, words, claim,
     fromDocument, fromPayload, normalize, signals, findAds,
   }

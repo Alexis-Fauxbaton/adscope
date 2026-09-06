@@ -93,17 +93,33 @@ const cachedSignals = async (site, ids) => {
   return { ok: true, signals }
 }
 
+// Le rouge de tampon, réservé à l'alerte — le même que celui de la fenêtre.
+const BADGE_COLOR = '#9f1239'
+
+// Le badge de l'icône, par onglet : ce que le content script a trouvé sur la
+// page qu'il occupe. Rien à dire, rien d'affiché — un badge toujours porteur
+// d'un nombre devient du papier peint en deux jours, et une navigation
+// monopage n'efface rien d'elle-même : c'est le compte à zéro qui l'efface.
+const badge = async (alerts, tab) => {
+  if (!tab) return { ok: false, reason: 'no-tab' }
+  const text = alerts > 0 ? String(alerts) : ''
+  if (text) await chrome.action.setBadgeBackgroundColor({ tabId: tab.id, color: BADGE_COLOR })
+  await chrome.action.setBadgeText({ tabId: tab.id, text })
+  return { ok: true, text }
+}
+
 const handlers = {
   cached: (msg) => cachedSignals(msg.site, msg.ids),
   sync: (msg) => sync(msg.site, msg.listings),
+  badge: (msg, sender) => badge(msg.alerts, sender && sender.tab),
   'cache-stats': () => ADS.cache.stats(),
   'cache-clear': async () => ({ ok: true, cleared: await ADS.cache.clear() }),
 }
 
-chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
+chrome.runtime.onMessage.addListener((msg, sender, respond) => {
   const handler = handlers[msg && msg.type]
   if (!handler) return false
-  handler(msg)
+  handler(msg, sender)
     .then(respond)
     .catch((e) => respond({ ok: false, reason: e.message }))
   return true

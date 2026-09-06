@@ -1,85 +1,9 @@
-import { createRequire } from 'node:module'
-import { fileURLToPath } from 'node:url'
-import { dirname, join } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-
-const here = dirname(fileURLToPath(import.meta.url))
-const require = createRequire(import.meta.url)
-const popup = (f) => join(here, '../popup/', f)
-
-// Un document de fabrique : la popup ne touche qu'à des éléments par
-// identifiant, du texte et des enfants. C'est assez pour vérifier le câblage —
-// que le bloc vendeur soit demandé, rempli et montré.
-class El {
-  constructor() {
-    this.children = []
-    this.className = ''
-    this.textContent = ''
-    this.value = ''
-    this.hidden = false
-  }
-  focus() {}
-  append(...nodes) { this.children.push(...nodes) }
-  replaceChildren(...nodes) { this.children = [...nodes] }
-  get text() { return [this.textContent, ...this.children.map((c) => c.text)].join(' ').trim() }
-}
-
-const stats = (over = {}) => ({
-  site: 'lbc', seller_id: '73911', seller_name: 'ENTREPOT 222',
-  listings: 11, aged: 11, window_days: 30, over_a_month: 3,
-  over_a_month_share: 0.273, median_age_days: 7, price_changed_listings: 0,
-  price_drop_listings: 0, price_drop_rate: null, price_drop_after_days: null,
-  ...over,
-})
-
-const detail = (over = {}) => ({
-  kind: 'detail', url: '/ad/voitures/1', nextData: true, source: 'live', listings: 1,
-  pickedId: '1', urlId: '1', matchesUrl: true, sellerType: 'pro', site: 'lbc',
-  sellerId: '73911', sellerName: 'ENTREPOT 222', sources: { cache: 0, network: 1 }, ...over,
-})
-
-const open = async ({
-  status,
-  answer = async () => ({ ok: true, json: async () => stats() }),
-  apiBase = 'http://api',
-  licenseKey = 'adsc_' + 'a'.repeat(32),
-  granted = true,
-}) => {
-  // La section vendeur est écrite masquée dans popup.html : c'est l'état de
-  // départ que ce document reproduit.
-  const nodes = { 'seller-box': new El() }
-  nodes['seller-box'].hidden = true
-  const asked = []
-  globalThis.document = {
-    getElementById: (id) => (nodes[id] = nodes[id] || new El()),
-    createElement: () => new El(),
-  }
-  globalThis.chrome = {
-    storage: {
-      local: { get: async () => ({ licenseKey, apiBase, status }), set: async () => {} },
-    },
-    runtime: { sendMessage: async () => ({ entries: 0, bytes: 0, quota: 1000 }) },
-    // L'accès à l'adresse configurée : accordé sur geste, vérifié sans geste.
-    permissions: {
-      contains: async () => granted,
-      request: async () => granted,
-    },
-  }
-  globalThis.fetch = (url, init) => (asked.push(url), answer(url, init))
-  globalThis.ADS = undefined
-  for (const f of ['config.js', 'report.js', 'seller.js']) {
-    delete require.cache[require.resolve(popup(f))]
-    require(popup(f))
-  }
-  delete require.cache[require.resolve(popup('popup.js'))]
-  require(popup('popup.js'))
-  await new Promise((r) => setTimeout(r, 0))
-  return { nodes, asked }
-}
+import { detail, open, signals, stats } from './popup-dom.mjs'
 
 test('sur une fiche de marchand, la popup demande et montre ce qu’on a vu', async () => {
-  const { nodes, asked } = await open({ status: detail() })
+  const { nodes, asked } = await open({ status: detail(), cached: signals() })
   assert.equal(asked[0], 'http://api/v1/sellers/lbc/73911')
   assert.equal(nodes['seller-box'].hidden, false)
   assert.equal(nodes['seller-title'].textContent, 'Ce vendeur — ENTREPOT 222')
@@ -104,7 +28,9 @@ test('un particulier ne déclenche aucune demande et aucun bloc', async () => {
 })
 
 test('une page de résultats ne parle pas de vendeur', async () => {
-  const { nodes, asked } = await open({ status: { kind: 'listing', url: '/voitures', nextData: true, listings: 24, pro: 18, badges: 24, sent: 24 } })
+  const { nodes, asked } = await open({
+    status: { kind: 'listing', site: 'lbc', url: '/voitures', nextData: true, listings: 24, pro: 18, badges: 24, sent: 24, old: 6, alerts: 2 },
+  })
   assert.equal(asked.length, 0)
   assert.equal(nodes['seller-box'].hidden, true)
 })
@@ -125,7 +51,6 @@ test('la note du petit échantillon arrive jusqu’à la fenêtre', async () => 
   })
   assert.match(nodes.seller.text, /3 annonces/)
 })
-
 
 // Le bloc vendeur part au chargement, sans geste de l'utilisateur, et sa
 // demande porte la clé de licence : c'est le seul appel qui l'envoyait sans

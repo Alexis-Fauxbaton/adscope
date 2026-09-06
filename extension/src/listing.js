@@ -18,7 +18,7 @@
   // reste — elle confirme que l'extension travaille sans rien réclamer.
   // La pastille est posée avec la seule page, puis réécrite si des signaux
   // arrivent — d'où l'estampille, qui évite aussi de boucler avec l'observateur.
-  const paint = (card, listing, now) => {
+  const paint = (card, listing, s) => {
     const remote = ADS.sync.of(listing.siteId)
     // L'origine entre dans l'estampille : les signaux du cache sont posés
     // d'abord, ceux du réseau les remplacent, et sans cette distinction la
@@ -31,7 +31,6 @@
       el.setAttribute(MARK, listing.siteId)
       card.appendChild(el)
     }
-    const s = site.signals(listing, now)
     const { page, tracked } = ADS.view.badge(s, remote)
     const weight = s.notable || tracked ? 'notable' : s.dormant ? 'dormant' : 'quiet'
     el.className =
@@ -60,12 +59,19 @@
     const now = new Date()
     const listings = ADS.feed.listings(document)
     const shown = []
+    // Le résumé que la fenêtre affiche, et le badge de l'icône : combien
+    // dépassent le seuil du site, combien sont en alerte. Les deux comptes se
+    // tiennent ici, où les signaux de chaque annonce sont déjà calculés.
+    const counts = { old: 0, alerts: 0 }
     let placed = 0
     for (const listing of listings) {
       const card = site.card(document, listing)
       if (!card) continue
       shown.push(listing)
-      if (paint(card, listing, now)) placed++
+      const s = site.signals(listing, now)
+      if (s.old) counts.old++
+      if (s.notable) counts.alerts++
+      if (paint(card, listing, s)) placed++
     }
     ADS.sync.send(shown)
     // Le compte transmis entre dans l'estampille : il change après coup, quand
@@ -75,7 +81,7 @@
     if (placed || seen !== reported) {
       reported = seen
       const badges = document.querySelectorAll(`[${MARK}]`).length
-      ADS.diag.listing(shown, listings.length - shown.length, badges, ADS.feed.source())
+      ADS.diag.listing(shown, listings.length - shown.length, badges, ADS.feed.source(), counts)
     }
   })
 
