@@ -1,8 +1,9 @@
 import os
+import threading
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from adscope_api import usage
@@ -56,3 +57,45 @@ def auth(key):
 @pytest.fixture(autouse=True)
 def _day_not_closed_yet():
     usage._closed_on = None
+
+
+# Les tests de concurrence demandent de vraies connexions distinctes : deux
+# fils qui partagent la session ci-dessus ne se heurtent jamais dans la base et
+# ne prouvent rien. `sessions` en ouvre autant qu'on veut sur le même moteur.
+@pytest.fixture
+def sessions(engine, session):
+    return sessionmaker(engine, expire_on_commit=False)
+
+
+@pytest.fixture
+def concurrently(sessions):
+    """Lance `work(index, session)` dans N fils lâchés sur une barrière.
+
+    La connexion est prise avant la barrière : sans cela les fils se mettraient
+    en file d'attente sur le pool au lieu d'entrer ensemble dans la base.
+    Rend la liste des erreurs, vide si tout est passé.
+    """
+
+    def run(count, work):
+        barrier = threading.Barrier(count)
+        errors = []
+
+        def one(index):
+            with sessions() as s:
+                s.execute(text("SELECT 1"))
+                barrier.wait(timeout=20)
+                try:
+                    work(index, s)
+                    s.commit()
+                except Exception as error:  # noqa: BLE001 - le test les compte
+                    s.rollback()
+                    errors.append(error)
+
+        threads = [threading.Thread(target=one, args=(i,)) for i in range(count)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=30)
+        return errors
+
+    return run
