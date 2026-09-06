@@ -77,11 +77,24 @@ ADS.seller = (() => {
   // Les deux segments viennent de la charge leboncoin, donc d'une page tierce :
   // interpolés tels quels, un `?`, un `#` ou un `/` déplacerait le chemin appelé
   // ou greffe une chaîne de requête. Encodés, ils restent un segment chacun.
-  const segment = (s) => encodeURIComponent(String(s))
+  //
+  // L'encodage ne suffit pourtant pas : le point n'est pas un caractère réservé,
+  // `encodeURIComponent('..')` rend `..`, et l'analyseur d'URL résout ce segment
+  // avant l'appel — `sellerId` à `..` appelait `/v1/sellers/`. Un segment réduit
+  // à des points ne peut pas s'écrire comme un segment : aucun vendeur ne porte
+  // ce nom, la demande n'est pas faite.
+  const DOTS = /^\.+$/
+
+  const segment = (s) => {
+    const encoded = encodeURIComponent(String(s))
+    return DOTS.test(encoded) ? null : encoded
+  }
 
   const ask = async (apiBase, licenseKey, site, sellerId, f = fetch) => {
+    const path = [segment(site), segment(sellerId)]
+    if (path.some((p) => p === null)) return null
     try {
-      const res = await f(`${apiBase}/v1/sellers/${segment(site)}/${segment(sellerId)}`, {
+      const res = await f(`${apiBase}/v1/sellers/${path.join('/')}`, {
         headers: { Authorization: `Bearer ${licenseKey}` },
       })
       return res.ok ? await res.json() : null

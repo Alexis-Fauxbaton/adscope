@@ -26,6 +26,11 @@ requête — sur une demande qui porte la clé de licence en en-tête. `encodeUR
 sur chacun des deux segments ferme la porte : deux tests le vérifient, dont un qui compte
 les segments du chemin obtenu.
 
+> **Correction du 2026-09-06** — cette porte n'était pas fermée. Le point n'est pas un
+> caractère réservé : `encodeURIComponent('..')` rend `..`, que l'analyseur d'URL résout
+> avant l'appel. `sellerId` à `..` appelait `/v1/sellers/`, `site` à `..` appelait
+> `/v1/me`, les deux `/`. Voir `correctifs-revue.md`, § 1.
+
 **Le reste du dépôt a été balayé.** Trois autres constructions d'URL, aucune du même
 genre : `config.js` (`${base(apiBase)}/v1/me`) et `sw.js` (`apiBase + path`) n'interpolent
 qu'un chemin constant après une adresse que l'utilisateur a lui-même enregistrée, et
