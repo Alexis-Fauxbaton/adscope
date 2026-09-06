@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from adscope_api.observations import record
-from adscope_api.schemas import ObservationIn
+from adscope_api.intake import ObservationIn
 from adscope_api.signals import signals_for
 
 NOW = datetime(2026, 9, 5, 12, 0, tzinfo=timezone.utc)
@@ -182,12 +182,10 @@ def test_seller_type_is_stored(session):
     assert signals_for(listing, now=LATER)["seller_type"] == "private"
 
 
-def test_unknown_seller_type_is_rejected(session):
-    import pytest
-    from pydantic import ValidationError
-
-    with pytest.raises(ValidationError):
-        ObservationIn(site="lbc", site_id="1", seller_type="marchand")
+# Un type de vendeur qu'on ne connaît pas n'apprend rien : il est ignoré, et
+# `record` laisse en place ce qu'on savait. Le refuser emportait le lot entier.
+def test_unknown_seller_type_is_ignored(session):
+    assert ObservationIn(site="lbc", site_id="1", seller_type="marchand").seller_type is None
 
 
 def test_bump_boundary_exactly_one_day_is_a_republication(session):

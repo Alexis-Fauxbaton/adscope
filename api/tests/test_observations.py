@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from adscope_api.models import Listing
 from adscope_api.observations import record
-from adscope_api.schemas import ObservationIn
+from adscope_api.intake import ObservationIn
 
 NOW = datetime(2026, 9, 5, 12, 0, tzinfo=timezone.utc)
 

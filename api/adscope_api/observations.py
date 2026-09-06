@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from .fingerprint import fingerprint
 from .models import Listing, PricePoint
-from .schemas import ObservationIn
+from .intake import ObservationIn
 from .usage import bump
 
 FINGERPRINT_FIELDS = ("brand", "model", "version", "year", "mileage")

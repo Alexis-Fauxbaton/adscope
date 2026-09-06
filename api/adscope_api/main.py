@@ -6,7 +6,8 @@ from .auth import resolve
 from .db import get_session
 from .models import Listing
 from .observations import record
-from .schemas import BatchIn, ObservationsIn, SellerStatsOut, SignalsOut
+from .intake import ObservationsIn
+from .schemas import BatchIn, SellerStatsOut, SignalsOut
 from .sellers import stats_for
 from .signals import signals_for
 
@@ -27,7 +28,9 @@ def post_observations(payload: ObservationsIn, session=Depends(get_session),
     for item in payload.items:
         record(session, item, source="user", license_=license_)
     session.commit()
-    return {"accepted": len(payload.items)}
+    # Ce qui est entré, et ce que le lot portait qu'on ne pouvait pas
+    # enregistrer : un refus muet serait la perte silencieuse qu'on ferme ici.
+    return {"accepted": len(payload.items), "refused": payload.refused}
 
 
 @app.post("/v1/listings/batch", response_model=list[SignalsOut])

@@ -1,29 +1,6 @@
-import pytest
-from fastapi.testclient import TestClient
-
-from adscope_api.auth import hash_key, new_key
-from adscope_api.db import get_session
-from adscope_api.main import app
-from adscope_api.models import License, PricePoint
-
-
-@pytest.fixture
-def key(session):
-    raw = new_key()
-    session.add(License(key_hash=hash_key(raw), label="test"))
-    session.commit()
-    return raw
-
-
-@pytest.fixture
-def client(session):
-    app.dependency_overrides[get_session] = lambda: session
-    yield TestClient(app)
-    app.dependency_overrides.clear()
-
-
-def auth(key):
-    return {"Authorization": f"Bearer {key}"}
+from adscope_api.auth import hash_key
+from adscope_api.models import PricePoint
+from conftest import auth
 
 
 def observation(**kw):
@@ -42,7 +19,7 @@ def test_observations_are_recorded(client, key):
     r = client.post("/v1/observations",
                     json={"source": "user", "items": [observation()]}, headers=auth(key))
     assert r.status_code == 200
-    assert r.json() == {"accepted": 1}
+    assert r.json() == {"accepted": 1, "refused": 0}
 
 
 def test_single_listing_returns_signals(client, key):
@@ -89,16 +66,21 @@ def test_me_reports_the_license(client, key):
     assert r.json()["label"] == "test"
 
 
-def test_negative_published_days_ago_is_rejected(client, key):
+# Ces deux valeurs faisaient répondre 422 pour le lot entier. Elles sont
+# aberrantes, pas le lot : le champ est ignoré, l'annonce entre — le reste de
+# l'observation, lui, est vrai. Voir `test_gauge.py`.
+def test_a_negative_published_days_ago_is_ignored(client, key):
     r = client.post("/v1/observations",
                     json={"items": [observation(published_days_ago=-400)]}, headers=auth(key))
-    assert r.status_code == 422
+    assert r.status_code == 200
+    assert client.get("/v1/listings/lc/1", headers=auth(key)).json()["real_age_days"] is None
 
 
-def test_negative_price_is_rejected(client, key):
+def test_a_negative_price_is_ignored(client, key):
     r = client.post("/v1/observations",
                     json={"items": [observation(price=-1)]}, headers=auth(key))
-    assert r.status_code == 422
+    assert r.status_code == 200
+    assert client.get("/v1/listings/lc/1", headers=auth(key)).json()["price"] is None
 
 
 def test_same_observation_twice_keeps_one_price_point(client, key):

@@ -1,35 +1,11 @@
+"""Ce que l'API rend. Ce qu'elle reçoit vit dans `intake`, avec son gabarit."""
+
 from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
-Precision = Literal["day", "month", "year"]
 SellerType = Literal["pro", "private"]
-
-
-class ObservationIn(BaseModel):
-    site: str = Field(max_length=8)
-    site_id: str = Field(max_length=32)
-    price: int | None = Field(default=None, ge=0)
-    brand: str | None = None
-    model: str | None = None
-    version: str | None = None
-    year: int | None = None
-    mileage: int | None = None
-    postal_code: str | None = None
-    seller_type: SellerType | None = None
-    # Transmis pour les professionnels seuls ; l'API le vérifie plutôt que
-    # de faire confiance à l'émetteur.
-    seller_id: str | None = Field(default=None, max_length=32)
-    seller_name: str | None = Field(default=None, max_length=128)
-    published_days_ago: int | None = Field(default=None, ge=0, le=3650)
-    published_precision: Precision = "day"
-    published_at: datetime | None = None
-    bumped_at: datetime | None = None
-
-
-class ObservationsIn(BaseModel):
-    items: list[ObservationIn] = Field(min_length=1, max_length=100)
 
 
 class BatchIn(BaseModel):
