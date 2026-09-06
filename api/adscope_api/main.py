@@ -6,7 +6,8 @@ from .auth import resolve
 from .db import get_session
 from .models import Listing
 from .observations import record
-from .schemas import BatchIn, ObservationsIn, SignalsOut
+from .schemas import BatchIn, ObservationsIn, SellerStatsOut, SignalsOut
+from .sellers import stats_for
 from .signals import signals_for
 
 app = FastAPI(title="adscope", version="0.1.0")
@@ -48,6 +49,18 @@ def get_listing(site: str, site_id: str, session=Depends(get_session),
     if listing is None:
         raise HTTPException(status_code=404, detail="annonce inconnue")
     return signals_for(listing)
+
+
+# Les statistiques d'un marchand, agrégées à la demande. La popup les demande
+# à l'ouverture d'une fiche : l'appel est la mesure d'usage de la
+# fonctionnalité, sans un seul événement de télémétrie.
+@app.get("/v1/sellers/{site}/{seller_id}", response_model=SellerStatsOut)
+def get_seller(site: str, seller_id: str, session=Depends(get_session),
+               _=Depends(require_license)):
+    stats = stats_for(session, site, seller_id)
+    if stats is None:
+        raise HTTPException(status_code=404, detail="vendeur inconnu")
+    return stats
 
 
 @app.get("/v1/me")

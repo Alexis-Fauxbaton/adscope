@@ -118,3 +118,37 @@ def test_source_claimed_by_the_client_is_ignored(client, session, key):
 def test_observations_are_attributed_to_the_calling_license(client, session, key):
     client.post("/v1/observations", json={"items": [observation()]}, headers=auth(key))
     assert session.query(PricePoint).one().license_key_hash == hash_key(key)
+
+
+def pro(site_id, **kw):
+    return observation(site_id=site_id, seller_type="pro", seller_id="76697703",
+                       seller_name="CVD AUTOMOBILES", **kw)
+
+
+def test_the_seller_route_aggregates_his_listings(client, key):
+    client.post("/v1/observations",
+                json={"items": [pro("1"), pro("2", published_days_ago=3)]},
+                headers=auth(key))
+    r = client.get("/v1/sellers/lc/76697703", headers=auth(key))
+    assert r.status_code == 200
+    body = r.json()
+    assert body["seller_name"] == "CVD AUTOMOBILES"
+    assert (body["listings"], body["over_a_month"]) == (2, 1)
+
+
+def test_an_unknown_seller_returns_404(client, key):
+    assert client.get("/v1/sellers/lc/inconnu", headers=auth(key)).status_code == 404
+
+
+def test_the_seller_route_requires_a_license(client):
+    assert client.get("/v1/sellers/lc/76697703").status_code == 401
+
+
+# La popup interroge l'API : l'appel est le signal, et il est attribué comme
+# les observations.
+def test_a_private_seller_is_never_aggregated(client, key):
+    client.post("/v1/observations",
+                json={"items": [observation(seller_type="private",
+                                            seller_id="27784407", seller_name="Fra")]},
+                headers=auth(key))
+    assert client.get("/v1/sellers/lc/27784407", headers=auth(key)).status_code == 404

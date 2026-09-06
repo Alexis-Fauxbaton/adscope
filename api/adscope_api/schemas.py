@@ -63,3 +63,26 @@ class SignalsOut(BaseModel):
     price_delta_since_first: int | None
     price_delta_days_since_first: int | None
     stable_days: int | None
+
+
+class SellerStatsOut(BaseModel):
+    """Ce qu'un marchand dit de lui-même sans le vouloir.
+
+    Les comptes accompagnent chaque statistique : une médiane sur trois
+    annonces n'est pas une médiane, et c'est au lecteur qu'il revient de le
+    savoir. `aged` porte la population des deux premières, `price_changed_listings`
+    et `price_drop_listings` celle des deux dernières.
+    """
+
+    site: str
+    seller_id: str
+    seller_name: str | None
+    listings: int
+    aged: int
+    over_a_month: int
+    over_a_month_share: float | None
+    median_age_days: int | None
+    price_changed_listings: int
+    price_drop_listings: int
+    price_drop_rate: float | None
+    price_drop_after_days: int | None
