@@ -85,6 +85,15 @@ en `UPDATE` avant la lecture du dernier prix, et cet `UPDATE` reprend le verrou 
 La sérialisation accidentelle d'avant le correctif est donc toujours là, à côté du verrou
 explicite.
 
+**Amendement (`.superpowers/concurrence-solde.md`) : ils étaient trois, et il n'en reste
+qu'un.** Le banc multi-processus a révélé un troisième mécanisme — l'`ON CONFLICT DO UPDATE`
+de `usage.bump` sur la ligne `(licence, jour, annonce)`, qui sérialisait lui aussi la lecture
+du prix quand plusieurs émetteurs partagent une licence. La lecture du dernier prix a depuis
+été remontée juste après la prise du verrou : les deux doublures disparaissent, la garantie
+tient par `.with_for_update()` seul, et `test_a_single_price_point_for_a_single_change` est
+revenu dans la suite en rougissant quand on retire cette ligne. Ce qui suit décrit l'état
+d'avant ce déplacement.
+
 Mesuré : verrou commenté, `test_a_single_price_point_for_a_single_change` passait dix fois
 sur dix — l'affirmation « le second échoue si l'on retire le verrou » était fausse. Il
 passait aussi sur le code fautif de `b506fd9`, comme son jumeau

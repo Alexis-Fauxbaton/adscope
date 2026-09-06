@@ -88,8 +88,16 @@ neuf tests de `tests/test_observations.py`
 (`test_same_price_twice_does_not_add_a_point`, `test_changed_price_adds_a_point`,
 `test_an_unchanged_price_is_confirmed_after_a_week`, …).
 
-Une note en tête de `tests/test_concurrency.py` dit pourquoi ce test manque, pour que
+Une note en tête de `tests/test_concurrency.py` disait pourquoi ce test manquait, pour que
 personne ne le remette par zèle.
+
+**Amendement (`.superpowers/concurrence-solde.md`) : le test est revenu, et il rougit.** Le
+constat ci-dessus était juste sur le code d'alors — et incomplet : les mécanismes étaient
+trois, pas deux, le troisième étant l'upsert de `usage.bump`. La lecture du dernier prix a
+été remontée immédiatement après la prise du verrou, où plus rien ne la double.
+`test_a_single_price_point_for_a_single_change` est rouge 5 fois sur 5 quand on retire
+`.with_for_update()`, et vert 5 fois sur 5 si l'on remet la lecture à sa place d'origine
+avec le verrou retiré — c'est le déplacement, et lui seul, qui l'a rendu discriminant.
 
 ## Ce que la suite surveille maintenant, ligne par ligne
 
