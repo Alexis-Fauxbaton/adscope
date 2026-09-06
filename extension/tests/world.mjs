@@ -63,12 +63,20 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
       sel.startsWith('a[href') ? (sel.match(/\/(\d+)"/)[1] === targetId ? link : null) : body.querySelector(sel),
   }
 
-  const listeners = []
-  let signals = {}
   const batches = []
   globalThis.document = doc
   const stored = {}
-  globalThis.chrome = { storage: { local: { set: (o) => Object.assign(stored, o) } } }
+  // Le service worker de fabrique : il retient les envois sans y répondre, et
+  // `arrive` joue sa réponse quand le test le décide.
+  const pending = []
+  const emitted = []
+  globalThis.chrome = {
+    storage: { local: { set: (o) => Object.assign(stored, o) } },
+    runtime: {
+      lastError: null,
+      sendMessage: (msg, respond) => (emitted.push(msg), pending.push({ msg, respond })),
+    },
+  }
   const [pathname, query] = path.split('?')
   globalThis.location = { pathname, search: query ? `?${query}` : '' }
   const bus = new EventTarget()
@@ -78,13 +86,12 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
     observe() {}
   }
   globalThis.ADS = undefined
-  for (const f of ['sites/leboncoin.js', 'format.js', 'view.js', 'diag.js', 'feed.js']) {
+  for (const f of ['sites/leboncoin.js', 'format.js', 'view.js', 'diag.js', 'sync.js', 'feed.js']) {
     delete require.cache[require.resolve(src(f))]
     require(src(f))
   }
   const extract = ADS.leboncoin.fromDocument
   ADS.leboncoin.fromDocument = (d) => (counts.extract++, extract(d))
-  ADS.sync = { send() {}, onSignals: (fn) => listeners.push(fn), of: (id) => signals[id] || null }
 
   // Une navigation monopage : l'URL et la charge JSON changent, le DOM survit.
   const visit = (a) => {
@@ -100,7 +107,17 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
     panel: () => body.querySelector('[data-adscope-detail]'),
     badge: () => card.querySelector('[data-adscope]'),
     mutate: (n) => { for (let i = 0; i < n; i++) for (const fn of batches) fn() },
-    arrive: (byId) => { signals = byId; for (const fn of listeners) fn(signals) },
+    // Ce que le content script a émis : un message par lot, dédoublonné par lui.
+    messages: () => emitted,
+    queued: () => emitted.flatMap((m) => m.listings.map((l) => l.siteId)),
+    // L'API ne répond que sur les identifiants du lot qu'on lui a soumis.
+    arrive: (byId) => {
+      for (const { msg, respond } of pending.splice(0)) {
+        const ids = new Set(msg.listings.map((l) => l.siteId))
+        const answered = Object.entries(byId).filter(([id]) => ids.has(id))
+        respond({ ok: true, sent: msg.listings.length, signals: Object.fromEntries(answered) })
+      }
+    },
     receive: (payload) =>
       bus.dispatchEvent(new CustomEvent('adscope:payload', { detail: JSON.stringify(payload) })),
     load: (f) => { delete require.cache[require.resolve(src(f))]; require(src(f)) },

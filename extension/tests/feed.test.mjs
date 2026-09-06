@@ -97,3 +97,44 @@ test('une charge sans annonce laisse la page en place', () => {
   assert.equal(w.badge().getAttribute('data-adscope'), PAGE2)
   assert.equal(w.status().listings, 1)
 })
+
+// Le suivi, lui, n'était pas paginé : les pastilles se posaient en page 2 mais
+// ces annonces n'entraient jamais en base et ne recevaient aucun signal.
+test('les annonces de la page suivante sont versées au suivi', () => {
+  const w = paginated()
+  w.load('listing.js')
+  assert.deepEqual(w.queued(), [PAGE1])
+
+  w.receive({ ads: [ad(PAGE2)] })
+  assert.deepEqual(w.queued(), [PAGE1, PAGE2])
+})
+
+test('les annonces déjà transmises ne repartent pas à chaque lot', () => {
+  const w = paginated()
+  w.load('listing.js')
+  w.receive({ ads: [ad(PAGE2)] })
+  w.mutate(5)
+  w.receive({ ads: [ad(PAGE2)] })
+  assert.equal(w.messages().length, 2)
+})
+
+test('les signaux de la page suivante atteignent sa pastille', () => {
+  const w = paginated()
+  w.load('listing.js')
+  w.receive({ ads: [ad(PAGE2)] })
+  w.arrive({ [PAGE2]: { price: 12000, price_delta_since_first: -500, price_delta_days_since_first: 4 } })
+  assert.match(w.badge().textContent, /▼ −500/)
+})
+
+test("le diagnostic dit ce qui a réellement été transmis", () => {
+  const w = paginated()
+  w.load('listing.js')
+  assert.equal(w.status().sent, 0)
+
+  w.arrive({})
+  assert.equal(w.status().sent, 1)
+
+  w.receive({ ads: [ad(PAGE2)] })
+  w.arrive({})
+  assert.equal(w.status().sent, 2)
+})

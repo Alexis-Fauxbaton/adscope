@@ -33,6 +33,9 @@ ADS.diag = (() => {
     })
   }
 
+  // `sent` est le nombre d'annonces que l'API a accusées depuis le chargement,
+  // pages suivantes comprises : c'est ce qui distingue un suivi paginé d'un
+  // premier lot resté seul.
   const listing = (listings, badges, source) => {
     if (urlId(location.pathname)) return
     write({
@@ -41,6 +44,7 @@ ADS.diag = (() => {
       pro: listings.filter((l) => l.sellerType === 'pro').length,
       badges,
       source,
+      sent: ADS.sync.sent(),
     })
   }
 

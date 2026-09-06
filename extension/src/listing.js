@@ -15,8 +15,9 @@
     return el
   }
 
-  // Deux poids visuels : la mention discrète confirme que l'extension
-  // travaille, l'alerte ne se déclenche que sur ce qui mérite l'œil.
+  // Trois poids visuels : l'alerte pour l'annonce ancienne encore poussée, un
+  // cran intermédiaire pour l'ancienne qui dort, la mention discrète pour le
+  // reste — elle confirme que l'extension travaille sans rien réclamer.
   // La pastille est posée avec la seule page, puis réécrite si des signaux
   // arrivent — d'où l'estampille, qui évite aussi de boucler avec l'observateur.
   const paint = (card, listing, now) => {
@@ -31,9 +32,9 @@
     }
     const s = signals(listing, now)
     const { page, tracked } = ADS.view.badge(s, remote)
+    const weight = s.notable || tracked ? 'notable' : s.dormant ? 'dormant' : 'quiet'
     el.className =
-      'adscope-badge' +
-      (s.notable || tracked ? ' adscope-badge--notable' : ' adscope-badge--quiet') +
+      `adscope-badge adscope-badge--${weight}` +
       (listing.sellerType === 'private' ? ' adscope-badge--private' : '')
     el.setAttribute(SRC, stamp)
     // Un nœud par origine : le suivi mutualisé ne se fond pas dans la page.
@@ -56,12 +57,15 @@
       const card = cardFor(listing.siteId)
       if (card && paint(card, listing, now)) placed++
     }
-    const seen = listings.map((l) => l.siteId).join()
+    ADS.sync.send(listings)
+    // Le compte transmis entre dans l'estampille : il change après coup, quand
+    // l'API accuse réception, et le diagnostic doit suivre même si rien d'autre
+    // n'a bougé sur la page.
+    const seen = listings.map((l) => l.siteId).join() + '|' + ADS.sync.sent()
     if (placed || seen !== reported) {
       reported = seen
       ADS.diag.listing(listings, document.querySelectorAll(`[${MARK}]`).length, ADS.feed.source())
     }
-    ADS.sync.send(listings)
   }
 
   render()

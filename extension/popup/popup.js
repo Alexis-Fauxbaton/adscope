@@ -109,6 +109,9 @@ const listingRows = (s) => [
   row('Annonces lues', String(s.listings), !s.listings),
   row('Pro / particuliers', `${s.pro} / ${s.listings - s.pro}`),
   row('Pastilles posées', String(s.badges), !s.badges),
+  // Cumulé sur toute la vie de la page, pages suivantes comprises : c'est ce que
+  // l'API a réellement accusé, et non ce que la page affiche en ce moment.
+  row("Transmises depuis l'ouverture", String(s.sent ?? 0), !s.sent),
 ]
 
 const trouble = (s) => {
