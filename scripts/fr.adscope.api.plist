@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>fr.adscope.api</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__API__/.venv/bin/uvicorn</string>
+    <string>adscope_api.main:app</string>
+    <string>--host</string><string>127.0.0.1</string>
+    <string>--port</string><string>8000</string>
+    <string>--log-level</string><string>warning</string>
+  </array>
+
+  <key>WorkingDirectory</key><string>__API__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>DATABASE_URL</key><string>postgresql+psycopg://localhost/adscope</string>
+  </dict>
+
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+
+  <key>StandardOutPath</key><string>__HOME__/Library/Logs/adscope-api.log</string>
+  <key>StandardErrorPath</key><string>__HOME__/Library/Logs/adscope-api.log</string>
+</dict>
+</plist>
