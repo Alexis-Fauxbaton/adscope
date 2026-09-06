@@ -22,7 +22,10 @@
   // arrivent — d'où l'estampille, qui évite aussi de boucler avec l'observateur.
   const paint = (card, listing, now) => {
     const remote = ADS.sync.of(listing.siteId)
-    const stamp = remote ? 'sync' : 'page'
+    // L'origine entre dans l'estampille : les signaux du cache sont posés
+    // d'abord, ceux du réseau les remplacent, et sans cette distinction la
+    // pastille resterait sur les premiers.
+    const stamp = ADS.sync.originOf(listing.siteId) || 'page'
     let el = card.querySelector(`[${MARK}]`)
     if (el && el.getAttribute(SRC) === stamp) return false
     if (!el) {

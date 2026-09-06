@@ -1,32 +1,9 @@
-import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
-import { dirname, join } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { runtime as fresh } from './runtime.mjs'
 
-const here = dirname(fileURLToPath(import.meta.url))
-const require = createRequire(import.meta.url)
-const src = (f) => join(here, '../src/', f)
-const load = (f) => (delete require.cache[require.resolve(src(f))], require(src(f)))
-
-// Un service worker de fabrique : `answer` décide de la réponse, `calls`
-// enregistre ce que le content script a réellement émis.
-const fresh = (answer) => {
-  const calls = []
-  globalThis.ADS = undefined
-  globalThis.chrome = {
-    runtime: {
-      id: 'adscope',
-      lastError: null,
-      sendMessage(msg, respond) {
-        calls.push(msg)
-        answer(respond, globalThis.chrome.runtime, msg)
-      },
-    },
-  }
-  load('context.js')
-  return { sync: load('sync.js'), calls }
-}
+// Le cache reste vide dans tout ce fichier : ce qui s'y joue est l'envoi et
+// la réponse du réseau. Le cache a le sien.
 
 const ok = { ok: true, sent: 1, signals: { '42': { site_id: '42', tracked_days: 3 } } }
 const listings = [{ site: 'lbc', siteId: '42' }]

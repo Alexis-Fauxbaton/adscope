@@ -16,6 +16,10 @@ ADS.diag = (() => {
         url: location.pathname + location.search,
         nextData: !!document.getElementById('__NEXT_DATA__'),
         at: Date.now(),
+        // D'où viennent les signaux affichés : le cache répond tout de suite,
+        // le réseau les remplace ensuite. La popup doit pouvoir dire lequel
+        // des deux tient l'encart sous les yeux du lecteur.
+        sources: ADS.sync.counts(),
         ...fields,
       },
     }),

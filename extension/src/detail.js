@@ -59,7 +59,9 @@
     el.replaceChildren(...nodes)
   }
 
-  const stampOf = (siteId) => (ADS.sync.of(siteId) ? 'sync' : 'page')
+  // L'origine des signaux, pas leur seule présence : le panneau posé avec ce
+  // que le cache savait doit se réécrire quand le réseau répond.
+  const stampOf = (siteId) => ADS.sync.originOf(siteId) || 'page'
 
   // Quelle annonce est lue : l'URL le dit, le panneau déjà posé non — sur une
   // application monopage il survit au passage à la fiche suivante. Hors fiche
@@ -98,7 +100,7 @@
       target.parentElement.insertBefore(el, target.nextSibling)
     }
     el.setAttribute(MARK, listing.siteId)
-    el.setAttribute(SRC, remote ? 'sync' : 'page')
+    el.setAttribute(SRC, stampOf(listing.siteId))
     fill(el, listing, remote, node && node.textContent.trim())
     ADS.diag.detail(listings, listing, ADS.feed.detailSource(listing.siteId))
   })

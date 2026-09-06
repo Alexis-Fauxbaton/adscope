@@ -41,7 +41,7 @@ class El {
 // `path` et `data` décrivent la page ouverte : quelle fiche l'URL désigne, et
 // quelles annonces le bloc `__NEXT_DATA__` porte. `receive` joue ce que le
 // script de monde MAIN publie quand le navigateur reçoit une nouvelle page.
-export const world = (targetId, { path = '/ad/voitures/3254194817', data = block() } = {}) => {
+export const world = (targetId, { path = '/ad/voitures/3254194817', data = block(), cache = {} } = {}) => {
   const counts = { extract: 0, scan: 0 }
   const body = new El('body')
   const date = new El('p')
@@ -70,12 +70,21 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
   // `arrive` joue sa réponse quand le test le décide.
   const pending = []
   const emitted = []
+  const asked = []
   globalThis.chrome = {
     storage: { local: { set: (o) => Object.assign(stored, o) } },
     runtime: {
       id: 'adscope',
       lastError: null,
-      sendMessage: (msg, respond) => (emitted.push(msg), pending.push({ msg, respond })),
+      // La lecture du cache répond seule et tout de suite, comme le fait le
+      // service worker : c'est ce qui permet à l'encart de s'afficher avant
+      // le réseau. `cache` dit ce que l'extension savait déjà.
+      sendMessage: (msg, respond) => {
+        if (msg.type !== 'cached') return emitted.push(msg), pending.push({ msg, respond })
+        asked.push(msg)
+        const hits = msg.ids.filter((id) => id in cache).map((id) => [id, cache[id]])
+        respond({ ok: true, signals: Object.fromEntries(hits) })
+      },
     },
   }
   const [pathname, query] = path.split('?')
@@ -121,6 +130,7 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
     },
     // Ce que le content script a émis : un message par lot, dédoublonné par lui.
     messages: () => emitted,
+    asked: () => asked,
     queued: () => emitted.flatMap((m) => m.listings.map((l) => l.siteId)),
     // L'API ne répond que sur les identifiants du lot qu'on lui a soumis.
     arrive: (byId) => {
