@@ -19,11 +19,39 @@ Conséquence directe pour la détection de republication : elle ne discrimine qu
 60 jours. Passé ce seuil, une annonce en ligne depuis 61 jours et une autre depuis deux
 ans portent le même libellé. Ce n'est pas un défaut d'analyse, c'est une limite du site.
 
-## Rien sur les cartes
+## Rien à l'écran sur les cartes, mais tout dans la charge
 
-La page de résultats (24 cartes) ne contient aucune mention d'ancienneté : ni `il y a`,
-ni `publiée`, ni un nombre de jours. L'ancienneté n'existe que sur les fiches — donc pas
-de collecte possible par page de résultats, une visite de fiche par annonce.
+La page de résultats ne **montre** aucune ancienneté : ni « il y a », ni « publiée », ni un
+nombre de jours. Le relevé initial en concluait qu'une visite de fiche par annonce serait
+nécessaire.
+
+**C'est faux.** Vérifié le 2026-09-06 sur la page de résultats sauvegardée : le blob
+`__NEXT_DATA__` porte, pour chacune des 23 annonces, la date exacte de mise en ligne.
+
+```
+"reference":"W103496285", "customerType":"PRO", "price":8200,
+"lastUpdate":1787208912, "firstOnlineDate":"2026-06-04",
+"contacts":{"nomPublie":"BORGESE AUTO","siret":"34051417300012", …}
+```
+
+La page de résultats est donc la **meilleure** surface de La Centrale, et non la plus
+pauvre : une requête donne 23 anciennetés exactes, le type de vendeur, le prix, et
+l'identité du professionnel.
+
+Sur les 30 dates relevées, **13 dépassent 60 jours, jusqu'à 325** — toutes plafonnées à
+« 60 jours » par la fiche, et invisibles sur la carte.
+
+### `lastUpdate`, un signal de rafraîchissement
+
+Chaque annonce porte aussi `lastUpdate`, un horodatage epoch postérieur à la mise en ligne.
+Écarts observés : de 1 jour à 77 jours.
+
+À traiter avec la même prudence que « réactualisée » sur leboncoin : on ignore si c'est une
+remontée payée ou une simple modification. Le mot doit décrire le fait, pas en inventer la
+cause.
+
+Fixture extraite : `extension/tests/fixtures/lacentrale-resultats.json` — identité de
+vendeur retenue pour les professionnels seulement.
 
 ## Le nœud DOM
 
