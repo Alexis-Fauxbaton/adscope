@@ -98,6 +98,30 @@ const diagnose = (status) => {
   if (text) box.append(hint(text, bad))
 }
 
+// Ce que la fiche ouverte ne dit pas : le stock du marchand. La demande à
+// l'API est elle-même la mesure d'usage de la fonctionnalité — rien d'autre
+// n'est à collecter.
+const lead = (text) => {
+  const d = document.createElement('div')
+  d.className = 'lead'
+  d.textContent = text
+  return d
+}
+
+const showSeller = async (status) => {
+  if (!status || status.kind !== 'detail' || !status.sellerId) return
+  const stats = await ADS.seller.fetch(
+    base(el('api').value), key, status.site || 'lbc', status.sellerId,
+  )
+  const block = ADS.seller.block(stats)
+  if (!block) return
+  el('seller-title').textContent = block.title
+  const box = el('seller')
+  box.replaceChildren(lead(block.lead), ...block.rows.map(line))
+  if (block.note) box.append(hint(block.note))
+  el('seller-box').hidden = false
+}
+
 // Le cache est tenu par le service worker : lui seul sait ce qu'il contient.
 const ask = (msg) => chrome.runtime.sendMessage(msg).catch(() => null)
 
@@ -119,4 +143,5 @@ chrome.storage.local.get(['licenseKey', 'apiBase', 'status']).then((stored) => {
   showKey()
   diagnose(stored.status)
   showCache()
+  showSeller(stored.status)
 })

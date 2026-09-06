@@ -80,3 +80,24 @@ test("sur une fiche, le diagnostic dit d'où vient l'annonce lue", () => {
   assert.equal(w.status().pickedId, PRIVATE)
   assert.equal(w.status().source, 'live')
 })
+
+// La popup interroge l'API sur le vendeur de la fiche ouverte : elle a besoin
+// de son identifiant, que seul le content script a lu.
+test('le vendeur professionnel de la fiche est consigné pour la popup', () => {
+  const shop = {
+    ...ad(PRO),
+    owner: { type: 'pro', store_id: '76697703', name: 'CVD AUTOMOBILES' },
+  }
+  const w = world('0', { path: `/ad/voitures/${PRO}`, data: block(shop) })
+  w.load('detail.js')
+  assert.equal(w.status().site, 'lbc')
+  assert.equal(w.status().sellerId, '76697703')
+  assert.equal(w.status().sellerName, 'CVD AUTOMOBILES')
+})
+
+test("un particulier ne laisse aucun identifiant dans le diagnostic", () => {
+  const w = world('0', { path: `/ad/voitures/${PRIVATE}`, data: TWO })
+  w.load('detail.js')
+  assert.equal(w.status().sellerId, null)
+  assert.equal(w.status().sellerName, null)
+})

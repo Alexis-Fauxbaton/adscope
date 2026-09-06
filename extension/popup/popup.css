@@ -143,3 +143,11 @@ button.wide {
 /* L'accord se contente d'une coche discrète, le désaccord prend l'alerte. */
 .mark { font-weight: 400; color: var(--mute); }
 .bad .mark { color: inherit; }
+
+/* Le stock du marchand, lu d'un coup d'œil avant le détail des lignes. */
+.lead {
+  margin-bottom: 4px;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

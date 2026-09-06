@@ -39,6 +39,11 @@ ADS.diag = (() => {
       urlId: id,
       matchesUrl: picked.siteId === id,
       sellerType: picked.sellerType,
+      // Ce que la popup ne peut pas lire elle-même : elle n'a pas la page. Vide
+      // pour un particulier, dont les annonces ne s'agrègent pas.
+      site: picked.site,
+      sellerId: picked.sellerId || null,
+      sellerName: picked.sellerName || null,
     })
   }
 
