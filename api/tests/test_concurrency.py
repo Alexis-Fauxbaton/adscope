@@ -5,11 +5,11 @@ barrière : une simulation séquentielle ne provoque pas la collision et ne
 prouverait rien. Ils tiennent les invariants écrits dans `observations`.
 
 Chacun rougit quand on retire du code une ligne nommée — la démonstration est
-tenue dans `.superpowers/tests-discriminants.md`. On n'y trouvera pas de test
-concurrent du point de prix unique : la lecture du dernier prix est sérialisée
-deux fois, par le verrou et par l'écriture de `observations` que SQLAlchemy
-chasse avant elle ; aucune ligne retirée seule ne fait rougir un tel test, et
-la règle « un point par changement réel » se prouve dans `test_observations`.
+tenue dans `.superpowers/tests-discriminants.md` et
+`.superpowers/concurrence-solde.md`. Le point de prix unique en fait désormais
+partie : la lecture du dernier prix a été remontée juste après le verrou, où
+plus rien d'autre ne la sérialise, et le test ci-dessous rougit quand on retire
+`.with_for_update()`. Il ne le pouvait pas tant qu'elle se lisait plus bas.
 """
 
 import threading
@@ -20,7 +20,7 @@ from sqlalchemy import func, select
 from adscope_api.auth import hash_key
 from adscope_api.intake import ObservationIn, ObservationsIn
 from adscope_api.main import post_observations
-from adscope_api.models import License, Listing
+from adscope_api.models import License, Listing, PricePoint
 from adscope_api.observations import record
 
 NOW = datetime(2026, 9, 5, 12, 0, tzinfo=timezone.utc)
@@ -134,3 +134,20 @@ def test_two_crossed_batches_do_not_deadlock(session, concurrently):
         post_observations(batches[index], session=s, license_=license_)
 
     assert concurrently(2, send) == []
+
+
+# La lecture du dernier prix ne tient que par le verrou, et seulement parce
+# qu'elle est la première instruction qui suit sa prise. Dix marchands qui
+# voient ensemble la même baisse n'écrivent qu'un point ; sans le verrou ils en
+# écrivent dix, chacun ayant lu l'ancien prix avant que quiconque écrive.
+def test_a_single_price_point_for_a_single_change(session, concurrently):
+    record(session, obs(), source="user", now=NOW)
+    session.commit()
+    later = NOW + timedelta(hours=1)
+    errors = concurrently(
+        WRITERS, lambda i, s: record(s, obs(price=8900), source="user", now=later)
+    )
+    assert errors == []
+    assert session.scalars(
+        select(PricePoint.price).order_by(PricePoint.id)
+    ).all() == [9900, 8900]

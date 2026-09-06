@@ -71,6 +71,28 @@ def record(session, observation: ObservationIn, source: str, license_=None,
 
     listing = _locked(session, observation, now)
 
+    # Un point par changement réel, lu et écrit avant toute autre écriture : le
+    # verrou pris à l'instant est alors seul à le sérialiser. Plus bas, deux
+    # écritures le doublaient sans le dire, et aucun test ne le surveillait.
+    if observation.price is not None:
+        latest = session.scalar(
+            select(PricePoint)
+            .where(PricePoint.listing_id == listing.id)
+            .order_by(PricePoint.observed_at.desc(), PricePoint.id.desc())
+            .limit(1)
+        )
+        changed = latest is None or latest.price != observation.price
+        due = latest is not None and now - latest.observed_at >= CONFIRM_AFTER
+        if changed or due:
+            # Qui a envoyé quoi : la seule mesure d'usage du produit, prise
+            # sur ce qu'on enregistrait déjà.
+            session.add(PricePoint(
+                listing_id=listing.id, observed_at=now,
+                price=observation.price, source=source,
+                confirmation=not changed,
+                license_key_hash=license_.key_hash if license_ is not None else None,
+            ))
+
     for field in VEHICLE_FIELDS:
         value = getattr(observation, field)
         if value is not None:
@@ -124,27 +146,5 @@ def record(session, observation: ObservationIn, source: str, license_=None,
     # reparcourt des annonces stables paraissait alors inactif. `listing.id` est
     # acquis depuis `_locked` : plus de `flush` à placer au bon endroit.
     bump(session, license_, listing.id, now.date())
-
-    # Un point par changement réel. La lecture du dernier point et l'écriture
-    # du suivant se font sous le verrou pris plus haut : deux observations
-    # simultanées du même changement n'en écrivent qu'un.
-    if observation.price is not None:
-        latest = session.scalar(
-            select(PricePoint)
-            .where(PricePoint.listing_id == listing.id)
-            .order_by(PricePoint.observed_at.desc(), PricePoint.id.desc())
-            .limit(1)
-        )
-        changed = latest is None or latest.price != observation.price
-        due = latest is not None and now - latest.observed_at >= CONFIRM_AFTER
-        if changed or due:
-            # Qui a envoyé quoi : la seule mesure d'usage du produit, prise
-            # sur ce qu'on enregistrait déjà.
-            session.add(PricePoint(
-                listing_id=listing.id, observed_at=now,
-                price=observation.price, source=source,
-                confirmation=not changed,
-                license_key_hash=license_.key_hash if license_ is not None else None,
-            ))
 
     return listing
