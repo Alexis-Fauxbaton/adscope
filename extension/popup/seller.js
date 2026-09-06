@@ -5,6 +5,13 @@ globalThis.ADS = globalThis.ADS || {}
 // Elles ne disent plus « cette annonce est vieille » mais « ce marchand a du
 // stock qui dort et il finit par baisser » — un argument de négociation, tiré
 // de ses propres annonces.
+//
+// Encore faut-il que ce soit vrai. Le relevé ne porte pas le stock du
+// marchand : il porte les annonces de ce marchand **que nos navigations ont
+// croisées** et revues dans la fenêtre. Il en tient peut-être deux cents dont
+// nous connaissons vingt-neuf ; nous n'avons aucun moyen de savoir combien, et
+// c'est ce que le bloc doit dire. Un chiffre cité de travers dans une
+// négociation ne se rattrape pas.
 ADS.seller = (() => {
   // En dessous, une médiane n'est pas une médiane : c'est le rang d'une des
   // trois annonces qu'on a vues. Le chiffre reste affiché — c'est le seul
@@ -24,13 +31,21 @@ ADS.seller = (() => {
   // recopié dans un tableur.
   const rate = (r) => `${(r * 100).toFixed(1).replace('-', '−').replace('.', ',')} %`
 
-  const fall = (s) =>
-    s.price_drop_listings && s.price_drop_rate != null
-      ? rate(s.price_drop_rate) +
+  // Trois issues, et pas deux : n'avoir vu aucun prix bouger n'est pas la même
+  // chose qu'en avoir vu bouger quatre sans qu'aucun descende. La seconde est
+  // un renseignement — ce marchand tient ses prix.
+  const fall = (s) => {
+    if (s.price_drop_listings && s.price_drop_rate != null) {
+      return rate(s.price_drop_rate) +
         (s.price_drop_after_days == null
           ? ''
           : ` après ${days(s.price_drop_after_days)} en ligne`)
-      : 'aucune encore observée'
+    }
+    const changed = s.price_changed_listings
+    return changed
+      ? `aucune sur ${changed} changement${plural(changed)} de prix vu${plural(changed)}`
+      : 'aucun prix n’a bougé sous nos yeux'
+  }
 
   const thin = (n) => (n < MIN_SAMPLE ? '≈' : undefined)
 
@@ -44,14 +59,23 @@ ADS.seller = (() => {
       : ''
   }
 
+  // Ce que la fenêtre couvre, dit avant les chiffres qu'elle porte. La fenêtre
+  // vient du relevé : un seul seuil, tenu par l'API, jamais réinventé ici.
+  const scope = (s) =>
+    `Les annonces de ce vendeur qu'adscope a croisées et revues ces ` +
+    `${s.window_days} derniers jours. Son catalogue réel nous est inconnu : ` +
+    `il peut être bien plus large, et tout ce qui suit ne parle que de ces ` +
+    `${s.listings}.`
+
   const block = (s) => {
     if (!s) return null
     return {
       title: s.seller_name ? `Ce vendeur — ${s.seller_name}` : 'Ce vendeur',
-      lead: `${s.listings} annonce${plural(s.listings)} en ligne`,
+      lead: `${s.listings} annonce${plural(s.listings)} de ce vendeur vue${plural(s.listings)} par adscope`,
+      scope: scope(s),
       rows: [
         {
-          label: `${s.over_a_month} depuis plus d'un mois`,
+          label: `${s.over_a_month} sur ${s.aged} datées depuis plus d'un mois`,
           value: percent(s.over_a_month_share),
           mark: thin(s.aged),
         },

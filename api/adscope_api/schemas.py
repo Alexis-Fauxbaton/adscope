@@ -54,6 +54,11 @@ class SignalsOut(BaseModel):
 class SellerStatsOut(BaseModel):
     """Ce qu'un marchand dit de lui-même sans le vouloir.
 
+    `listings` n'est pas son stock : c'est le nombre de ses annonces que notre
+    base connaît et qui ont été revues dans les `window_days` derniers jours.
+    Son catalogue réel nous est inconnu, et la fenêtre part avec le relevé pour
+    que l'affichage puisse le dire.
+
     Les comptes accompagnent chaque statistique : une médiane sur trois
     annonces n'est pas une médiane, et c'est au lecteur qu'il revient de le
     savoir. `aged` porte la population des deux premières, `price_changed_listings`
@@ -64,6 +69,7 @@ class SellerStatsOut(BaseModel):
     seller_id: str
     seller_name: str | None
     listings: int
+    window_days: int
     aged: int
     over_a_month: int
     over_a_month_share: float | None

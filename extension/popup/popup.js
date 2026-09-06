@@ -117,7 +117,8 @@ const showSeller = async (status) => {
   if (!block) return
   el('seller-title').textContent = block.title
   const box = el('seller')
-  box.replaceChildren(lead(block.lead), ...block.rows.map(line))
+  // La portée avant les chiffres : elle dit de quelle population ils sortent.
+  box.replaceChildren(lead(block.lead), hint(block.scope), ...block.rows.map(line))
   if (block.note) box.append(hint(block.note))
   el('seller-box').hidden = false
 }

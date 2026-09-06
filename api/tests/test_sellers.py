@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from adscope_api.models import Listing, PricePoint
-from adscope_api.sellers import stats_for
+from adscope_api.sellers import ONLINE_WINDOW_DAYS, stats_for
 
 NOW = datetime(2026, 9, 6, 12, 0, tzinfo=timezone.utc)
 
@@ -130,3 +130,11 @@ def test_a_confirmed_price_is_not_a_changed_price(session):
 def test_the_drop_delay_stops_at_the_drop_not_at_the_last_confirmation(session):
     listing(session, "1", published=60, prices=((30, 10000), (20, 9000), (1, 9000, "confirm")))
     assert stats(session)["price_drop_after_days"] == 40
+
+
+# La population n'est pas le stock du marchand : ce sont ses annonces que nos
+# navigations ont mises en base, revues dans la fenêtre. La fenêtre voyage avec
+# le relevé pour que la popup la dise sans la réinventer.
+def test_the_window_travels_with_the_statistics(session):
+    listing(session, "1")
+    assert stats(session)["window_days"] == ONLINE_WINDOW_DAYS

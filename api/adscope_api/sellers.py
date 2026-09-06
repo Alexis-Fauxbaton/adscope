@@ -1,9 +1,15 @@
 """Statistiques d'un vendeur professionnel.
 
-Ce que le marchand ne montre pas de lui-même : combien d'annonces il tient en
-ligne, depuis combien de temps, et de combien il finit par baisser. Tout se
-déduit de ses propres annonces, publiées volontairement — il ne peut pas le
-masquer.
+Ce que le marchand ne montre pas de lui-même : depuis combien de temps ses
+annonces sont en ligne, et de combien il finit par baisser. Tout se déduit de
+ses propres annonces, publiées volontairement — il ne peut pas le masquer.
+
+**La population n'est pas son stock.** Ce sont ses annonces *présentes dans
+notre base* — celles que la navigation de nos utilisateurs y a mises — et revues
+depuis moins de `ONLINE_WINDOW_DAYS` jours. Un marchand peut en tenir deux cents
+dont nous connaissons vingt-neuf, et rien ici ne permet de savoir combien il en
+a : ni la charge leboncoin, ni la fiche ouverte ne portent ce nombre. La
+fenêtre sort donc avec le relevé, pour que l'affichage dise ce qu'il compte.
 
 Les définitions comptent autant que les nombres, chacune est justifiée ici.
 """
@@ -98,6 +104,8 @@ def stats_for(session, site: str, seller_id: str, now=None) -> dict | None:
     return {
         "site": site,
         "seller_id": seller_id,
+        # La fenêtre voyage avec ses chiffres : l'affichage ne la réinvente pas.
+        "window_days": ONLINE_WINDOW_DAYS,
         "seller_name": next(
             (l.seller_name for l in reversed(listings) if l.seller_name), None
         ),

@@ -12,24 +12,48 @@ const seller = require(join(here, '../popup/seller.js'))
 // Le relevé que l'API rend, tel que la popup le reçoit.
 const stats = (over = {}) => ({
   site: 'lbc', seller_id: '73911', seller_name: 'ENTREPOT 222',
-  listings: 29, aged: 29, over_a_month: 18, over_a_month_share: 0.621,
-  median_age_days: 47, price_changed_listings: 12, price_drop_listings: 9,
-  price_drop_rate: -0.032, price_drop_after_days: 42, ...over,
+  listings: 29, aged: 29, window_days: 30, over_a_month: 18,
+  over_a_month_share: 0.621, median_age_days: 47, price_changed_listings: 12,
+  price_drop_listings: 9, price_drop_rate: -0.032, price_drop_after_days: 42,
+  ...over,
 })
 
 const value = (b, label) => (b.rows.find((r) => r.label === label) || {}).value
 
-test('le bloc nomme le marchand et son stock en ligne', () => {
+// « 29 annonces en ligne » se lisait comme le stock du marchand. C'en est
+// notre échantillon : les annonces que nos navigations ont croisées et revues
+// dans la fenêtre. Un marchand qui en tient deux cents dont nous connaissons
+// vingt-neuf ne doit pas voir son stock annoncé à vingt-neuf.
+test("le bloc dit ce qu'il compte : ce qu'adscope a vu, pas le stock", () => {
   const b = seller.block(stats())
   assert.equal(b.title, 'Ce vendeur — ENTREPOT 222')
-  assert.equal(b.lead, '29 annonces en ligne')
+  assert.equal(b.lead, '29 annonces de ce vendeur vues par adscope')
 })
 
-test("la part au delà d'un mois se lit en clair", () => {
+test("la portée dit la fenêtre et qu'on ne connaît pas le catalogue", () => {
+  const b = seller.block(stats())
+  assert.match(b.scope, /30 derniers jours/)
+  assert.match(b.scope, /catalogue|stock/)
+})
+
+// La fenêtre est celle de l'API : un seul seuil, et la popup ne le réinvente
+// pas. Sans elle, la portée ne prétend rien sur une durée.
+test('la fenêtre affichée est celle que le relevé porte', () => {
+  assert.match(seller.block(stats({ window_days: 45 })).scope, /45 derniers jours/)
+})
+
+test("la part au delà d'un mois porte sa population", () => {
   const b = seller.block(stats())
   // Espace insécable avant le signe, comme pour les prix.
-  assert.equal(value(b, "18 depuis plus d'un mois"), '62\u00a0%')
+  assert.equal(value(b, "18 sur 29 datées depuis plus d'un mois"), '62\u00a0%')
   assert.equal(value(b, "Médiane d'ancienneté"), '47 j')
+})
+
+// La part se rapporte aux annonces dont l'ancienneté est connue, pas au
+// nombre vu : le libellé doit nommer la bonne population.
+test("la population de la part est celle des annonces datées", () => {
+  const b = seller.block(stats({ listings: 29, aged: 20, over_a_month: 12, over_a_month_share: 0.6 }))
+  assert.equal(value(b, "12 sur 20 datées depuis plus d'un mois"), '60\u00a0%')
 })
 
 test('la baisse moyenne porte son délai', () => {
@@ -42,8 +66,16 @@ test('la baisse moyenne porte son délai', () => {
 // Ne pas afficher un chiffre qui n'existe pas : tant qu'aucune baisse n'a été
 // vue, la ligne dit qu'on n'en a pas vu, pas « 0 % ».
 test("une baisse jamais observée se dit, elle ne se chiffre pas", () => {
-  const b = seller.block(stats({ price_drop_listings: 0, price_drop_rate: null, price_drop_after_days: null }))
-  assert.equal(value(b, 'Baisse moyenne constatée'), 'aucune encore observée')
+  const b = seller.block(stats({ price_changed_listings: 0, price_drop_listings: 0, price_drop_rate: null, price_drop_after_days: null }))
+  assert.equal(value(b, 'Baisse moyenne constatée'), 'aucun prix n’a bougé sous nos yeux')
+})
+
+// Des prix ont bougé, aucun vers le bas : ce n'est pas la même chose que ne
+// rien avoir vu bouger, et c'est ce que comptait `price_changed_listings` —
+// calculé, rendu par l'API, jamais affiché jusqu'ici.
+test('des changements sans baisse ne se taisent pas', () => {
+  const b = seller.block(stats({ price_changed_listings: 4, price_drop_listings: 0, price_drop_rate: null, price_drop_after_days: null }))
+  assert.equal(value(b, 'Baisse moyenne constatée'), 'aucune sur 4 changements de prix vus')
 })
 
 // Une médiane sur trois annonces n'est pas une médiane : elle est marquée, et

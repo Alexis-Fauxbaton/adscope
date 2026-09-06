@@ -27,9 +27,10 @@ class El {
 
 const stats = (over = {}) => ({
   site: 'lbc', seller_id: '73911', seller_name: 'ENTREPOT 222',
-  listings: 11, aged: 11, over_a_month: 3, over_a_month_share: 0.273,
-  median_age_days: 7, price_changed_listings: 0, price_drop_listings: 0,
-  price_drop_rate: null, price_drop_after_days: null, ...over,
+  listings: 11, aged: 11, window_days: 30, over_a_month: 3,
+  over_a_month_share: 0.273, median_age_days: 7, price_changed_listings: 0,
+  price_drop_listings: 0, price_drop_rate: null, price_drop_after_days: null,
+  ...over,
 })
 
 const detail = (over = {}) => ({
@@ -69,13 +70,21 @@ const open = async ({ status, answer = async () => ({ ok: true, json: async () =
   return { nodes, asked }
 }
 
-test('sur une fiche de marchand, la popup demande et montre son stock', async () => {
+test('sur une fiche de marchand, la popup demande et montre ce qu’on a vu', async () => {
   const { nodes, asked } = await open({ status: detail() })
   assert.equal(asked[0], 'http://api/v1/sellers/lbc/73911')
   assert.equal(nodes['seller-box'].hidden, false)
   assert.equal(nodes['seller-title'].textContent, 'Ce vendeur — ENTREPOT 222')
-  assert.match(nodes.seller.text, /11 annonces en ligne/)
+  assert.match(nodes.seller.text, /11 annonces de ce vendeur vues par adscope/)
   assert.match(nodes.seller.text, /Médiane d'ancienneté/)
+})
+
+// La portée n'est pas une note de bas de page : elle est lue avant les
+// chiffres, sinon le lecteur prend l'échantillon pour le catalogue.
+test('la fenêtre affiche la portée du relevé avec ses chiffres', async () => {
+  const { nodes } = await open({ status: detail() })
+  assert.match(nodes.seller.text, /30 derniers jours/)
+  assert.match(nodes.seller.text, /catalogue réel nous est inconnu/)
 })
 
 test('un particulier ne déclenche aucune demande et aucun bloc', async () => {

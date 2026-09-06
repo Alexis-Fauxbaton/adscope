@@ -120,6 +120,7 @@ def test_the_seller_route_aggregates_his_listings(client, key):
     body = r.json()
     assert body["seller_name"] == "CVD AUTOMOBILES"
     assert (body["listings"], body["over_a_month"]) == (2, 1)
+    assert body["window_days"] == 30
 
 
 def test_an_unknown_seller_returns_404(client, key):
