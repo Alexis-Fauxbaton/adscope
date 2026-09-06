@@ -30,18 +30,29 @@ ADS.sync = (() => {
     for (const fn of listeners) fn(signals)
   }
 
-  const ask = (msg, fn) =>
+  const ask = (msg, fn, fail) =>
     chrome.runtime.sendMessage(msg, (res) => {
       // Lire lastError évite que Chrome le rapporte dans la console de la page.
-      if (chrome.runtime.lastError || !res || !res.ok) return
+      if (chrome.runtime.lastError || !res || !res.ok) return fail && fail()
       fn(res)
     })
 
+  // Ce que l'API n'a pas pris doit repartir : un lot refusé — serveur éteint,
+  // 500, lot mal formé — emportait sinon toute la page, sans trace. Les
+  // identifiants sont relâchés et la charge suivante les remporte.
+  //
+  // Mais la page produit ses lots de mutations en rafale, et chacun rappelle
+  // `send` : sans délai, une API éteinte serait resollicitée dix fois par
+  // seconde. La pause laisse passer la rafale, pas la page suivante.
+  const RETRY_PAUSE_MS = 30000
+  let pausedUntil = 0
+
   const send = ADS.context.guard((listings) => {
+    if (Date.now() < pausedUntil) return
     const fresh = listings.filter((l) => !queued.has(l.siteId))
     if (!fresh.length) return
-    // Marquées avant la réponse : un envoi qui échoue n'est pas rejoué, sans quoi
-    // une API injoignable serait resollicitée à chaque lot de mutations.
+    // Marquées avant la réponse, relâchées si elle est mauvaise : deux envois
+    // simultanés ne portent jamais la même annonce, et rien ne se perd.
     for (const l of fresh) queued.add(l.siteId)
     // Le cache d'abord : ce qu'on savait s'affiche sans attendre le réseau, et
     // hors ligne c'est la seule réponse qui viendra.
@@ -55,6 +66,9 @@ ADS.sync = (() => {
       // diagnostic doit dire : le rendu est rejoué.
       signals = signals || {}
       notify()
+    }, () => {
+      for (const l of fresh) queued.delete(l.siteId)
+      pausedUntil = Date.now() + RETRY_PAUSE_MS
     })
   })
 

@@ -118,3 +118,46 @@ test('une API injoignable ne fait ni erreur ni signal', () => {
   sync.send(listings)
   assert.equal(sync.of('42'), null)
 })
+
+// Ce que l'API n'a pas pris, personne ne le reprenait : les identifiants
+// étaient marqués transmis avant la réponse. Un lot refusé — API éteinte, 500,
+// lot mal formé — emportait la page entière d'observations, sans trace.
+const failing = (answer) => {
+  let broken = true
+  const { sync, calls } = fresh((respond, runtime, msg) =>
+    broken ? respond({ ok: false, reason: '500' }) : answer(respond, runtime, msg))
+  return { sync, calls, repair: () => (broken = false) }
+}
+
+// Le temps de la pause : les tests le font passer plutôt que de l'attendre.
+const later = (ms, fn) => {
+  const now = Date.now
+  Date.now = () => now() + ms
+  try { fn() } finally { Date.now = now }
+}
+
+test('un envoi refusé repart avec la charge suivante', () => {
+  const { sync, calls, repair } = failing(echo)
+  sync.send(listings)
+  repair()
+  later(60000, () => sync.send(listings))
+  assert.equal(calls.length, 2)
+  assert.deepEqual(calls[1].listings, listings)
+  assert.equal(sync.of('42').tracked_days, 3)
+})
+
+// Le rejeu ne doit pas devenir un martèlement : la page produit des lots de
+// mutations en rafale, et chacun rappelle `send`.
+test('une API éteinte n’est pas resollicitée à chaque lot de mutations', () => {
+  const { sync, calls } = failing(echo)
+  for (let i = 0; i < 5; i++) sync.send(listings)
+  assert.equal(calls.length, 1)
+})
+
+test('la pause passée, un envoi refusé ne compte toujours pas comme transmis', () => {
+  const { sync } = failing(echo)
+  sync.send(listings)
+  assert.equal(sync.sent(), 0)
+  later(60000, () => sync.send(listings))
+  assert.equal(sync.sent(), 0)
+})
