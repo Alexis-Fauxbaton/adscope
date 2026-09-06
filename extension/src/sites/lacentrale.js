@@ -99,9 +99,13 @@ ADS.lacentrale = ADS.sites.register((() => {
   // 1 810 jours en ligne et affiche « Publiée il y a 60 jours » ; au-delà de ce plafond,
   // son libellé ne distingue plus rien, et l'écart, lui, se mesure.
   const CAP_DAYS = 60
-  // Non mesuré, valeur par défaut assumée : les 23 cartes relevées ne couvrent qu'un jour
-  // de résultats, trop peu pour poser une borne. 31 jours est la borne de leboncoin, où
-  // elle a été mesurée ; ici elle ne pèse que sur l'appui visuel, jamais sur l'alerte.
+  // Mesuré le 2026-09-06, et la mesure conclut à l'insuffisance : la base porte 24 annonces
+  // du site, toutes d'un seul relevé, dont 5 dans la fenêtre [31, 60] que ce seuil découpe.
+  // Aucune borne ne s'y dessine, et l'absence est vérifiée : en tirant 23 anciennetés au
+  // hasard parmi les 29 188 de leboncoin, le plus grand écart se place n'importe où entre 18
+  // et 56 jours — l'estimateur est du bruit à cet effectif. Il faut environ 500 annonces pour
+  // voir la forme, 2 000 pour y poser une borne. 31 jours reste donc emprunté à leboncoin, où
+  // il a été mesuré ; ici la valeur ne pèse que sur l'appui visuel, jamais sur l'alerte.
   const OLD_MIN_DAYS = 31
   // Non mesuré non plus, et volontairement sans effet sur l'alerte : 22 des 23 cartes
   // relevées portent un `lastUpdate` postérieur de plus d'un jour à la mise en ligne.

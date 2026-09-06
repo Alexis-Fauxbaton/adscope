@@ -34,15 +34,27 @@ test("le désaccord entre l'annonce retenue et l'URL est consigné", () => {
   assert.equal(s.sellerType, 'pro')
 })
 
+// Le bloc porte deux annonces, la page n'en montre qu'une. Le diagnostic disait
+// « 2 lues, 1 pastille » sans expliquer l'écart : il ressemblait à un défaut.
 test('sur une page de résultats, le diagnostic compte les annonces et la répartition', () => {
   const w = world(PRO, { path: '/voitures/occasions', data: TWO })
   w.load('listing.js')
   const s = w.status()
   assert.equal(s.kind, 'listing')
   assert.equal(s.url, '/voitures/occasions')
-  assert.equal(s.listings, 2)
+  assert.equal(s.listings, 1)
   assert.equal(s.pro, 1)
   assert.equal(s.badges, 1)
+  // L'écart est nommé, non plus laissé à deviner : une annonce lue dans la
+  // charge sans qu'aucune carte la rende.
+  assert.equal(s.unshown, 1)
+})
+
+// Et ce que la page ne montre pas ne part pas au suivi.
+test("une annonce que la charge porte sans carte n'entre pas au suivi", () => {
+  const w = world(PRO, { path: '/voitures/occasions', data: TWO })
+  w.load('listing.js')
+  assert.deepEqual(w.queued(), [PRO])
 })
 
 test('un seul des deux scripts écrit le diagnostic de la page', () => {

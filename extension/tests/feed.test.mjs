@@ -42,14 +42,16 @@ test('une charge sans annonce laisse la page en place', () => {
 })
 
 // Le suivi, lui, n'était pas paginé : les pastilles se posaient en page 2 mais
-// ces annonces n'entraient jamais en base et ne recevaient aucun signal.
+// ces annonces n'entraient jamais en base et ne recevaient aucun signal. Le bloc
+// figé décrit encore la page 1, dont aucune carte n'est à l'écran : elle a été
+// transmise quand elle était affichée, elle ne repart pas d'ici.
 test('les annonces de la page suivante sont versées au suivi', () => {
   const w = paginated()
   w.load('listing.js')
-  assert.deepEqual(w.queued(), [PAGE1])
+  assert.deepEqual(w.queued(), [])
 
   w.receive({ ads: [ad(PAGE2)] })
-  assert.deepEqual(w.queued(), [PAGE1, PAGE2])
+  assert.deepEqual(w.queued(), [PAGE2])
 })
 
 test('les annonces déjà transmises ne repartent pas à chaque lot', () => {
@@ -58,7 +60,7 @@ test('les annonces déjà transmises ne repartent pas à chaque lot', () => {
   w.receive({ ads: [ad(PAGE2)] })
   w.mutate(5)
   w.receive({ ads: [ad(PAGE2)] })
-  assert.equal(w.messages().length, 2)
+  assert.equal(w.messages().length, 1)
 })
 
 test('les signaux de la page suivante atteignent sa pastille', () => {
@@ -72,14 +74,14 @@ test('les signaux de la page suivante atteignent sa pastille', () => {
 test("le diagnostic dit ce qui a réellement été transmis", () => {
   const w = paginated()
   w.load('listing.js')
+  // Rien d'affiché encore : rien de transmis, et l'API n'a rien à accuser.
   assert.equal(w.status().sent, 0)
-
   w.arrive({})
-  assert.equal(w.status().sent, 1)
+  assert.equal(w.status().sent, 0)
 
   w.receive({ ads: [ad(PAGE2)] })
   w.arrive({})
-  assert.equal(w.status().sent, 2)
+  assert.equal(w.status().sent, 1)
 })
 
 // Les charges de fiche arrivent maintenant elles aussi, sous leur propre nom :
@@ -91,4 +93,16 @@ test('une charge de fiche ne remplace pas la liste affichée', () => {
   w.receive({ props: { similar: { ads: [ad(PAGE1), ad(PAGE2)] } } }, 'detail')
   assert.equal(w.badge().getAttribute('data-adscope'), PAGE2)
   assert.equal(w.status().listings, 1)
+})
+
+// Le bloc du rendu serveur n'est pas relu tant qu'il n'a pas bougé : la page
+// mute en rafale, l'extraction, elle, coûte des millisecondes. Rouge sur
+// `listings: (doc) => latest || reread(doc)` de src/feed.js.
+test('le bloc du rendu serveur est lu une fois, pas à chaque lot', () => {
+  const w = world(PAGE1, { path: '/voitures/occasions', data: block(ad(PAGE1)) })
+  w.load('listing.js')
+  assert.equal(w.counts.extract, 1)
+  w.mutate(20)
+  assert.equal(w.counts.extract, 1)
+  assert.equal(w.badge().getAttribute('data-adscope'), PAGE1)
 })

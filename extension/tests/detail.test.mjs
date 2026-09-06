@@ -108,3 +108,26 @@ test("une fiche préchargée attend que l'URL la désigne", () => {
   assert.equal(w.panel().getAttribute('data-adscope-detail'), PRIVATE)
   assert.match(w.panel().textContent, /particulier/)
 })
+
+// La règle, sur la fiche comme sur la liste : on ne suit que ce qu'on montre. Le
+// panneau décrit une annonce, une seule ; les autres du bloc — annonces
+// similaires, fiches que Next a préchargées — ne sont pas affichées ici. Rouge
+// sur `ADS.sync.send([listing])` de src/detail.js : avec `send(listings)`, une
+// fiche verse au suivi tout ce que son bloc transporte.
+test("la fiche ne verse au suivi que l'annonce que son panneau décrit", () => {
+  const w = world('0', { path: `/ad/voitures/${PRIVATE}`, data: TWO })
+  w.load('detail.js')
+  assert.equal(w.panel().getAttribute('data-adscope-detail'), PRIVATE)
+  assert.deepEqual(w.queued(), [PRIVATE])
+})
+
+// Mais les annonces similaires d'une fiche, elles, ont leurs cartes à l'écran :
+// c'est listing.js qui les pastille, et elles entrent au suivi par là. La règle
+// tient sur l'affichage, jamais sur l'origine de la donnée.
+test("les annonces similaires qui ont une carte entrent au suivi", () => {
+  const w = world(PRO, { path: `/ad/voitures/${PRIVATE}`, data: TWO })
+  w.load('detail.js')
+  w.load('listing.js')
+  assert.ok(w.badge(), 'la carte de la fiche similaire est pastillée')
+  assert.deepEqual(w.queued().sort(), [PRIVATE, PRO].sort())
+})

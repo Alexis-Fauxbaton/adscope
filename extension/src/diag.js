@@ -53,13 +53,17 @@ ADS.diag = (() => {
 
   // `sent` est le nombre d'annonces que l'API a accusées depuis le chargement,
   // pages suivantes comprises : c'est ce qui distingue un suivi paginé d'un
-  // premier lot resté seul.
-  const listing = (listings, badges, source) => {
+  // premier lot resté seul. `unshown` nomme l'écart que la popup montrait sans
+  // l'expliquer : les annonces que la charge porte et qu'aucune carte ne rend —
+  // six sur la page de résultats relevée le 2026-09-06. Elles ne sont ni
+  // comptées, ni pastillées, ni transmises ; leur nombre, lui, est dit.
+  const listing = (shown, unshown, badges, source) => {
     if (urlId(location.pathname)) return
     write({
       kind: 'listing',
-      listings: listings.length,
-      pro: listings.filter((l) => l.sellerType === 'pro').length,
+      listings: shown.length,
+      unshown,
+      pro: shown.filter((l) => l.sellerType === 'pro').length,
       badges,
       source,
       sent: ADS.sync.sent(),

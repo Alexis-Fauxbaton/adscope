@@ -23,7 +23,9 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
   card.append(link)
   const nextData = new El('script')
   nextData.textContent = data
-  body.append(new El('h1'), date, card)
+  // Le bloc est dans la page, comme sur le site : c'est lui que la signature des
+  // scripts lit pour savoir si la charge a changé.
+  body.append(new El('h1'), date, card, nextData)
 
   const staged = stage(body, {
     origin: 'https://www.leboncoin.fr',

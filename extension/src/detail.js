@@ -85,7 +85,12 @@
     const listings = ADS.feed.details(document)
     const listing = pick(listings)
     if (!listing) return
-    ADS.sync.send(listings)
+    // La même règle que la liste : on ne suit que ce qu'on montre. Le panneau
+    // décrit une annonce, une seule. Les autres que `details` connaît — les
+    // fiches que Next a préchargées sans que le lecteur les ouvre — ne sont
+    // affichées nulle part. Les annonces similaires, elles, ont leurs cartes
+    // sur la fiche : c'est `listing.js` qui les pastille et les transmet.
+    ADS.sync.send([listing])
     const remote = ADS.sync.of(listing.siteId)
     const node = dateNode()
     if (!el) {

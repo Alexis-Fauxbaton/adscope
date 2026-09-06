@@ -50,22 +50,32 @@
   // carte ne leur correspond encore — et quand des pastilles se posent.
   let reported = null
 
+  // On ne suit que ce qu'on montre. La charge d'une page en porte davantage
+  // qu'elle n'en affiche : un site y précharge, sous sa clé d'annonces
+  // similaires, six annonces qu'aucune carte ne rend — et qui arrivent sans
+  // véhicule, sans vendeur et sans date de modification, un prix et une mise en
+  // ligne pour toute identité. La carte est le juge : celle qui n'en a pas
+  // n'est pas sous les yeux du lecteur.
   const render = ADS.context.guard(() => {
     const now = new Date()
     const listings = ADS.feed.listings(document)
+    const shown = []
     let placed = 0
     for (const listing of listings) {
       const card = site.card(document, listing)
-      if (card && paint(card, listing, now)) placed++
+      if (!card) continue
+      shown.push(listing)
+      if (paint(card, listing, now)) placed++
     }
-    ADS.sync.send(listings)
+    ADS.sync.send(shown)
     // Le compte transmis entre dans l'estampille : il change après coup, quand
     // l'API accuse réception, et le diagnostic doit suivre même si rien d'autre
     // n'a bougé sur la page.
-    const seen = listings.map((l) => l.siteId).join() + '|' + ADS.sync.sent()
+    const seen = shown.map((l) => l.siteId).join() + '|' + ADS.sync.sent()
     if (placed || seen !== reported) {
       reported = seen
-      ADS.diag.listing(listings, document.querySelectorAll(`[${MARK}]`).length, ADS.feed.source())
+      const badges = document.querySelectorAll(`[${MARK}]`).length
+      ADS.diag.listing(shown, listings.length - shown.length, badges, ADS.feed.source())
     }
   })
 

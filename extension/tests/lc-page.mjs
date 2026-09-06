@@ -64,8 +64,20 @@ const item = (c) => ({
   vehicle: { make: 'PEUGEOT', model: '208', version: '1.2 PURETECH 110 5P', year: 2018, mileage: 52626 },
 })
 
-export const results = (cards) => [
+// La réserve que la page précharge sans la rendre : relevé le 2026-09-06, six
+// annonces sous `boostVo.similarHits` là où l'écran en montre vingt-trois. Elles
+// portent une référence, un prix et une mise en ligne — ni `vehicle`, ni
+// `contacts`, ni `lastUpdate` — et aucun lien de la page ne les nomme.
+const reserve = (ref) => ({
+  reference: ref,
+  customerType: 'PRO',
+  price: 9900,
+  firstOnlineDate: '2026-06-01T09:00:00.000Z',
+})
+
+export const results = (cards, similar = []) => [
   `window.__PRELOADED_STATE_LISTING__ = ${JSON.stringify({
+    boostVo: { similarHits: similar.map(reserve) },
     search: { hits: cards.map((c) => ({ item: item(c) })) },
   })};if( window.tc_vars ) {window.tc_vars['listing_nb_resultat'] = 9541;}`,
 ]
@@ -91,15 +103,19 @@ export const page = ({ path, scripts, label = null, cards = [], cache = {} }) =>
     body.append(holder)
     holders.set(ref, holder)
   }
-  for (const text of scripts) {
+  // Retenus : c'est en réécrivant l'un d'eux qu'un test fait changer la page de
+  // charge, comme le ferait le site.
+  const inline = scripts.map((text) => {
     const s = new El('script')
     s.textContent = text
     body.append(s)
-  }
+    return s
+  })
   const staged = stage(body, { origin: ORIGIN, path, cache, site: 'sites/lacentrale.js' })
   return {
     ...staged,
     body,
+    scripts: inline,
     badge: (ref) => holders.get(ref).querySelector('[data-adscope]'),
     panel: () => body.querySelector('[data-adscope-detail]'),
   }
