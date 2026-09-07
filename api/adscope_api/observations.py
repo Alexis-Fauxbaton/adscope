@@ -9,7 +9,7 @@ Les invariants tenus ici : `site_published_first` ne recule jamais — la
 détection de republication en dépend tout entière ; `site_published_last`
 n'avance jamais à rebours ; `published_at` ne recule jamais et `bumped_at`
 n'avance jamais à rebours ; `observations` compte toutes les observations
-reçues ; un point de prix par changement réel, un par semaine sans changement.
+reçues ; un point de prix par changement réel, un par jour sans changement.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -25,13 +25,16 @@ from .usage import bump
 FINGERPRINT_FIELDS = ("brand", "model", "version", "year", "mileage")
 VEHICLE_FIELDS = FINGERPRINT_FIELDS + ("postal_code", "seller_type")
 
-# Un point de prix au changement seulement laissait entre deux points un
-# intervalle qu'aucune relecture ne peut combler : entre le 1er juillet à
-# 10 900 € et le 27 août à 9 900 €, le prix a pu descendre et remonter sans
-# témoin. Passé ce délai sans point, l'annonce revue en produit un — inchangé,
-# mais daté. C'est la distribution sur l'axe du temps qui manquait, et un point
-# par semaine suffit : neuf au plus sur les soixante jours de vie d'une annonce.
-CONFIRM_AFTER = timedelta(days=7)
+# Un point au changement seulement laissait entre deux points un intervalle
+# qu'aucune relecture ne peut combler : entre le 1er juillet à 10 900 € et le
+# 27 août à 9 900 €, le prix a pu descendre et remonter sans témoin. L'annonce
+# revue un jour qui n'a pas encore son point en produit un — inchangé, mais
+# daté. Le jour est calendaire et compté en UTC : un délai de vingt-quatre
+# heures raterait un jour sur deux d'un relevé avancé de cinq minutes, et le
+# fuseau local déplacerait la frontière deux fois l'an. La lecture, elle, ne
+# sert pas cette finesse — `signals.thinned` l'éclaircit à la sortie.
+def _utc_day(moment):
+    return moment.astimezone(timezone.utc).date()
 
 
 def _locked(session, observation, now) -> Listing:
@@ -82,10 +85,8 @@ def record(session, observation: ObservationIn, source: str, license_=None,
             .limit(1)
         )
         changed = latest is None or latest.price != observation.price
-        due = latest is not None and now - latest.observed_at >= CONFIRM_AFTER
+        due = latest is not None and _utc_day(latest.observed_at) < _utc_day(now)
         if changed or due:
-            # Qui a envoyé quoi : la seule mesure d'usage du produit, prise
-            # sur ce qu'on enregistrait déjà.
             session.add(PricePoint(
                 listing_id=listing.id, observed_at=now,
                 price=observation.price, source=source,
@@ -141,10 +142,9 @@ def record(session, observation: ObservationIn, source: str, license_=None,
         if observation.published_precision == "day":
             listing.site_published_last = published if last is None else max(last, published)
 
-    # L'usage se compte ici, sur l'observation reçue, et non plus sur le point
-    # de prix : celui-ci n'est écrit qu'en cas de changement, et un marchand qui
-    # reparcourt des annonces stables paraissait alors inactif. `listing.id` est
-    # acquis depuis `_locked` : plus de `flush` à placer au bon endroit.
+    # L'usage se compte sur l'observation reçue, non sur le point de prix : un
+    # marchand qui reparcourt des annonces déjà confirmées du jour n'en produit
+    # aucun. `listing.id` est acquis depuis `_locked`, sans `flush` à placer.
     bump(session, license_, listing.id, now.date())
 
     return listing

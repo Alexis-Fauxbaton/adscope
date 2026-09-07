@@ -23,9 +23,9 @@ def test_first_observation_creates_listing_and_one_price_point(session):
     assert [p.price for p in listing.prices] == [9900]
 
 
-def test_same_price_twice_does_not_add_a_point(session):
+def test_same_price_twice_the_same_day_does_not_add_a_point(session):
     record(session, obs(), source="user", now=NOW)
-    listing = record(session, obs(), source="user", now=NOW + timedelta(days=1))
+    listing = record(session, obs(), source="user", now=NOW + timedelta(hours=6))
     session.commit()
     assert listing.observations == 2
     assert [p.price for p in listing.prices] == [9900]
@@ -129,25 +129,40 @@ def test_an_observation_without_seller_type_changes_nothing(session):
 
 # L'échantillonnage dans le temps. Un point n'était écrit qu'au changement de
 # prix : entre deux points, l'intervalle restait un trou qu'aucune relecture ne
-# peut combler. Un point par semaine au plus le referme, et seulement pour les
-# annonces effectivement revues.
+# peut combler. Un point par jour au plus le referme, et seulement pour les
+# annonces effectivement revues. La lecture, elle, éclaircit — voir
+# `signals.thinned`.
 
 
-def test_an_unchanged_price_is_confirmed_after_a_week(session):
+def test_an_unchanged_price_is_confirmed_the_next_day(session):
     record(session, obs(), source="user", now=NOW)
-    listing = record(session, obs(), source="user", now=NOW + timedelta(days=7))
+    listing = record(session, obs(), source="user", now=NOW + timedelta(days=1))
     session.commit()
     assert [(p.price, p.confirmation) for p in listing.prices] == [
         (9900, False), (9900, True),
     ]
 
 
-def test_an_unchanged_price_adds_nothing_within_the_week(session):
+def test_an_unchanged_price_adds_nothing_twice_in_the_same_day(session):
     record(session, obs(), source="user", now=NOW)
-    listing = record(session, obs(), source="user",
-                     now=NOW + timedelta(days=6, hours=23))
+    record(session, obs(), source="user", now=NOW + timedelta(hours=4))
+    listing = record(session, obs(), source="user", now=NOW + timedelta(hours=11))
     session.commit()
     assert len(listing.prices) == 1
+
+
+# Le jour est celui d'UTC, jamais celui du fuseau local. Ces deux instants
+# tombent le même jour à Paris et deux jours différents en UTC : lus à l'heure
+# locale, le second ne serait pas confirmé. La relecture passe par la base,
+# seule à rendre l'horodatage dans le fuseau de la connexion.
+def test_the_day_that_counts_is_the_utc_one(session):
+    evening = datetime(2026, 9, 5, 23, 30, tzinfo=timezone.utc)
+    record(session, obs(), source="user", now=evening)
+    session.commit()
+    session.expire_all()
+    listing = record(session, obs(), source="user", now=evening + timedelta(hours=1))
+    session.commit()
+    assert [p.confirmation for p in listing.prices] == [False, True]
 
 
 def test_the_first_point_is_a_change_never_a_confirmation(session):
@@ -156,7 +171,7 @@ def test_the_first_point_is_a_change_never_a_confirmation(session):
     assert [p.confirmation for p in listing.prices] == [False]
 
 
-def test_a_change_is_written_at_once_even_within_the_week(session):
+def test_a_change_is_written_at_once_even_within_the_day(session):
     record(session, obs(price=10900), source="user", now=NOW)
     listing = record(session, obs(price=9900), source="user", now=NOW + timedelta(hours=1))
     session.commit()
@@ -165,20 +180,26 @@ def test_a_change_is_written_at_once_even_within_the_week(session):
     ]
 
 
-# Le volume : une annonce leboncoin vit soixante jours, vue tous les jours elle
-# ne produit qu'un point par semaine.
-def test_daily_observation_over_a_whole_life_stays_weekly(session):
+# Le volume au stockage : une annonce leboncoin vit soixante jours, vue tous
+# les jours elle porte soixante points. Trente octets pièce, c'est le prix de
+# la finesse — et ce n'est pas ce que l'API sert.
+def test_daily_observation_over_a_whole_life_gives_a_point_a_day(session):
     listing = None
     for day in range(60):
         listing = record(session, obs(), source="user", now=NOW + timedelta(days=day))
     session.commit()
-    assert len(listing.prices) == 9
-    assert [p.confirmation for p in listing.prices] == [False] + [True] * 8
+    assert len(listing.prices) == 60
+    assert [p.confirmation for p in listing.prices] == [False] + [True] * 59
 
 
-def test_the_confirmation_resets_the_week_not_the_price(session):
-    record(session, obs(price=9900), source="user", now=NOW)
-    record(session, obs(price=9900), source="user", now=NOW + timedelta(days=7))
-    listing = record(session, obs(price=9900), source="user", now=NOW + timedelta(days=13))
+# Une annonce revue trois jours de suite puis oubliée une semaine ne porte que
+# les jours où elle a été vue : la confirmation suit l'observation, elle ne
+# comble pas les trous.
+def test_a_confirmation_marks_the_day_seen_not_the_days_missed(session):
+    listing = None
+    for day in (0, 1, 2, 10):
+        listing = record(session, obs(), source="user", now=NOW + timedelta(days=day))
     session.commit()
-    assert len(listing.prices) == 2
+    assert [p.observed_at.date() for p in listing.prices] == [
+        (NOW + timedelta(days=day)).date() for day in (0, 1, 2, 10)
+    ]
