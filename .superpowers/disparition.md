@@ -87,22 +87,61 @@ l'absence, pas celui où on a fini de le vérifier. Et une observation vivante e
 les deux efface l'absence en cours : deux constatations séparées par un passage
 vivant ne sont pas concordantes.
 
-**3. Le garde-fou de flotte.** Sur les 24 dernières heures, parmi les fiches que
-la file a servies : `gone` = celles dites absentes, `settled` = celles dont on
-sait quelque chose (revues vivantes **ou** dites absentes). Au-delà de 30
-revisites abouties et d'une disparition pour trois, l'écriture s'interrompt et se
-journalise. Les constatations, elles, continuent d'être prises : elles sont
-réversibles, la date ne l'est pas.
+**3. Le garde-fou de flotte.** Deux questions, dans cet ordre. *Qui mesure-t-on ?*
+Les fiches que la file a servies dans les 24 dernières heures — `last_revisit_at`
+sert à ça et à rien d'autre. *Que sait-on de chacune, aujourd'hui ?* `gone`, une
+absence en cours (`absent_since` non nul) ; `seen`, une annonce revue vivante
+dans la fenêtre (`last_seen`). Au-delà de 30 revisites abouties et d'une
+disparition pour trois, l'écriture s'interrompt et se journalise. Les
+constatations, elles, continuent d'être prises : elles sont réversibles, la date
+ne l'est pas.
+
+**Le numérateur ne se compte pas contre la dernière ouverture.** La première
+écriture du garde-fou comparait `absent_since` à `last_revisit_at` — et
+s'effaçait à l'instant précis où on la consultait. `due` rafraîchit
+`last_revisit_at` à chaque ouverture : la fiche constatée absente à T0 est
+rouverte à T0+6 h, l'ouverture passe devant l'absence, et la seconde constatation
+— celle qui écrit — trouvait toujours `gone = 0`. **Ce n'était pas un angle mort
+de bord : c'était tout le trafic crawler**, c'est-à-dire tout le trafic prévu.
+Reproduit sur quarante fiches (40 disparitions écrites sur 40) et sur une flotte
+mixte de 120 (60 sur 120) ; les deux reproductions sont devenues des tests
+(`test_a_signature_that_started_lying_suspends_the_whole_fleet`,
+`test_a_mixed_fleet_still_reads_the_pic_when_the_write_comes_due`). Le garde-fou
+compte des fiches, `last_revisit_at` compte des ouvertures ; la colonne ne dit
+plus que la population, et les deux termes du rapport parlent enfin du même
+objet.
+
+**L'asymétrie entre les deux termes est voulue.** Une absence est un *état* :
+`observations.record` l'efface dès que l'annonce est revue vivante, donc une
+absence qui subsiste est courante par construction, et la borner à la fenêtre la
+ferait expirer. Le cas n'est pas théorique : servie, constatée, retenue, la fiche
+retombe sous le bail de sept jours ; la file la rouvre une semaine plus tard,
+l'absence du premier jour est hors fenêtre, `gone` retombe à zéro et le pic qu'on
+venait de retenir s'écrit d'un coup. Un test l'interdit
+(`test_an_absence_still_pending_after_the_lease_still_counts`). Une vue, elle,
+est un *événement* : `last_seen` est toujours rempli, et sans fenêtre le
+dénominateur avalerait la base entière.
 
 Le dénominateur ne compte **que les revisites abouties**, jamais les fiches
 servies. La nuit où le mur tombe, le crawler prend trente fiches et n'en ouvre
 que trois : compter les fiches servies diviserait la proportion par le budget non
 consommé et endormirait le garde-fou exactement quand il sert. Un test l'exige
-(`test_claims_the_crawler_never_opened_do_not_dilute_the_guard`).
+(`test_claims_the_crawler_never_opened_do_not_dilute_the_guard`), un second
+interdit la dilution par l'ancienneté — une fiche servie trente heures plus tôt
+et revue vivante depuis n'appartient plus à la flotte du jour
+(`test_a_serve_older_than_the_window_does_not_dilute_the_guard`, qui tient aussi
+le chiffre de la fenêtre).
+
+**Les six tests du garde-fou passent par `due`** et par le flux complet — la file
+sert, la page constate, l'API décide —, et aucun ne pose `last_revisit_at`,
+`absent_since` ni `next_detail_crawl` à la main. C'est ce rafraîchissement par la
+file que les trois premiers tests ne voyaient pas : ils posaient `last_revisit_at`
+à `NOW-1h` une fois pour toutes, et attestaient donc un garde-fou qui, dans le
+flux réel, ne tirait pas.
 
 Effet mesuré et voulu : le pic se lit **dès les premières constatations**, six
-heures avant qu'une seule écriture soit possible. Dans le test de refonte, aucune
-des trente ne passe.
+heures avant qu'une seule écriture soit possible. Dans le test de signature
+menteuse, aucune des quarante ne passe.
 
 **4. L'adresse.** `revisit.ADDRESS` reconstruit l'URL côté API, jamais côté
 appelant : une adresse fausse rend une page qui parle d'absence sur une annonce
@@ -200,6 +239,14 @@ Décision : `ADS.lacentrale` ne déclare **aucune** `absence`, et `revisit.ADDRE
 ne connaît pas `lc` — deux verrous, une décision. Un test l'exige
 (`seul le site dont la signature d'absence est mesurée en déclare une`). Mieux
 vaut un site couvert et sûr que deux dont un invente des disparitions.
+
+Le verrou de la file demandait une précaution de test. Le test qui l'atteste
+n'interrogeait `lc` qu'avec `W103538172`, que la forme d'adresse leboncoin refuse
+de toute façon : il passait pour la mauvaise raison, et remplacer
+`ADDRESS.get(site)` par `_lbc` ne le faisait pas rougir. Il est désormais joué
+aussi avec un identifiant portant la forme leboncoin — qui n'est pas une
+référence La Centrale, les 24 relevées portent toutes une lettre de tête, et
+c'est précisément ce qui isole le verrou du site de celui de l'adresse.
 
 ## Le patch du crawler (non appliqué)
 
@@ -309,7 +356,7 @@ Notes d'exploitation :
 
 ## Tests
 
-`api` : **189 verts** (159 avant, +30) — `tests/test_revisit.py`,
+`api` : **194 verts** (159 avant, +35) — `tests/test_revisit.py`,
 `tests/test_disappearance.py`, trois ajouts à `tests/test_migrations.py`.
 `extension` : **302 verts** (289 avant, +13) — `tests/absence.test.mjs`, deux
 ajouts à `tests/sw.test.mjs`, un à `tests/sites.test.mjs`.
@@ -325,16 +372,32 @@ et **la rougeur a été vérifiée** en cassant ces lignes une à une :
 | `disappeared_at = absent_since = None` (record) | vue vivante, l'absence en cours tombe |
 | la double constatation | six tests |
 | `if evidence != WRITES` | aucune preuve hors la mesurée n'écrit (×3) |
-| le garde-fou | un pic de flotte suspend l'écriture |
+| le garde-fou entier retiré | cinq tests de flotte |
+| `gone` → `absent_since >= last_revisit_at` (le défaut) | les cinq mêmes |
+| `gone` borné à la fenêtre | l'absence en cours au terme du bail |
+| `or_(gone, seen)` → `filter(gone)` | une flotte revue vivante laisse écrire |
 | `or_(gone, seen)` → `count(*)` | les fiches jamais ouvertes ne diluent pas |
+| `seen` → `last_seen is not null` | les mêmes |
+| `last_revisit_at >= window` → `is not null` | un service hors fenêtre ne dilue pas |
+| `GUARD_WINDOW` 24 h → 72 h | le même |
+| le `where` retiré | la fenêtre, et l'angle mort hors file |
+| `ADDRESS.get(site)` → `_lbc` | La Centrale n'entre jamais dans la file |
 | `disappeared_at = now` au lieu de `= absent_since` | la date écrite est celle de la première |
 | `'ad' in props` → `!props.ad` | un gabarit sans la clé ne conclut rien |
 | `says(doc)` retiré | une charge vidée sans libellé ne conclut rien |
 | la route, l'identifiant | deux tests d'illisibilité |
 | `verdict !== 'alive'` | rien ne part d'une fiche vivante |
 
-Une mutation avait survécu au premier jet — le dénominateur du garde-fou —, d'où
-le test de dilution ajouté ensuite.
+Deux mutations avaient survécu au premier jet, toutes deux dans le garde-fou de
+flotte. Le dénominateur d'abord, d'où le test de dilution. Le numérateur ensuite,
+et celui-là a coûté cher : les trois tests qui le gardaient posaient
+`last_revisit_at` à la main et ne le rafraîchissaient jamais, si bien qu'ils ne
+jouaient pas le flux qu'ils prétendaient jouer — le garde-fou était vert et ne
+tirait pas. Réécrits autour de `due`, ils tombent sur la ligne fautive. La
+première correction, `absent_since >= now - GUARD_WINDOW`, laissait elle-même
+survivre une mutation : c'est en cherchant pourquoi qu'est apparu le cas du bail
+de sept jours, et que le numérateur est devenu une question d'état plutôt que de
+date.
 
 Vérifications hors tests, sur la base de développement (43 457 annonces,
 `pg_dump` pris avant migration dans
@@ -351,13 +414,26 @@ Vérifications hors tests, sur la base de développement (43 457 annonces,
 
 ## Réserves
 
-1. **Le garde-fou ne voit que les revisites servies par la file.** Une
-   constatation venue d'un humain qui navigue — `last_revisit_at` NULL — n'entre
-   ni au numérateur ni au dénominateur, et n'est donc gardée que par la double
-   constatation. Le volume rend la chose théorique aujourd'hui (600 revisites
-   par jour contre quelques fiches consultées), et le scénario qui compte — la
-   refonte de gabarit — est arrêté par la signature elle-même, pas par le
-   garde-fou. À revoir si l'extension sort du poste d'Alexis.
+1. **Le garde-fou n'a pas tiré pendant tout le premier jet, et cette réserve
+   affirmait l'inverse.** Elle présentait la constatation humaine comme le seul
+   angle mort ; en réalité c'est *tout le trafic crawler* qui l'était — le
+   numérateur s'effaçait au moment d'écrire, parce qu'il se comparait à une
+   colonne que la file rafraîchit à chaque ouverture (voir le point 3 plus haut).
+   Corrigé, et les deux reproductions sont au jeu de tests. La leçon vaut d'être
+   gardée : trois tests verts attestaient ce garde-fou, tous trois en posant à la
+   main la colonne dont le rafraîchissement était le défaut. **Un test qui pose
+   lui-même l'état qu'il prétend observer n'atteste rien.**
+
+   Ce qui reste hors de vue, et qui est bien plus étroit : la constatation venue
+   d'un humain qui navigue. `last_revisit_at` est NULL, la fiche n'est jamais
+   passée par `due`, elle n'entre ni au numérateur ni au dénominateur, et n'est
+   gardée que par la double constatation — un test le dit noir sur blanc
+   (`test_constatations_outside_the_queue_stay_invisible_to_the_guard`).
+   L'élargir demanderait d'étendre la population aux absences sans ouverture, ce
+   qui ferait tirer le garde-fou sur trente fiches mortes consultées dans la
+   journée, sans dénominateur en face. Le volume rend la chose théorique
+   aujourd'hui (600 revisites par jour contre quelques fiches consultées). À
+   revoir si l'extension sort du poste d'Alexis.
 2. **Si le crawler ne tourne pas, le garde-fou dort** : sous 30 revisites
    abouties sur 24 h, il ne se déclenche jamais.
 3. **La popup ne dit rien d'une fiche morte.** `detail.js` ne trouve aucune
