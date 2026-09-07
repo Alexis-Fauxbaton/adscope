@@ -16,8 +16,9 @@ class BatchIn(BaseModel):
 class PricePointOut(BaseModel):
     at: datetime
     price: int
-    # Le point n'a été écrit que parce que la semaine était passée : le prix
-    # n'a pas bougé, il a été revu.
+    # Le point n'a été écrit que parce que le jour avait tourné : le prix n'a
+    # pas bougé, il a été revu. La liste n'en sert qu'une partie — une par
+    # semaine, plus celles qui bordent un changement.
     confirmation: bool
 
 
@@ -47,6 +48,14 @@ class SignalsOut(BaseModel):
     # et le plus long intervalle pendant lequel personne ne l'a regardé. Un
     # simple compteur ne suffirait pas — quarante relevés d'une semaine et
     # quarante étalés sur deux mois donneraient le même nombre.
+    #
+    # Les deux se lisent sur la série complète, jamais sur `price_history` qui
+    # est éclairci. Leur unité a changé avec l'échantillonnage au jour :
+    # `price_checks` comptait les semaines confirmées, il compte les jours où
+    # l'annonce a été vue — une annonce stable et bien suivie passe de huit à
+    # soixante sur sa vie. `price_gap_days` garde son sens et gagne sa
+    # précision : plafonné à sept par la cadence d'écriture, il vaut désormais
+    # un jour pour une annonce revue chaque jour.
     price_checks: int | None
     price_gap_days: int | None
 

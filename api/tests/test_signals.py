@@ -2,7 +2,8 @@ from datetime import datetime, timedelta, timezone
 
 from adscope_api.observations import record
 from adscope_api.intake import ObservationIn
-from adscope_api.signals import signals_for
+from adscope_api.models import PricePoint
+from adscope_api.signals import signals_for, thinned
 
 NOW = datetime(2026, 9, 5, 12, 0, tzinfo=timezone.utc)
 
@@ -260,3 +261,97 @@ def test_the_delta_since_first_ignores_the_confirmations(session):
     assert out["price_delta_days_since_first"] == 10
     assert out["stable_days"] == 0
     assert out["price_checks"] == 0
+
+
+# L'éclaircissement à la lecture. Le stockage pose un point par jour ; servir
+# cette finesse noierait la popup, le cache et la courbe. Ce qui est éclairci,
+# ce sont les confirmations, et elles seules.
+
+
+# `moves` donne le prix à partir du jour indiqué : au-delà il tient, comme sur
+# un vrai site. Un prix posé pour un seul jour ferait deux changements.
+def daily(session, days_, moves=None):
+    listing, price = None, 9900
+    for day in days_:
+        price = (moves or {}).get(day, price)
+        listing = record(session, obs(price=price), source="user",
+                         now=NOW + timedelta(days=day))
+    session.commit()
+    return listing
+
+
+def test_the_served_history_keeps_one_confirmation_a_week(session):
+    listing = daily(session, range(60))
+    out = signals_for(listing, now=NOW + timedelta(days=59))
+    assert len(listing.prices) == 60
+    assert [p["at"].date() for p in out["price_history"]] == [
+        (NOW + timedelta(days=day)).date()
+        for day in (0, 1, 8, 15, 22, 29, 36, 43, 50, 57, 59)
+    ]
+
+
+def test_a_price_change_is_never_thinned_away(session):
+    listing = daily(session, range(30), moves={11: 9500, 23: 8900})
+    out = signals_for(listing, now=NOW + timedelta(days=29))
+    served = [p for p in out["price_history"] if not p["confirmation"]]
+    assert [p["price"] for p in served] == [9900, 9500, 8900]
+
+
+# La confirmation de la veille est la preuve que le prix tenait encore : sans
+# elle, la baisse du douzième jour paraîtrait dater du huitième.
+def test_the_confirmation_bordering_a_change_survives(session):
+    listing = daily(session, range(30), moves={11: 9500})
+    out = signals_for(listing, now=NOW + timedelta(days=29))
+    served = [(p["at"].date() - NOW.date()).days for p in out["price_history"]]
+    assert 10 in served and 11 in served
+
+
+def test_the_first_and_the_last_point_always_survive(session):
+    listing = daily(session, range(60))
+    out = signals_for(listing, now=NOW + timedelta(days=59))
+    assert out["price_history"][0]["at"] == listing.prices[0].observed_at
+    assert out["price_history"][-1]["at"] == listing.prices[-1].observed_at
+    assert out["price"] == 9900
+
+
+# `price_checks` et `price_gap_days` décrivent la couverture d'observation :
+# ils se lisent sur la série complète, jamais sur l'historique servi. Lus sur
+# l'éclairci, cette annonce revue tous les jours donnerait dix vérifications et
+# un trou de sept jours — l'exact contraire de ce qu'elle a vécu.
+def test_the_coverage_is_measured_on_the_full_series(session):
+    listing = daily(session, range(60))
+    out = signals_for(listing, now=NOW + timedelta(days=59))
+    assert out["price_checks"] == 59
+    assert out["price_gap_days"] == 1
+    assert out["stable_days"] == 59
+
+
+def test_stable_days_ignores_the_daily_confirmations(session):
+    listing = daily(session, range(30), moves={11: 9500})
+    out = signals_for(listing, now=NOW + timedelta(days=29))
+    assert out["stable_days"] == 18
+    assert out["price_delta_since_first"] == -400
+
+
+def point(day, confirmation=True):
+    return PricePoint(observed_at=NOW + timedelta(days=day), price=9900,
+                      confirmation=confirmation)
+
+
+# Le volume servi, sur le cas qui a motivé l'éclaircissement : une annonce
+# La Centrale de cinq ans revue chaque jour. La popup ne reçoit plus 1 810
+# points, et le cache de l'extension — le premier plus les vingt derniers —
+# couvre alors près de cinq mois de suivi au lieu de vingt jours.
+def test_five_years_of_daily_points_are_served_by_the_week():
+    points = [point(0, confirmation=False), *(point(day) for day in range(1, 1810))]
+    served = thinned(points)
+    assert len(points) == 1810
+    assert len(served) == 261
+    assert served[-1] is points[-1]
+
+
+# Deux points suffisent à eux-mêmes : rien à éclaircir, et surtout rien à
+# perdre — le premier et le dernier sont précisément ce qui survit toujours.
+def test_a_two_point_history_comes_back_whole():
+    points = [point(0, confirmation=False), point(30)]
+    assert thinned(points) == points
