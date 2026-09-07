@@ -75,6 +75,14 @@ ADS.sync = (() => {
     })
   })
 
+  // La constatation d'absence ne passe pas par le lot d'observations : une
+  // annonce qui n'est plus là n'a rien à apprendre à la base, sinon qu'elle
+  // n'est plus là. Aucun verdict n'est attendu en retour — rien n'en est
+  // affiché, et c'est l'API seule qui décide ce qu'il écrit.
+  const absent = ADS.context.guard((site, siteId, evidence) =>
+    ask({ type: 'absent', site, siteId, evidence }, () => {}),
+  )
+
   const onSignals = (fn) => {
     listeners.push(fn)
     if (signals) fn(signals)
@@ -92,6 +100,7 @@ ADS.sync = (() => {
   // annoncer transmis que ce qui est entré en base.
   return {
     send,
+    absent,
     onSignals,
     counts,
     sent: () => acked,

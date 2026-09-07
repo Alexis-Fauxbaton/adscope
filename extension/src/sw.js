@@ -93,6 +93,16 @@ const cachedSignals = async (site, ids) => {
   return { ok: true, signals }
 }
 
+// Ce que la page a dit d'elle-même quand elle ne portait plus d'annonce. Rien
+// n'est mis en cache : ce n'est pas un signal à afficher, et l'API seule sait
+// si la constatation en vaut une seconde ou si elle se journalise.
+const absent = async (site, siteId, evidence) => {
+  const cfg = await config()
+  if (!cfg.licenseKey) return { ok: false, reason: 'no-key' }
+  const { verdict } = await call('/v1/disappearances', { site, site_id: siteId, evidence }, cfg)
+  return { ok: true, verdict }
+}
+
 // Le rouge de tampon, réservé à l'alerte — le même que celui de la fenêtre.
 const BADGE_COLOR = '#9f1239'
 
@@ -111,6 +121,7 @@ const badge = async (alerts, tab) => {
 const handlers = {
   cached: (msg) => cachedSignals(msg.site, msg.ids),
   sync: (msg) => sync(msg.site, msg.listings),
+  absent: (msg) => absent(msg.site, msg.siteId, msg.evidence),
   badge: (msg, sender) => badge(msg.alerts, sender && sender.tab),
   'cache-stats': () => ADS.cache.stats(),
   'cache-clear': async () => ({ ok: true, cleared: await ADS.cache.clear() }),

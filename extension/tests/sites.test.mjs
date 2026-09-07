@@ -13,6 +13,7 @@ const src = (f) => join(here, '../src/', f)
 const sites = require(src('sites.js'))
 require(src('sites/read.js'))
 require(src('sites/leboncoin.js'))
+require(src('sites/leboncoin-absence.js'))
 require(src('sites/lacentrale.js'))
 
 const LBC = 'https://www.leboncoin.fr'
@@ -154,6 +155,15 @@ test('aucun module partagé ne nomme un site', () => {
   }
   // Et tout ce qui en nomme un est bien un module de site, déclaré comme tel.
   for (const f of found.filter(own)) assert.match(f, /\/sites\/[\w-]+\.js$/)
+})
+
+// Ce que chaque site sait constater est déclaré au registre, et le code
+// partagé n'en sait rien. La signature d'absence de La Centrale n'a pas été
+// confirmée sur une vraie disparition — le site n'en déclare donc aucune, et
+// `absence.js` se tait sur ses pages plutôt que d'inventer des disparitions.
+test("seul le site dont la signature d'absence est mesurée en déclare une", () => {
+  assert.equal(typeof sites.at(LBC).absence, 'function')
+  assert.equal(sites.at(LC).absence, undefined)
 })
 
 // Le pire défaut possible pour ce produit : un nombre faux énoncé avec autorité.

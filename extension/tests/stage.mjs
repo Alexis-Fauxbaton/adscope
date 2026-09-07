@@ -72,6 +72,9 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
   const counts = { extract: 0, scan: 0 }
   const doc = {
     body,
+    // Le titre de la page : c'est le second témoin de la signature d'absence,
+    // et une page vivante n'en porte pas de particulier.
+    title: '',
     getElementById: byId,
     createElement: (t) => new El(t),
     querySelectorAll: (sel) => (counts.scan++, body.querySelectorAll(sel)),

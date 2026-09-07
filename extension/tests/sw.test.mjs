@@ -36,10 +36,13 @@ const boot = ({ entries = {}, licenseKey = KEY, offline = false } = {}) => {
     calls.push({ url, body: JSON.parse(init.body) })
     if (offline) throw new TypeError('Failed to fetch')
     const batch = url.endsWith('/batch')
+    const absent = url.endsWith('/disappearances')
     return {
       ok: true,
       json: async () =>
-        batch ? JSON.parse(init.body).ids.map(signalsOf) : { accepted: 1 },
+        batch ? JSON.parse(init.body).ids.map(signalsOf)
+        : absent ? { verdict: 'first' }
+        : { accepted: 1 },
     }
   }
   delete require.cache[require.resolve(src('sw.js'))]
@@ -162,4 +165,27 @@ test("le vendeur professionnel voyage avec l'observation", async () => {
   assert.equal(pro.seller_name, 'CVD AUTOMOBILES')
   assert.equal(individual.seller_id, null)
   assert.equal(individual.seller_name, null)
+})
+
+
+// Fait rougir `absent` dans `sw.js` : la constatation part sur sa propre route,
+// avec la preuve que la page a donnée, et sans rien mettre en cache — un
+// verdict n'est pas un signal à afficher.
+test("la constatation d'absence part sur sa propre route", async () => {
+  const { calls, ask, store } = boot()
+  const res = await ask({ type: 'absent', site: 'lbc', siteId: '1', evidence: 'absent' })
+  assert.deepEqual(calls, [{
+    url: 'http://api/v1/disappearances',
+    body: { site: 'lbc', site_id: '1', evidence: 'absent' },
+  }])
+  assert.equal(res.verdict, 'first')
+  assert.deepEqual(Object.keys(store.data).filter((k) => k.startsWith('a:')), [])
+})
+
+
+test("sans licence, aucune constatation ne part", async () => {
+  const { calls, ask } = boot({ licenseKey: '' })
+  assert.deepEqual(await ask({ type: 'absent', site: 'lbc', siteId: '1', evidence: 'absent' }),
+                   { ok: false, reason: 'no-key' })
+  assert.deepEqual(calls, [])
 })

@@ -21,13 +21,15 @@
         "src/sites.js",
         "src/sites/read.js",
         "src/sites/leboncoin.js",
+        "src/sites/leboncoin-absence.js",
         "src/format.js",
         "src/view.js",
         "src/diag.js",
         "src/sync.js",
         "src/feed.js",
         "src/listing.js",
-        "src/detail.js"
+        "src/detail.js",
+        "src/absence.js"
       ],
       "css": ["src/ui.css"],
       "run_at": "document_idle"
@@ -51,7 +53,8 @@
         "src/sync.js",
         "src/feed.js",
         "src/listing.js",
-        "src/detail.js"
+        "src/detail.js",
+        "src/absence.js"
       ],
       "css": ["src/ui.css"],
       "run_at": "document_idle"
