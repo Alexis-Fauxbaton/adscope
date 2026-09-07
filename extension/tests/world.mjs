@@ -43,6 +43,11 @@ export const world = (targetId, { path = '/ad/voitures/3254194817', data = block
       staged.goto(`/ad/voitures/${a.list_id}`)
       nextData.textContent = JSON.stringify({ props: { ad: a } })
     },
+    // Le nœud de carte qu'une application monopage réattribue à une autre
+    // annonce — pagination, filtre, liste virtualisée : même élément du DOM,
+    // lien changé. C'est ainsi que la carte retrouvée est la bonne alors
+    // qu'elle porte encore la pastille de l'annonce précédente.
+    recycle: (id) => link.setAttribute('href', `/ad/voitures/${id}`),
     // Une navigation monopage telle qu'elle se produit : l'URL change, le
     // navigateur reçoit la fiche suivante, et `__NEXT_DATA__` n'est pas réécrit.
     goto: (id) => staged.goto(`/ad/voitures/${id}`),

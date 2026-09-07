@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ad, world } from './world.mjs'
+import { at } from './stage.mjs'
 
 test('la fiche ne refait pas le travail lourd à chaque lot de mutations', () => {
   const w = world('0')
@@ -46,4 +47,44 @@ test('la fiche suivante chasse la précédente en navigation monopage', () => {
   assert.equal(w.panel().getAttribute('data-adscope-detail'), '3263931610')
   assert.match(w.panel().textContent, /particulier/)
   assert.doesNotMatch(w.panel().textContent, /professionnel/)
+})
+
+// Le jour du relevé des annonces de la fabrique : deux dates à comparer, il faut
+// une horloge arrêtée.
+const RELEVE = '2026-09-06T18:00:00Z'
+const alone = (id) =>
+  at(RELEVE, () => {
+    const w = world(id)
+    w.load('listing.js')
+    return w.badge()
+  })
+
+// Une liste monopage réattribue ses nœuds de carte à d'autres annonces. La carte
+// retrouvée par le lien est alors la bonne, mais elle porte encore la pastille de
+// l'annonce précédente : un âge qui appartient à une autre voiture, affiché avec
+// le même aplomb qu'un vrai.
+test("la carte recyclée pour une autre annonce porte la pastille de celle-ci", () => {
+  const said = alone('3263931610')
+
+  const w = at(RELEVE, () => {
+    const w = world('3254194817')
+    w.load('listing.js')
+    w.recycle('3263931610')
+    w.mutate(1)
+    return w
+  })
+  assert.equal(w.badge().getAttribute('data-adscope'), '3263931610')
+  assert.equal(w.badge().textContent, said.textContent)
+  assert.equal(w.badge().className, said.className)
+})
+
+// Le court-circuit vaut d'être gardé : sur une page qui mute sans cesse, une
+// carte dont la pastille est déjà juste et à jour ne doit pas être repeinte —
+// les nœuds posés survivent aux lots de mutations.
+test("la pastille déjà juste n'est pas refaite à chaque lot de mutations", () => {
+  const w = world('3254194817')
+  w.load('listing.js')
+  const before = w.badge().children[0]
+  w.mutate(20)
+  assert.equal(w.badge().children[0], before)
 })

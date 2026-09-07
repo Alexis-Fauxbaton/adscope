@@ -25,12 +25,19 @@
     // pastille resterait sur les premiers.
     const stamp = ADS.sync.originOf(listing.siteId) || 'page'
     let el = card.querySelector(`[${MARK}]`)
-    if (el && el.getAttribute(SRC) === stamp) return false
+    // Quelle annonce la pastille décrit, et pas seulement d'où viennent ses
+    // données : une application monopage réattribue ses nœuds de carte —
+    // pagination, filtre, liste virtualisée. Le lien change, l'élément reste, et
+    // la carte retrouvée est la bonne ; sans l'identifiant dans la comparaison,
+    // l'âge de l'annonce précédente resterait affiché sur la suivante.
+    if (el && el.getAttribute(MARK) === listing.siteId && el.getAttribute(SRC) === stamp) return false
     if (!el) {
       el = document.createElement('div')
-      el.setAttribute(MARK, listing.siteId)
       card.appendChild(el)
     }
+    // Réécrit à chaque rendu, pas à la seule création : c'est ce marquage que la
+    // comparaison ci-dessus relit.
+    el.setAttribute(MARK, listing.siteId)
     const { page, tracked } = ADS.view.badge(s, remote)
     const weight = s.notable || tracked ? 'notable' : s.dormant ? 'dormant' : 'quiet'
     el.className =
