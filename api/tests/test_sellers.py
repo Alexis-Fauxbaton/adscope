@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, timezone
 
+from adscope_api.intake import ObservationIn
 from adscope_api.models import Listing, PricePoint
+from adscope_api.observations import record
 from adscope_api.sellers import ONLINE_WINDOW_DAYS, stats_for
 
 NOW = datetime(2026, 9, 6, 12, 0, tzinfo=timezone.utc)
@@ -113,7 +115,7 @@ def test_a_listing_not_seen_for_a_month_leaves_the_population(session):
     assert stats(session)["listings"] == 1
 
 
-# La confirmation hebdomadaire dit que le prix n'a pas bougé. Comptée comme un
+# La confirmation quotidienne dit que le prix n'a pas bougé. Comptée comme un
 # point de plus, elle ferait passer un catalogue immobile pour un catalogue qui
 # bouge — de zéro.
 def test_a_confirmed_price_is_not_a_changed_price(session):
@@ -125,11 +127,27 @@ def test_a_confirmed_price_is_not_a_changed_price(session):
 
 
 # Le délai « baisse au bout de N jours » se compte jusqu'à la baisse, pas
-# jusqu'à la confirmation qui la suit : sinon chaque semaine sans changement
-# repousserait la date de la baisse.
+# jusqu'à la confirmation qui la suit : sinon chaque jour sans changement
+# repousserait la date de la baisse d'un jour.
 def test_the_drop_delay_stops_at_the_drop_not_at_the_last_confirmation(session):
     listing(session, "1", published=60, prices=((30, 10000), (20, 9000), (1, 9000, "confirm")))
     assert stats(session)["price_drop_after_days"] == 40
+
+
+# Le même délai, mais posé par `record` à la cadence quotidienne plutôt que par
+# des points fabriqués : dix-neuf confirmations séparent la baisse du dernier
+# relevé, là où l'hebdomadaire en posait deux. Aucune ne déplace la baisse.
+def test_the_drop_delay_survives_the_daily_confirmations(session):
+    for day in range(40, 0, -1):
+        record(session, ObservationIn(
+            site="lbc", site_id="1", price=10000 if day > 20 else 9000,
+            seller_type="pro", seller_id="76697703", seller_name="CVD AUTOMOBILES",
+            published_at=days(60),
+        ), source="user", now=days(day))
+    session.flush()
+    stat = stats(session)
+    assert stat["price_drop_after_days"] == 40
+    assert stat["price_drop_listings"] == 1
 
 
 # La population n'est pas le stock du marchand : ce sont ses annonces que nos

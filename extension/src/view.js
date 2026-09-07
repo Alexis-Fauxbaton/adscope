@@ -5,10 +5,15 @@ globalThis.ADS = globalThis.ADS || {}
 ADS.view = (() => {
   const { duration, ago, money } = ADS.format
 
-  // L'API pose un point par semaine sur les annonces qu'elle revoit. Au delà
-  // d'une semaine et un jour de battement, l'intervalle n'en est plus une : le
-  // prix a été perdu de vue, et il a pu bouger et revenir sans témoin.
+  // Les seuils se lisent sur `price_gap_days`, mesuré sur la série complète —
+  // l'API pose un point par jour sur les annonces qu'elle revoit, même si elle
+  // n'en sert qu'un par semaine. Au delà d'une semaine et un jour de battement,
+  // l'intervalle n'est plus une cadence : le prix a été perdu de vue, et il a
+  // pu bouger et revenir sans témoin. En deçà d'un jour, il a été vu chaque
+  // jour, et le dire est plus fort que « chaque semaine » — c'est le nombre
+  // qui le décide, plus la cadence d'écriture qui le plafonnait à sept.
   const CHECKED_MAX_DAYS = 8
+  const DAILY_MAX_DAYS = 1
 
   // Une annonce dont la charge ne porte aucune date n'a pas d'âge à énoncer. Le
   // dire est le constat ; en fabriquer un serait exactement ce que le produit
@@ -46,6 +51,7 @@ ADS.view = (() => {
   const checked = (r) => {
     if (r.price_gap_days == null || r.stable_days < CHECKED_MAX_DAYS) return ''
     if (!r.price_checks) return ' · jamais revérifié'
+    if (r.price_gap_days <= DAILY_MAX_DAYS) return ' · vérifié chaque jour'
     if (r.price_gap_days <= CHECKED_MAX_DAYS) return ' · vérifié chaque semaine'
     return ` · non vérifié pendant ${duration(r.price_gap_days)}`
   }

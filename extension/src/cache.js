@@ -23,11 +23,15 @@ ADS.cache = (() => {
   // n'ont pas de lecteur. Sans ce plafond, quelques annonces suivies longtemps
   // remplissent le quota et l'enregistrement cesse en silence.
   //
-  // Depuis l'échantillonnage hebdomadaire, l'historique porte aussi des
-  // confirmations — « le prix n'avait pas bougé ce jour-là ». Prises au même
-  // rang que les changements, elles rempliraient le plafond et évinceraient
-  // précisément ce qui se lit. Elles ne prennent donc que la place qui reste,
-  // les plus récentes d'abord.
+  // L'historique porte aussi des confirmations — « le prix n'avait pas bougé ce
+  // jour-là ». Prises au même rang que les changements, elles rempliraient le
+  // plafond et évinceraient précisément ce qui se lit. Elles ne prennent donc
+  // que la place qui reste, les plus récentes d'abord.
+  //
+  // L'API en écrit une par jour mais n'en sert qu'une par semaine : sans cet
+  // éclaircissement à la source, les vingt places couvriraient vingt jours de
+  // suivi au lieu de près de cinq mois, et ce plafond-ci sacrifierait sept fois
+  // plus vite les changements qu'il est censé protéger.
   const trim = (entry) => {
     const points = entry.signals && entry.signals.price_history
     if (!Array.isArray(points) || points.length <= HISTORY_MAX + 1) return entry

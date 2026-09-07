@@ -168,6 +168,26 @@ test('un prix stable vérifié chaque semaine le dit', () => {
   assert.equal(priceOf(stable()), 'stable depuis 1 mois · vérifié chaque semaine')
 })
 
+// L'échantillonnage au jour rend `price_gap_days` exact. La même annonce revue
+// tous les jours affichait sept — l'écart entre deux écritures hebdomadaires,
+// pas ce qu'elle avait vécu — et affiche un. Sans ce libellé, la finesse gagnée
+// resterait invisible au lecteur.
+test('un prix stable vérifié chaque jour le dit', () => {
+  assert.equal(
+    priceOf(stable({ price_checks: 56, price_gap_days: 1 })),
+    'stable depuis 1 mois · vérifié chaque jour',
+  )
+})
+
+// Deux jours d'écart, ce n'est déjà plus « chaque jour » : le seuil ne se
+// laisse pas arrondir vers le haut, il vaut un jour et pas deux.
+test('deux jours d\'écart et la cadence redevient hebdomadaire', () => {
+  assert.equal(
+    priceOf(stable({ price_checks: 28, price_gap_days: 2 })),
+    'stable depuis 1 mois · vérifié chaque semaine',
+  )
+})
+
 test('un prix stable que personne n\'a revérifié le dit aussi', () => {
   assert.equal(
     priceOf(stable({ price_checks: 0, price_gap_days: 56 })),
