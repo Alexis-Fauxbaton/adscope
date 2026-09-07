@@ -85,9 +85,14 @@ def test_seeing_the_listing_alive_drops_the_absence_in_progress(session):
 
 
 # Fait rougir `ADDRESS.get(site)` : La Centrale n'a pas de signature d'absence
-# confirmée sur une vraie disparition, et sa file n'existe donc pas.
-def test_lacentrale_never_enters_the_queue(session):
-    listed(session, "W103538172", site="lc")
+# confirmée sur une vraie disparition, et sa file n'existe donc pas. Le second
+# identifiant n'est pas une référence La Centrale — les 24 relevées portent
+# toutes une lettre de tête —, il porte exprès la forme leboncoin : `W103538172`
+# seul laissait le test passer pour la mauvaise raison, refusé par l'adresse
+# avant même d'atteindre le verrou du site.
+@pytest.mark.parametrize("site_id", ["W103538172", "3263259495"])
+def test_lacentrale_never_enters_the_queue(session, site_id):
+    listed(session, site_id, site="lc")
     assert due(session, "lc", 10, NOW) == []
 
 
