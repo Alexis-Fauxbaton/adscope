@@ -18,6 +18,8 @@ class Listing(Base):
     __table_args__ = (
         UniqueConstraint("site", "site_id", name="uq_listing_site_id"),
         Index("ix_listings_seller", "site", "seller_id"),
+        # Ce que le garde-fou de flotte balaie : les fiches servies récemment.
+        Index("ix_listings_revisit", "last_revisit_at"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -46,11 +48,24 @@ class Listing(Base):
     bumped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     site_published_first: Mapped[date | None] = mapped_column(Date, default=None)
     site_published_last: Mapped[date | None] = mapped_column(Date, default=None)
+    # Le fait : le site a dit lui-même que cette annonce n'est plus là, et l'a
+    # dit deux fois. Irréversible — une fausse date ne se retire plus une fois
+    # mêlée aux vraies. `revisit` et `disappearance` disent à quel prix.
     disappeared_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None
     )
+    # La machinerie qui y mène, et qui ne dit rien du marché : quand rouvrir la
+    # fiche, quand la première constatation d'absence a eu lieu, et quand la file
+    # a servi cette annonce. `revisit` et `disappearance` s'en servent ; une
+    # observation qui montre l'annonce vivante efface l'absence en cours.
     next_detail_crawl: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), index=True, default=None
+    )
+    absent_since: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
+    last_revisit_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
     )
 
     prices: Mapped[list["PricePoint"]] = relationship(

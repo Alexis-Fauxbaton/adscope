@@ -61,6 +61,16 @@ MIGRATIONS = (
         "ALTER TABLE price_points ADD COLUMN IF NOT EXISTS confirmation boolean"
         " NOT NULL DEFAULT false",
     )),
+    # La revisite par fiche : deux colonnes vides sur les 43 457 annonces
+    # enregistrées. `absent_since` porte la première constatation d'absence, en
+    # attente de la seconde ; `last_revisit_at` dit quand la file a servi la
+    # fiche, et c'est le dénominateur du garde-fou de flotte — sans lui, une
+    # refonte de gabarit s'écrirait en base sans que rien ne la compte.
+    ("005_listings_revisit", (
+        "ALTER TABLE listings ADD COLUMN IF NOT EXISTS absent_since timestamptz",
+        "ALTER TABLE listings ADD COLUMN IF NOT EXISTS last_revisit_at timestamptz",
+        "CREATE INDEX IF NOT EXISTS ix_listings_revisit ON listings (last_revisit_at)",
+    )),
 )
 
 

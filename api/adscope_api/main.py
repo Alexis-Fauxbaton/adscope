@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import Depends, FastAPI, Header, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -5,10 +7,14 @@ from sqlalchemy.orm import selectinload
 
 from .auth import resolve
 from .db import get_session
+from .disappearance import observe
 from .models import Listing
 from .observations import record
-from .intake import ObservationsIn
-from .schemas import BatchIn, SellerStatsOut, SignalsOut
+from .intake import AbsenceIn, ObservationsIn
+from .revisit import due
+from .schemas import (
+    AbsenceOut, BatchIn, RevisitIn, RevisitOut, SellerStatsOut, SignalsOut,
+)
 from .sellers import stats_for
 from .signals import signals_for
 from .usage import compact_daily
@@ -82,6 +88,26 @@ def get_seller(site: str, seller_id: str, session=Depends(get_session),
     if stats is None:
         raise HTTPException(status_code=404, detail="vendeur inconnu")
     return stats
+
+
+# La file de revisite, et la constatation qui en revient. Les deux se tiennent
+# derrière la même licence que le reste : c'est le crawler local qui prend la
+# file, l'extension qui rapporte ce que la page ouverte a dit.
+@app.post("/v1/revisits", response_model=list[RevisitOut])
+def post_revisits(payload: RevisitIn, session=Depends(get_session),
+                  _=Depends(require_license)):
+    items = due(session, payload.site, payload.limit, datetime.now(timezone.utc))
+    session.commit()
+    return items
+
+
+@app.post("/v1/disappearances", response_model=AbsenceOut)
+def post_disappearance(payload: AbsenceIn, session=Depends(get_session),
+                       _=Depends(require_license)):
+    verdict = observe(session, payload.site, payload.site_id, payload.evidence,
+                      datetime.now(timezone.utc))
+    session.commit()
+    return {"verdict": verdict}
 
 
 @app.get("/v1/me")

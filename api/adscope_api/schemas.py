@@ -13,6 +13,34 @@ class BatchIn(BaseModel):
     ids: list[str] = Field(min_length=1, max_length=30)
 
 
+class RevisitIn(BaseModel):
+    """Ce que le crawler demande à la file. Le plafond est bas à dessein : une
+    fiche coûte trente fois une annonce de page de résultats, et le rythme de la
+    file est un paramètre de sécurité — c'est lui qui attire le mur ou non."""
+
+    site: str = Field(max_length=8)
+    limit: int = Field(default=25, ge=1, le=100)
+
+
+class RevisitOut(BaseModel):
+    """Une fiche à rouvrir. L'adresse est reconstruite ici, jamais par
+    l'appelant : une adresse fausse rend une page d'absence sur une annonce
+    vivante."""
+
+    site: str
+    site_id: str
+    url: str
+
+
+class AbsenceOut(BaseModel):
+    """Ce que la constatation a produit, dit sans détour : `first` a seulement
+    posé un rendez-vous, `recorded` a écrit, `held` s'est heurté au garde-fou
+    de flotte, `logged` n'a rien conclu."""
+
+    verdict: Literal["unknown", "logged", "already", "first", "too_soon",
+                     "held", "recorded"]
+
+
 class PricePointOut(BaseModel):
     at: datetime
     price: int

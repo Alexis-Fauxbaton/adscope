@@ -9,6 +9,9 @@ from adscope_api.migrations import MIGRATIONS, apply_migrations
 
 
 def to_old_shape(session):
+    session.execute(text("DROP INDEX IF EXISTS ix_listings_revisit"))
+    session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS absent_since"))
+    session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS last_revisit_at"))
     session.execute(text("ALTER TABLE price_points DROP COLUMN IF EXISTS confirmation"))
     session.execute(text("ALTER TABLE licenses DROP COLUMN IF EXISTS automated"))
     session.execute(text("DROP INDEX IF EXISTS ix_listings_seller"))
@@ -148,3 +151,33 @@ def test_the_points_already_recorded_stay_changes(session):
     apply_migrations(session.connection())
     rows = session.execute(text("SELECT price, confirmation FROM price_points")).all()
     assert rows == [(9900, False)]
+
+
+# La revisite par fiche arrive sur une base qui porte 43 457 annonces, dont pas
+# une ne connaît sa date de disparition : les colonnes s'ajoutent vides.
+def test_migration_adds_the_revisit_columns(session):
+    to_old_shape(session)
+    assert not {"absent_since", "last_revisit_at"} & columns(session, "listings")
+    apply_migrations(session.connection())
+    assert {"absent_since", "last_revisit_at"} <= columns(session, "listings")
+
+
+# Sans cet index, le garde-fou de flotte balaierait la table entière à chaque
+# écriture de disparition.
+def test_the_index_serving_the_fleet_guard_exists(session):
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    indexes = session.execute(text(
+        "SELECT indexname FROM pg_indexes WHERE tablename = 'listings'"
+    ))
+    assert "ix_listings_revisit" in {row[0] for row in indexes}
+
+
+def test_the_listings_already_recorded_keep_an_empty_revisit(session):
+    to_old_shape(session)
+    with_history(session)
+    apply_migrations(session.connection())
+    rows = session.execute(text(
+        "SELECT site_id, absent_since, last_revisit_at, disappeared_at FROM listings"
+    )).all()
+    assert rows == [("87103336930", None, None, None)]

@@ -12,6 +12,11 @@ from . import gauge
 
 Precision = Literal["day", "month", "year"]
 SellerType = Literal["pro", "private"]
+# Ce qu'une page d'annonce peut dire d'elle-même quand elle ne porte plus
+# d'annonce. Une énumération fermée, jamais du texte libre : c'est une page
+# tierce qui l'écrit, et `disappearance` décide seule laquelle écrit en base.
+Evidence = Literal["absent", "unreadable", "status:sold", "status:inactive",
+                   "status:pending", "status:deleted"]
 
 
 class ObservationIn(BaseModel):
@@ -101,3 +106,12 @@ class ObservationsIn(BaseModel):
             except (AssertionError, ValidationError):
                 refused += 1
         return {**data, "items": kept, "refused": refused}
+
+
+class AbsenceIn(BaseModel):
+    """Une constatation d'absence : le site dit lui-même que l'annonce n'est
+    plus là, et par quel signe. L'identité de l'annonce ne se rattrape pas."""
+
+    site: str = Field(max_length=gauge.width("site"))
+    site_id: str = Field(max_length=gauge.width("site_id"))
+    evidence: Evidence

@@ -117,7 +117,7 @@ def record(session, observation: ObservationIn, source: str, license_=None,
 
     listing.last_seen = max(listing.last_seen, now)
     listing.observations += 1
-    listing.disappeared_at = None
+    listing.disappeared_at = listing.absent_since = None
 
     # Un horodatage exact fait autorité ; les bornes inférées ne servent
     # qu'aux sites qui ne donnent qu'un libellé relatif.
