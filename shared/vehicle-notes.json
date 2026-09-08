@@ -1,0 +1,665 @@
+[
+  {
+    "brand": "Citroen",
+    "model": "C3",
+    "years": [2017, 2023],
+    "engine": "1.5 BlueHDi (DV5R)",
+    "fact": "Risque de rupture de la chaîne de distribution 7mm par carbonisation de l'huile sur des C3 diesel DV5R produites entre le 04/10/2017 et le 31/01/2023.",
+    "check": "Vérifier le VIN sur rappel.conso.gouv.fr et exiger la facture de l'intervention (chaîne 8mm renforcée) si le véhicule est concerné.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/47783/Rapex",
+      "title": "Rappel Consommateur - Détail Berlingo, C3 Aircross V2, C3 V4, C4 Cactus, C4 V3, C4 Picasso, C4X, C5 Aircross, Celysée Voiture particulière CITROEN",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Citroen",
+    "model": "C4",
+    "years": [2010, 2017],
+    "engine": "",
+    "fact": "Campagne de rappel Takata : le gonfleur d'airbag peut se rompre avec projection de fragments métalliques en cas de déploiement.",
+    "check": "Vérifier auprès du constructeur (VIN) si l'airbag Takata a été remplacé sur ce C4 (produit entre 09/2010 et 02/2017).",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/48617/rapex",
+      "title": "Rappel Consommateur - C3 V3, C4 V2 / DS4 (B7), DS3, DS5 (B81) - airbags Takata",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Citroen",
+    "model": "C4",
+    "years": [2013, 2017],
+    "engine": "1.2 PureTech / THP essence",
+    "fact": "Campagne de rappel : la pompe à vide peut être endommagée par abrasion de la courroie, réduisant ou supprimant l'assistance au freinage.",
+    "check": "Demander si le véhicule (produit entre 03/2013 et 04/2017) a fait l'objet de ce rappel et si la pompe à vide a été remplacée en concession.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/48835/rapex",
+      "title": "Rappel Consommateur - Berlingo, C3, C3 Picasso, C4, C4 Cactus, C4 Picasso, DS3, DS4 (pompe à vide 1.2 THP)",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Citroen",
+    "model": "C4",
+    "years": [2015, 2018],
+    "engine": "",
+    "fact": "Campagne de rappel : usure prématurée des dents de la courroie de synchronisation en conditions poussiéreuses, pouvant caler le moteur à haut régime sans possibilité de redémarrer.",
+    "check": "Vérifier si le véhicule (C4 V2/DS4 B7, produit entre 02/2015 et 03/2018) a été rappelé et si la courroie a été contrôlée/remplacée.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/48591/rapex",
+      "title": "Rappel Consommateur - Berlingo V3, C3 V3&V4, C3 Picasso, C4 Cactus, C4 Picasso, C4 V2 & DS4... (courroie de synchronisation)",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Citroen",
+    "model": "C4",
+    "years": [2020, 2023],
+    "engine": "1.5 BlueHDi (DV5R)",
+    "fact": "Campagne de rappel : la chaîne de distribution de 7 mm peut se rompre par carbonisation d'huile, entraînant une panne moteur.",
+    "check": "Vérifier si le véhicule (C4 V3, produit entre 05/2020 et 01/2023) est concerné par ce rappel et si l'intervention a été faite.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/47783/rapex",
+      "title": "Rappel Consommateur - Berlingo, C3 Aircross V2, C3 V4, C4 Cactus, C4 V3, C4 Picasso, C4X, C5 Aircross... (chaîne distribution DV5R)",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Citroen",
+    "model": "C4 Picasso",
+    "years": [2013, 2017],
+    "engine": "1.2 PureTech / THP essence",
+    "fact": "Campagne de rappel : la pompe à vide peut être endommagée par abrasion de la courroie, réduisant ou supprimant l'assistance au freinage.",
+    "check": "Demander si le véhicule (produit entre 03/2013 et 04/2017) a fait l'objet de ce rappel et si la pompe à vide a été remplacée en concession.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/48835/rapex",
+      "title": "Rappel Consommateur - Berlingo, C3, C3 Picasso, C4, C4 Cactus, C4 Picasso, DS3, DS4 (pompe à vide 1.2 THP)",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Citroen",
+    "model": "C4 Picasso",
+    "years": [2015, 2018],
+    "engine": "",
+    "fact": "Campagne de rappel : usure prématurée des dents de la courroie de synchronisation en conditions poussiéreuses, pouvant caler le moteur à haut régime sans possibilité de redémarrer.",
+    "check": "Vérifier si le véhicule (C4 Picasso B78, produit entre 04/2015 et 04/2018) a été rappelé et si la courroie a été contrôlée/remplacée.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/48591/rapex",
+      "title": "Rappel Consommateur - Berlingo V3, C3 V3&V4, C3 Picasso, C4 Cactus, C4 Picasso, C4 V2 & DS4... (courroie de synchronisation)",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Citroen",
+    "model": "C4 Picasso",
+    "years": [2017, 2021],
+    "engine": "2.0 diesel (BlueHDi)",
+    "fact": "Campagne de rappel : le filtre à particules diesel peut surchauffer et se fissurer.",
+    "check": "Demander si le FAP a été contrôlé ou remplacé dans le cadre de ce rappel (véhicules produits entre 12/2017 et 02/2021).",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/48281/rapex",
+      "title": "Rappel Consommateur - C4 Picasso (B78), C5 Aircross (C84) - moteur diesel 2 litres (FAP)",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Citroen",
+    "model": "C4 Picasso",
+    "years": [2018, 2022],
+    "engine": "1.5 BlueHDi (moteur DV5R) diesel",
+    "fact": "Campagne de rappel : la chaîne de distribution de 7 mm peut se rompre par carbonisation d'huile, entraînant une panne moteur.",
+    "check": "Vérifier si le véhicule (produit entre 25/01/2018 et 27/06/2022) est concerné par ce rappel et si l'intervention a été faite.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/47783/rapex",
+      "title": "Rappel Consommateur - Berlingo, C3 Aircross V2, C3 V4, C4 Cactus, C4 V3, C4 Picasso, C4X, C5 Aircross... (chaîne distribution DV5R)",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Ford",
+    "model": "Fiesta",
+    "years": [2008, 2017],
+    "engine": "1.4 TDCi 68 ch",
+    "fact": "Fuites de gazole documentées au niveau des joints d'injecteurs sur le 1.4 TDCi 68 ch (Fiesta V), provoquant une odeur de carburant dans l'habitacle et nécessitant le remplacement des injecteurs.",
+    "check": "Vérifier l'absence d'odeur de gazole dans l'habitacle et l'étanchéité des injecteurs lors de l'essai.",
+    "source": {
+      "url": "https://www.caradisiac.com/Maxi-fiche-fiabilite-que-vaut-la-Ford-Fiesta-5-en-occasion-95446.htm",
+      "title": "Maxi-fiche fiabilité : que vaut la Ford Fiesta 5 en occasion ?",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Ford",
+    "model": "Fiesta",
+    "years": [2017, 2018],
+    "engine": "",
+    "fact": "Campagne de rappel Ford (mars 2018) pour une membrane de servofrein défectueuse pouvant réduire l'assistance au freinage, sur des Fiesta VI produites entre le 5 et le 20 décembre 2017.",
+    "check": "Demander au vendeur/à un concessionnaire Ford si le VIN a été inclus dans ce rappel servofrein et si l'intervention a été réalisée.",
+    "source": {
+      "url": "https://www.caradisiac.com/maxi-fiche-fiabilite-ford-fiesta-vi-exempte-de-gros-reproches-204603.htm",
+      "title": "Maxi-fiche fiabilité - Ford Fiesta VI : exempte de gros reproches",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Ford",
+    "model": "Fiesta",
+    "years": [2019, 2022],
+    "engine": "",
+    "fact": "Campagne de rappel Ford (avril 2023) pour un risque de fuite d'huile moteur, sur des Fiesta VI produites entre le 2 août 2019 et le 21 mars 2022.",
+    "check": "Vérifier via le VIN si le véhicule est concerné par ce rappel fuite d'huile et si le contrôle/la réparation ont été effectués chez Ford.",
+    "source": {
+      "url": "https://www.caradisiac.com/maxi-fiche-fiabilite-ford-fiesta-vi-exempte-de-gros-reproches-204603.htm",
+      "title": "Maxi-fiche fiabilité - Ford Fiesta VI : exempte de gros reproches",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Ford",
+    "model": "Focus",
+    "years": [2011, 2018],
+    "engine": "1.6 115 ch essence / diesel (hors 2.0 TDCi)",
+    "fact": "Défaut d'embrayage documenté comme le principal problème récurrent de la Focus III : la pédale peut rester enfoncée au plancher, rendant les passages de vitesse impossibles, parfois dès 20 000 km.",
+    "check": "Tester plusieurs fois la pédale d'embrayage à froid puis à chaud pour vérifier qu'elle revient bien en position haute.",
+    "source": {
+      "url": "https://www.caradisiac.com/maxi-fiche-fiabilite-que-vaut-la-ford-focus-3-en-occasion-106907.htm",
+      "title": "Maxi-fiche fiabilité : que vaut la Ford Focus 3 en occasion ?",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Ford",
+    "model": "Focus",
+    "years": [2011, 2018],
+    "engine": "1.6 TDCi",
+    "fact": "Défaut rare mais documenté de volant moteur sur le 1.6 TDCi (Focus III), se manifestant par un bruit métallique et pouvant nécessiter le remplacement conjoint du volant moteur et de l'embrayage.",
+    "check": "Écouter tout bruit métallique au ralenti et lors des changements de rapport, signe avant-coureur du volant moteur.",
+    "source": {
+      "url": "https://www.caradisiac.com/maxi-fiche-fiabilite-que-vaut-la-ford-focus-3-en-occasion-106907.htm",
+      "title": "Maxi-fiche fiabilité : que vaut la Ford Focus 3 en occasion ?",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Ford",
+    "model": "Focus",
+    "years": [2016, 2018],
+    "engine": "1.0 EcoBoost",
+    "fact": "Rappel constructeur Ford (Transports Canada n°2023704) pour la Focus 1.0L : le tendeur et/ou la courroie d'entraînement de la pompe à huile peuvent être défaillants, entraînant une perte de pression d'huile pouvant provoquer un calage moteur et une perte de l'assistance de direction.",
+    "check": "Vérifier si la courroie et le tendeur de pompe à huile ont été inspectés/remplacés (campagne Ford) et surveiller tout bruit ou perte de pression d'huile.",
+    "source": {
+      "url": "https://recalls-rappels.canada.ca/fr/avis-rappel/numero-rappel-transports-canada-2023704-ford",
+      "title": "Rappel de véhicule - Numéro de rappel de Transports Canada 2023704 - Ford",
+      "kind": "constructeur"
+    }
+  },
+  {
+    "brand": "Opel",
+    "model": "Corsa",
+    "years": [2013, 2018],
+    "engine": "1.3/1.6 CDTi diesel",
+    "fact": "Rappel pour mise à jour du système de post-traitement NOx (piège à NOx pauvre) sur ces diesels, 19 680 véhicules rappelés en France.",
+    "check": "Vérifier au VIN si le véhicule est concerné par ce rappel NOx et si la mise à jour ECM/BCM/TCM a été effectuée.",
+    "source": {
+      "url": "https://www.largus.fr/actualite-automobile/rappel-opel-corsa-astra-et-insignia-des-emissions-de-nox-a-corriger-10966401.html",
+      "title": "Rappel Opel Corsa, Astra et Insignia. Des émissions de NOx à corriger - L'argus",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Opel",
+    "model": "Corsa",
+    "years": [2019, 2021],
+    "engine": "",
+    "fact": "Rappel pour bug logiciel empêchant l'allumage du témoin de clignotant défaillant (non-conforme ECE 48) sur Corsa à phares EcoLED, 17 509 véhicules en France.",
+    "check": "Vérifier au VIN si le véhicule est concerné par ce rappel clignotant et tester le fonctionnement du témoin au tableau de bord.",
+    "source": {
+      "url": "https://www.largus.fr/actualite-automobile/opel-corsa-17-000-vehicules-rappeles-pour-un-probleme-de-clignotant-30014716.html",
+      "title": "Opel Corsa. 17 000 véhicules rappelés pour un problème de clignotant - L'argus",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Opel",
+    "model": "Corsa",
+    "years": [2020, 2021],
+    "engine": "",
+    "fact": "Rappel de sécurité (campagne 20-C-192) : mise à la terre insuffisante pouvant provoquer un déploiement intempestif de l'airbag rideau (~10 822 véhicules).",
+    "check": "Vérifier au VIN chez un concessionnaire Opel si le véhicule est concerné par la campagne 20-C-192 et si le correctif a été réalisé.",
+    "source": {
+      "url": "https://www.largus.fr/actualite-automobile/opel-corsa-f-plus-de-10-000-exemplaires-rappeles-en-france-10605407.html",
+      "title": "Opel Corsa F. Plus de 10 000 exemplaires rappelés en France - L'argus",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Peugeot",
+    "model": "206",
+    "years": [1998, 2013],
+    "engine": "2.0 HDI 90",
+    "fact": "Poulie damper (galet amortisseur) fragile sur le 2.0 HDI 90, insert caoutchouc qui se délite, bruits et risque de casse parfois dès 60 000 km.",
+    "check": "Écouter un bruit métallique au ralenti moteur froid et faire vérifier l'état de la poulie damper.",
+    "source": {
+      "url": "https://www.caradisiac.com/Peugeot-40413.htm",
+      "title": "Fiabilité Peugeot 206 : que vaut le modèle en occasion ? - Caradisiac",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Peugeot",
+    "model": "206",
+    "years": [1998, 2013],
+    "engine": "1.4 HDI / 2.0 HDI",
+    "fact": "Sensibilité des moteurs HDI à l'eau et aux impuretés du carburant pouvant gripper l'injection ; fuites documentées sur les retours d'injecteurs du 1.4 HDI 70.",
+    "check": "Demander les factures d'entretien du circuit d'injection et rechercher des traces de fuite gazole au niveau des injecteurs.",
+    "source": {
+      "url": "https://www.caradisiac.com/Peugeot-40413.htm",
+      "title": "Fiabilité Peugeot 206 : que vaut le modèle en occasion ? - Caradisiac",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Peugeot",
+    "model": "207",
+    "years": [2006, 2007],
+    "engine": "1.6 HDI 90/110",
+    "fact": "Campagne de rappel constructeur (code YMB, ~35 000 véhicules Peugeot au total) sur les 207 1.6 HDI 90/110 produites entre février 2006 et septembre 2007 : seuils d'alerte du calculateur EGR trop sensibles, allumage intempestif du voyant moteur.",
+    "check": "Vérifier via le numéro de série chez un concessionnaire Peugeot si la mise à jour logicielle du calculateur EGR (campagne YMB) a bien été effectuée.",
+    "source": {
+      "url": "https://www.caradisiac.com/Peugeot-207-et-307-HDI-au-rappel-40217.htm",
+      "title": "Peugeot 207 et 307 HDI au rappel",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Peugeot",
+    "model": "207",
+    "years": [2006, 2009],
+    "engine": "",
+    "fact": "Campagne de rappel (31/05/2016) sur 1 830 Peugeot 207 équipées de sièges chauffants, produites jusqu'au 25/06/2009 : un faisceau électrique défectueux peut provoquer une décharge de la batterie ou une chauffe excessive du siège.",
+    "check": "Vérifier via le numéro de série (VIN) auprès d'un concessionnaire Peugeot si le véhicule est concerné par ce rappel et si le faisceau des sièges chauffants a été repris.",
+    "source": {
+      "url": "https://www.largus.fr/actualite-automobile/rappel-peugeot-207-probleme-de-faisceau-electrique-7959388.html",
+      "title": "Rappel Peugeot 207 : problème de faisceau électrique",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Peugeot",
+    "model": "207",
+    "years": [2008, 2008],
+    "engine": "",
+    "fact": "Rappel constructeur (2008) sur 12 600 Peugeot 207 produites entre fin février et mi-juin 2008 : non-conformité d'un composant du boîtier de servitude intelligent (BSI) pouvant se dégrader avec le temps et provoquer des dysfonctionnements (éclairage, essuie-glaces).",
+    "check": "Vérifier auprès du concessionnaire, via le numéro de série, si le véhicule (production fin fév.-mi juin 2008) a été rappelé pour le BSI et si le boîtier a été remplacé.",
+    "source": {
+      "url": "https://www.largus.fr/actualite-automobile/rappels-de-la-semaine-peugeot-207-307-308-407-et-partner-tepee-153841.html",
+      "title": "Rappels de la semaine : Peugeot 207, 307, 308, 407 et Partner Tepee",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Peugeot",
+    "model": "307",
+    "years": [2001, 2011],
+    "engine": "2.0 HDI 110",
+    "fact": "Fiche fiabilité Caradisiac : sur les 307 2.0 HDI 110, usure prématurée du volant moteur bimasse documentée, nécessitant généralement un remplacement simultané avec l'embrayage.",
+    "check": "Sur une 307 2.0 HDI 110, faire vérifier l'état du volant moteur bimasse et de l'embrayage (bruits au ralenti, à-coups) avant achat.",
+    "source": {
+      "url": "https://www.caradisiac.com/Peugeot-40133.htm",
+      "title": "Fiche fiabilité Peugeot 307",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Peugeot",
+    "model": "307",
+    "years": [2006, 2007],
+    "engine": "1.6 HDI 90/110",
+    "fact": "Campagne de rappel constructeur (code YMB) sur les 307 1.6 HDI 90/110 produites entre janvier 2006 et juillet 2007 : seuils d'alerte du calculateur EGR trop sensibles, allumage intempestif du voyant moteur.",
+    "check": "Vérifier via le numéro de série chez un concessionnaire Peugeot si la mise à jour logicielle du calculateur EGR (campagne YMB) a bien été effectuée.",
+    "source": {
+      "url": "https://www.caradisiac.com/Peugeot-207-et-307-HDI-au-rappel-40217.htm",
+      "title": "Peugeot 207 et 307 HDI au rappel",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Peugeot",
+    "model": "307",
+    "years": [2006, 2009],
+    "engine": "2.0 HDI",
+    "fact": "Campagne de rappel constructeur (code YWY, 8 500 véhicules 307 en France) sur les 2.0 HDI produites entre le 15/12/2006 et le 31/03/2009 : une valve de la pompe à vide de l'assistance au freinage peut se bloquer, réduisant l'efficacité de l'assistance (pédale plus dure, freinage toujours opérant).",
+    "check": "Vérifier auprès du concessionnaire, via le numéro de série, si le véhicule 2.0 HDI (production 12/2006-03/2009) a été rappelé pour la pompe à vide d'assistance de freinage (campagne YWY).",
+    "source": {
+      "url": "https://www.caradisiac.com/Rappel-chez-Peugeot-les-307-308-407-607-807-et-Expert-2-concernes-65105.htm",
+      "title": "Rappel chez Peugeot : les 307, 308, 407, 607, 807 et Expert 2 concernés",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Peugeot",
+    "model": "307",
+    "years": [2008, 2008],
+    "engine": "",
+    "fact": "Rappel constructeur (2008) sur 216 Peugeot 307 produites entre fin février et mi-juin 2008 : même défaut de calculateur BSI que sur la 207, pouvant provoquer des dysfonctionnements de l'éclairage et des essuie-glaces.",
+    "check": "Vérifier auprès du concessionnaire, via le numéro de série, si le véhicule (production fin fév.-mi juin 2008) a été rappelé pour le BSI et si le boîtier a été remplacé.",
+    "source": {
+      "url": "https://www.largus.fr/actualite-automobile/rappels-de-la-semaine-peugeot-207-307-308-407-et-partner-tepee-153841.html",
+      "title": "Rappels de la semaine : Peugeot 207, 307, 308, 407 et Partner Tepee",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Peugeot",
+    "model": "308",
+    "years": [2017, 2023],
+    "engine": "1.5 BlueHDi (DV5R)",
+    "fact": "Campagne de rappel Peugeot pour les 308 (II et III) équipées du moteur DV5R : la résistance de la chaîne de distribution (7 mm) peut être réduite par carbonisation de l'huile, avec risque de rupture de chaîne, panne moteur et perte de contrôle du véhicule.",
+    "check": "Vérifier via le VIN si le véhicule est concerné par ce rappel constructeur (chaîne de distribution DV5R) et si l'intervention a été réalisée.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/47781/rapex",
+      "title": "Rappel Consommateur - Détail 2008, 208, 3008 V2, 301, 308 V2, 308 V3, 5008 V2, Rifter, Partner... Peugeot",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Peugeot",
+    "model": "308",
+    "years": [2025, 2026],
+    "engine": "1.5 BlueHDi (DV5R)",
+    "fact": "Campagne de rappel Peugeot pour les 308 III équipées du moteur DV5R : la poulie de la pompe à eau peut glisser, désaligner la courroie de distribution et provoquer l'arrêt soudain du moteur.",
+    "check": "Vérifier via le VIN si le véhicule (identification RAPEX oct. 2025 - fév. 2026) est concerné par ce rappel et si l'intervention a été effectuée.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/49430/rapex",
+      "title": "Rappel Consommateur - Détail 208 V2, 308 V3, Rifter, Partner, Expert Peugeot",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Peugeot",
+    "model": "407",
+    "years": [2004, 2010],
+    "engine": "2.0 HDI 136 ch",
+    "fact": "Casses de turbo documentées sur le 2.0 HDI 136 ch, se traduisant par des pertes de puissance subites ou une surconsommation d'huile pouvant entraîner un emballement moteur.",
+    "check": "Vérifier l'absence de fumée anormale à l'échappement en accélération et l'absence de sifflement du turbo lors de l'essai routier.",
+    "source": {
+      "url": "https://www.caradisiac.com/Peugeot-40262.htm",
+      "title": "Fiabilité Peugeot 407 : que vaut le modèle en occasion ?",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Peugeot",
+    "model": "407",
+    "years": [2004, 2010],
+    "engine": "2.0 HDI (diesel)",
+    "fact": "Usure prématurée documentée du volant moteur bi-masse et de l'embrayage sur les motorisations diesel, provoquant des bruits de démarrage ; l'embrayage peut s'user avant 15 000 km.",
+    "check": "Écouter les bruits au démarrage à froid et vérifier le point de patinage de l'embrayage lors de l'essai routier.",
+    "source": {
+      "url": "https://www.caradisiac.com/Peugeot-40262.htm",
+      "title": "Fiabilité Peugeot 407 : que vaut le modèle en occasion ?",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Porsche",
+    "model": "911",
+    "years": [2020, 2024],
+    "engine": "",
+    "fact": "Rappel de sécurité : Porsche 911 (992) produites entre le 09/07/2020 et le 21/02/2024 - les vitres avant/arrière peuvent ne pas être correctement fixées, ce qui peut réduire le soutien du coussin gonflable avant en cas d'accident.",
+    "check": "Vérifier via le VIN chez un concessionnaire Porsche si la 911 (992, 2020-2024) est concernée par ce rappel et si le contrôle des vitres a été réalisé.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/48009/Rapex",
+      "title": "Rappel Consommateur - Détail 911 Voiture particulière Porsche",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Porsche",
+    "model": "911",
+    "years": [2023, 2023],
+    "engine": "",
+    "fact": "Rappel de sécurité : Porsche 911 (992) produites entre le 16/02/2023 et le 13/09/2023 - un défaut de positionnement d'un tapis en butyle peut entraîner un dysfonctionnement de la boucle de ceinture de sécurité arrière gauche ou droite.",
+    "check": "Pour une 911 992 de ce millésime, vérifier via le VIN chez un concessionnaire Porsche si le rappel des boucles de ceinture arrière a été traité.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/47832/Rapex",
+      "title": "Rappel Consommateur - Détail 911 Voiture particulière Porsche",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Porsche",
+    "model": "911",
+    "years": [2023, 2024],
+    "engine": "",
+    "fact": "Rappel de sécurité : Porsche 911 (992, parmi GT4, Panamera, Spyder) produites entre le 13/09/2023 et le 23/10/2024 - un défaut du boulon de verrouillage central de roue peut provoquer un desserrage de la roue et une perte de contrôle du véhicule.",
+    "check": "Pour une 911 récente (992), vérifier via le VIN chez un concessionnaire Porsche si le véhicule est concerné par ce rappel et si le contrôle du système de fixation centrale des roues a été effectué.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/47897/Rapex",
+      "title": "Rappel Consommateur - Détail GT4, Panamera, Spyder, 911 Voiture particulière Porsche",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Renault",
+    "model": "Clio",
+    "years": [2012, 2019],
+    "engine": "1.2 TCe (0.9/1.2 TCe)",
+    "fact": "Surconsommation d'huile documentée sur le moteur 1.2 TCe de la Clio IV, pouvant à terme endommager le moteur si elle n'est pas surveillée.",
+    "check": "Vérifier le niveau d'huile avant l'essai et exiger l'historique des vidanges (intervalle court recommandé, ~15 000 km/an).",
+    "source": {
+      "url": "https://www.caradisiac.com/Maxi-fiche-fiabilite-que-vaut-la-Renault-Clio-4-en-occasion-104931.htm",
+      "title": "Fiabilité Renault Clio 4 : que vaut le modèle en occasion ? - Caradisiac",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Renault",
+    "model": "Clio",
+    "years": [2012, 2019],
+    "engine": "1.2 TCe EDC",
+    "fact": "Bruits et à-coups de la boîte de vitesses EDC (double embrayage) documentés sur la Clio IV.",
+    "check": "Faire un essai routier avec passages de rapports à froid puis à chaud, en manœuvre lente, pour écouter les à-coups.",
+    "source": {
+      "url": "https://www.caradisiac.com/Maxi-fiche-fiabilite-que-vaut-la-Renault-Clio-4-en-occasion-104931.htm",
+      "title": "Fiabilité Renault Clio 4 : que vaut le modèle en occasion ? - Caradisiac",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Renault",
+    "model": "Clio",
+    "years": [2025, 2025],
+    "engine": "",
+    "fact": "Serrage insuffisant des écrous d'articulation du bras de suspension avant sur des Clio V produites du 18 au 20/10/2025, risque de perte de trajectoire.",
+    "check": "Vérifier le VIN sur rappel.conso.gouv.fr et écouter un bruit de cliquetis/claquement à l'avant lors de l'essai à basse vitesse.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/47607/Rapex",
+      "title": "Rappel Consommateur - Détail CLIO V Voiture particulière Renault",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Renault",
+    "model": "Megane",
+    "years": [2002, 2003],
+    "engine": "",
+    "fact": "UCH (unité de contrôle habitacle) sensible aux infiltrations d'eau sur les Megane II d'avant 2003 (bugs vitres/verrouillage) ; rappel constructeur pour étanchéifier le module.",
+    "check": "Tester vitres électriques, fermeture centralisée, ouverture du coffre et voyants airbag pendant l'essai.",
+    "source": {
+      "url": "https://www.caradisiac.com/Renault-Megane-2-II-40410.htm",
+      "title": "Fiabilité Renault Mégane 2 (II) : que vaut le modèle en occasion ? - Caradisiac",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Renault",
+    "model": "Megane",
+    "years": [2024, 2025],
+    "engine": "",
+    "fact": "Capteur de position du frein de stationnement mal orienté sur des Megane E-Tech produites entre le 10/04/2024 et le 16/01/2025, risque de blocage du frein.",
+    "check": "Vérifier le VIN sur rappel.conso.gouv.fr et tester le frein de parking électrique à l'arrêt.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/47734/Rapex",
+      "title": "Rappel Consommateur - Détail Captur II, Megane E-Tech, Scenic E-Tech, Austral, Espace VI, Rafale Voiture particulière Renault",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Renault",
+    "model": "Scenic",
+    "years": [2009, 2010],
+    "engine": "1.5 dCi 105/110",
+    "fact": "Caradisiac documente un risque de casse de la courroie de distribution avant échéance (parfois avant 50 000 km) sur ces véhicules jusqu'à fin 2010.",
+    "check": "Vérifier la date et le kilométrage du dernier remplacement de la courroie de distribution dans le carnet d'entretien.",
+    "source": {
+      "url": "https://www.caradisiac.com/maxi-fiche-fiabilite-que-vaut-le-renault-scenic-3-en-occasion-106472.htm",
+      "title": "Maxi-fiche fiabilité : que vaut le Renault Scénic 3 en occasion ? - Caradisiac",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Renault",
+    "model": "Scenic",
+    "years": [2018, 2019],
+    "engine": "",
+    "fact": "Rappel de sécurité (réf. A12/01170/20) : durite de carburant pouvant se dégrader, fuite sur chaussée et risque d'incendie au contact de l'échappement.",
+    "check": "Vérifier au VIN chez un concessionnaire Renault si le véhicule est concerné par le rappel A12/01170/20 et si le contrôle a été fait.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/48882/rapex",
+      "title": "Rappel Consommateur - Détail Megane, Scenic, Talisman Voiture de tourisme Renault",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Renault",
+    "model": "Scenic",
+    "years": [2018, 2019],
+    "engine": "R9N/M9R diesel",
+    "fact": "Rappel de sécurité (réf. A12/1791/19) : capteurs NOx potentiellement mal serrés sur les véhicules assemblés à l'usine de Douai.",
+    "check": "Vérifier au VIN chez un concessionnaire Renault si le véhicule est concerné par le rappel A12/1791/19.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/49065/rapex",
+      "title": "Rappel Consommateur - Détail Scenic IV, Talisman, Espace V Voiture de tourisme RENAULT",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Renault",
+    "model": "Twingo",
+    "years": [2014, 2021],
+    "engine": "0.9/1.0 TCe 90-95",
+    "fact": "Caradisiac documente des à-coups et trous à l'accélération à froid sur le TCe 90/95, parfois liés à la sonde lambda ou nécessitant une reprogrammation.",
+    "check": "Faire un essai à froid pour repérer les à-coups à l'accélération et demander l'historique d'entretien ou de reprogrammation moteur.",
+    "source": {
+      "url": "https://www.caradisiac.com/fiabilite-de-la-renault-twingo-3-la-maxi-fiche-occasion-de-caradisiac-187815.htm",
+      "title": "Fiabilité de la Renault Twingo 3 : la maxi-fiche occasion de Caradisiac",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Renault",
+    "model": "Twingo",
+    "years": [2019, 2021],
+    "engine": "",
+    "fact": "Campagne de rappel : soudures du capot pouvant se rompre, la peau extérieure risquant de se détacher en roulant (~98 700 véhicules rappelés en France).",
+    "check": "Vérifier au VIN chez un concessionnaire Renault si le rappel capot a été effectué, et contrôler visuellement la fixation du capot.",
+    "source": {
+      "url": "https://www.largus.fr/actualite-automobile/rappel-renault-twingo-2019-2021-pres-de-100-000-capots-a-controler-10787394.html",
+      "title": "Rappel Renault Twingo 2019-2021. Près de 100 000 capots à contrôler - L'argus",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Volkswagen",
+    "model": "Golf",
+    "years": [2008, 2014],
+    "engine": "",
+    "fact": "Rappel de sécurité : parmi les VW concernées (EOS, Golf, Passat, Passat CC, Polo, Sharan) produites entre le 30/05/2008 et le 13/08/2014, l'airbag Takata peut se détériorer et projeter des fragments lors du déploiement, risque de blessures.",
+    "check": "Vérifier via le VIN, sur le site du constructeur ou chez un concessionnaire VW, si le véhicule est concerné par le rappel Takata et si l'airbag a déjà été remplacé.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/48148/Rapex",
+      "title": "Rappel Consommateur - Détail EOS, GOLF, PASSAT, PASSAT CC, POLO, SHARAN Voiture de tourisme VW",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Volkswagen",
+    "model": "Golf",
+    "years": [2012, 2020],
+    "engine": "1.6 TDI 105/110",
+    "fact": "Fiche fiabilité Caradisiac (Golf 7) : sur les 1.6 TDI 105/110, défaillance prématurée du turbocompresseur documentée, parfois dès 40 000 km.",
+    "check": "Sur une Golf 7 1.6 TDI, vérifier l'historique d'entretien du turbo et l'absence de perte de puissance ou de fumée à l'accélération.",
+    "source": {
+      "url": "https://www.caradisiac.com/fiabilite-de-la-volkswagen-golf-7-la-maxi-fiche-occasion-de-caradisiac-113860.htm",
+      "title": "Fiabilité de la Volkswagen Golf 7 : la maxi-fiche occasion de Caradisiac",
+      "kind": "presse"
+    }
+  },
+  {
+    "brand": "Volkswagen",
+    "model": "Golf",
+    "years": [2024, 2024],
+    "engine": "",
+    "fact": "Rappel de sécurité : certaines Golf/Golf Variant (Golf 8) produites entre le 09/02/2024 et le 24/05/2024 ont une ceinture de sécurité passager avant mal fixée au point d'ancrage inférieur, risque de blessure en cas d'accident.",
+    "check": "Pour une Golf 8 récente, vérifier via le VIN chez un concessionnaire VW si le véhicule est concerné par ce rappel et si la fixation de la ceinture a été recontrôlée.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/47787/Rapex",
+      "title": "Rappel Consommateur - Détail GOLF, GOLF VARIANT Voiture de tourisme VW",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Volkswagen",
+    "model": "Polo",
+    "years": [2008, 2009],
+    "engine": "",
+    "fact": "Campagne de rappel Takata : le gonfleur d'airbag peut se rompre avec projection de fragments métalliques en cas de déploiement.",
+    "check": "Vérifier auprès de la concession VW (via le VIN) si l'airbag Takata a été remplacé sur ce Polo (produit en 2008-2009).",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/48334/rapex",
+      "title": "Rappel Consommateur - Polo, Fox VW - airbags Takata",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Volkswagen",
+    "model": "Polo",
+    "years": [2019, 2020],
+    "engine": "",
+    "fact": "Campagne de rappel : des clapets antiretour mal fermés peuvent laisser de l'huile s'infiltrer dans l'amplificateur de frein, endommageant sa membrane et réduisant l'assistance au freinage.",
+    "check": "Demander si le véhicule (produit entre 09/2019 et 02/2020) a été rappelé pour ce défaut d'amplificateur de frein.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/48993/rapex",
+      "title": "Rappel Consommateur - Polo - amplificateur de frein (clapets antiretour)",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Volkswagen",
+    "model": "Polo",
+    "years": [2020, 2020],
+    "engine": "",
+    "fact": "Campagne de rappel : les doubles boucles de ceinture de sécurité arrière peuvent être endommagées par un défaut de fabrication et perdre en résistance.",
+    "check": "Vérifier si le véhicule (produit entre le 20/02 et le 11/03/2020) a fait l'objet de ce rappel sur les ceintures arrière.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/48932/rapex",
+      "title": "Rappel Consommateur - Polo - boucles de ceinture de sécurité arrière",
+      "kind": "rappelconso"
+    }
+  },
+  {
+    "brand": "Volkswagen",
+    "model": "Polo",
+    "years": [2022, 2025],
+    "engine": "",
+    "fact": "Campagne de rappel : le boîtier du générateur de gaz de l'airbag passager avant peut éclater ou se désolidariser en cas de déploiement.",
+    "check": "Vérifier auprès de la concession VW si ce Polo récent (produit entre 05/2022 et 05/2025) est concerné par ce rappel airbag.",
+    "source": {
+      "url": "https://rappel.conso.gouv.fr/fiche-rappel/47778/rapex",
+      "title": "Rappel Consommateur - ID.7, ID.Buzz, T7 Transporter, Passat, Polo, Taigo - générateur de gaz airbag passager",
+      "kind": "rappelconso"
+    }
+  }
+]

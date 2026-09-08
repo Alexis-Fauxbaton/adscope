@@ -1,0 +1,45 @@
+{
+  "always": [
+    "Demande le rapport HistoVec (histovec.interieur.gouv.fr) avec le numéro de plaque pour voir l'historique administratif du véhicule.",
+    "Demande le PV du dernier contrôle technique et compare le relevé de compteur inscrit dessus avec le compteur actuel et avec les compteurs des CT précédents."
+  ],
+  "by_age": {
+    "0-3": [
+      "Demande si le véhicule est encore sous garantie constructeur et jusqu'à quelle date ou quel kilométrage.",
+      "Demande pourquoi un véhicule aussi récent est déjà revendu.",
+      "Vérifie que les équipements d'aide à la conduite (régulateur, caméra, capteurs) fonctionnent tous normalement pendant l'essai.",
+      "Demande si le véhicule a été acheté neuf par le vendeur ou s'il a déjà eu un ou plusieurs propriétaires."
+    ],
+    "3-8": [
+      "Demande le carnet d'entretien et vérifie que les révisions ont été faites aux intervalles préconisés par le constructeur.",
+      "Demande si la courroie ou la chaîne de distribution a déjà été changée, ou à quelle échéance elle est prévue.",
+      "Vérifie l'état des pneumatiques et demande depuis quand ils sont montés.",
+      "Demande si le véhicule a connu un accident ou une réparation de carrosserie importante."
+    ],
+    "8+": [
+      "Demande à voir toutes les factures d'entretien et de réparation disponibles, pas seulement le carnet.",
+      "Demande si des pièces d'usure (embrayage, amortisseurs, freins, distribution) ont été remplacées récemment et à quel kilométrage.",
+      "Renseigne-toi sur la disponibilité et le coût des pièces détachées pour ce modèle avant de t'engager.",
+      "Demande pourquoi le véhicule est vendu maintenant et s'il présente un défaut connu du vendeur."
+    ]
+  },
+  "by_mileage": {
+    "0-60000": [
+      "Vérifie que le kilométrage annoncé correspond à un usage cohérent avec l'âge du véhicule.",
+      "Demande si le véhicule a servi pour des trajets essentiellement urbains ou autoroutiers.",
+      "Vérifie l'état général de l'habitacle (usure des sièges, pédales, volant) au regard du kilométrage affiché."
+    ],
+    "60000-150000": [
+      "Demande la date et le kilométrage de la dernière vidange et du dernier contrôle des liquides.",
+      "Demande si les grosses échéances d'entretien (distribution, embrayage, freins) ont déjà été passées ou approchent.",
+      "Vérifie l'état des trains roulants (jeu de direction, bruits de suspension) lors de l'essai routier.",
+      "Demande si le véhicule a été utilisé pour du remorquage ou un usage professionnel intensif."
+    ],
+    "150000+": [
+      "Demande le détail complet de l'entretien mécanique lourd effectué (distribution, embrayage, turbo, injection).",
+      "Fais vérifier la compression moteur ou la présence de fumée à l'échappement lors de l'essai.",
+      "Demande si une boîte de vitesses ou un moteur a déjà été remplacé, et dans quelles conditions.",
+      "Vérifie l'état de la corrosion sous caisse et des points d'ancrage avant d'aller plus loin."
+    ]
+  }
+}
