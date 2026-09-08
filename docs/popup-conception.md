@@ -1,3 +1,6 @@
+> **Direction visuelle remplacée le 2026-09-08** par `panneau-conception.md` (registre app
+> consumer, panneau dans la page). Les règles d'honnêteté ci-dessous restent valables.
+
 # La popup — direction retenue le 2026-09-06
 
 Maquette validée : `popup-maquette.png`.

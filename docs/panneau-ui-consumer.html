@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>adscope — panneau, registre consumer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sol:#F3F4F7; --carte:#fff; --r:22px; --ombre:0 2px 12px rgba(16,20,40,.06);
+  --encre:#14161C; --douce:#6B7180; --faible:#9AA0AE; --grise:#A9AEBB;
+  --accent:#4F46E5; --accent-pale:#E9ECFD; --accent-encre:#3730A3;
+  --vert-pale:#E3F3EB; --vert:#17845A;
+  --gris-pale:#ECEEF3;
+  --orange-pale:#FDF0E4; --orange:#B75E12;
+  --col:620px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--sol);
+  font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  color:var(--encre);
+  font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;
+  font-size:14.5px; line-height:1.5;
+}
+.page{display:flex; gap:46px; padding:24px; justify-content:center; align-items:flex-start}
+.vue{width:var(--col); flex:0 0 var(--col)}
+
+/* ── entête de vue (repère de maquette) ── */
+.vue-h{display:flex; gap:9px; align-items:baseline; padding:0 4px; margin:6px 0 18px}
+.vue-h b{font-size:13px; font-weight:700; letter-spacing:-.01em}
+.vue-h span{font-size:13px; color:var(--faible); font-weight:500}
+
+/* ── fiche simulée ── */
+.fiche-t{font-size:21px; font-weight:700; letter-spacing:-.02em; margin:0 0 6px; padding:0 4px}
+.fiche-s{font-size:13.5px; color:var(--faible); margin:0 0 20px; padding:0 4px}
+.fiche-p{font-size:32px; font-weight:700; letter-spacing:-.03em; margin:0 0 5px; padding:0 4px}
+.fiche-d{font-size:13.5px; color:var(--faible); margin:0 0 28px; padding:0 4px}
+.desc{font-size:13.5px; line-height:1.65; color:var(--grise); padding:0 4px; margin:26px 0 0}
+
+/* ── panneau ── */
+.panneau-h{font-size:12.5px; color:var(--faible); padding:0 4px; margin:0 0 12px; font-weight:500}
+.panneau-h b{color:var(--douce); font-weight:700}
+.pile{display:flex; flex-direction:column; gap:20px}
+.carte{background:var(--carte); border-radius:var(--r); box-shadow:var(--ombre); padding:24px}
+.pied{font-size:12.5px; color:var(--faible); padding:16px 4px 0; line-height:1.55}
+
+/* ── carte 1 : le chiffre ── */
+.label{font-size:13px; font-weight:600; color:var(--douce); margin:0 0 8px}
+.chiffre-row{display:flex; align-items:center; gap:18px}
+.hero{font-size:52px; font-weight:700; letter-spacing:-.035em; line-height:1.05; margin:0; white-space:nowrap}
+.sous{font-size:13.5px; color:var(--douce); margin:10px 0 0}
+.pilule{
+  background:var(--orange-pale); color:var(--orange);
+  font-size:13px; font-weight:700; border-radius:999px;
+  padding:9px 15px; white-space:nowrap; margin-left:auto;
+}
+
+/* ── carte 2 : la courbe ── */
+.titre{font-size:17px; font-weight:700; letter-spacing:-.015em; margin:0 0 18px}
+.note{font-size:13.5px; color:var(--douce); margin:16px 0 0; line-height:1.5}
+.note b{color:var(--encre); font-weight:700}
+svg{display:block}
+.carte > svg{width:100%; height:auto}
+
+/* ── carte 3 : tuiles ── */
+.tuiles{display:flex; flex-direction:column; gap:22px}
+.tuile{display:flex; align-items:center; gap:15px}
+.rond{
+  width:44px; height:44px; flex:0 0 44px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+}
+.rond.bleu{background:var(--accent-pale); color:var(--accent)}
+.rond.vert{background:var(--vert-pale); color:var(--vert)}
+.rond.gris{background:var(--gris-pale); color:var(--douce)}
+.tuile-txt{min-width:0}
+.tuile-t{font-size:15px; font-weight:600; letter-spacing:-.01em; margin:0 0 3px}
+.tuile-s{font-size:13px; line-height:1.45; color:var(--douce); margin:0}
+.chev{margin-left:auto; flex:0 0 auto; color:#C2C7D2}
+
+/* ── carte bleue Jour 1 ── */
+.carte.bleue{background:var(--accent-pale); box-shadow:none}
+.carte.bleue p{margin:0; font-size:15.5px; line-height:1.55; font-weight:500; color:var(--accent-encre)}
+
+/* ── tuile ouverte : Ce prix ── */
+.ouverte-h{display:flex; align-items:center; gap:14px; margin:0 0 22px}
+.faits{display:flex; flex-direction:column; gap:16px; margin-top:22px}
+.fait{font-size:14.5px; line-height:1.45; color:var(--douce); margin:0}
+.fait b{color:var(--encre); font-weight:700}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ══════════════ VUE 1 — par défaut ══════════════ -->
+<div class="vue">
+  <div class="vue-h"><b>Par défaut</b><span>onglets fermés</span></div>
+
+  <div class="fiche-t">Peugeot 208 II 1.2 PureTech 100 Allure</div>
+  <div class="fiche-s">2020 · 3 574 km · Essence · Boîte manuelle · Vitrolles (13)</div>
+  <div class="fiche-p">22 700 €</div>
+  <div class="fiche-d">Annonce publiée il y a 60 jours</div>
+
+  <div class="panneau-h"><b>adscope</b> · La Centrale · 8 sept. 2026</div>
+
+  <div class="pile">
+
+    <!-- carte 1 -->
+    <div class="carte">
+      <p class="label">En ligne depuis</p>
+      <div class="chiffre-row">
+        <div class="hero">4 ans 11 mois</div>
+        <div class="pilule">Le site affiche 60 j</div>
+      </div>
+      <p class="sous">1 810 jours · mise en ligne le 22 sept. 2021</p>
+    </div>
+
+    <!-- carte 2 -->
+    <div class="carte">
+      <p class="titre">Prix relevé · 118 jours</p>
+      <svg viewBox="0 0 572 210" role="img" aria-label="Courbe du prix relevé sur 118 jours">
+        <rect x="266" y="24" width="274" height="150" rx="10" fill="#FDF0E4"/>
+        <text x="278" y="41" font-family="Manrope" font-size="11.5" font-weight="700" fill="#B75E12">Affiché par le site</text>
+
+        <path d="M20 52 H164.1 V98 H316.6 V150 H520" fill="none" stroke="#4F46E5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <g fill="#4F46E5" opacity=".3">
+          <circle cx="49.7" cy="52" r="2.6"/><circle cx="79.3" cy="52" r="2.6"/><circle cx="108.9" cy="52" r="2.6"/><circle cx="138.6" cy="52" r="2.6"/>
+          <circle cx="168.2" cy="98" r="2.6"/><circle cx="197.9" cy="98" r="2.6"/><circle cx="227.5" cy="98" r="2.6"/><circle cx="257.2" cy="98" r="2.6"/><circle cx="286.8" cy="98" r="2.6"/>
+          <circle cx="346.2" cy="150" r="2.6"/><circle cx="375.9" cy="150" r="2.6"/><circle cx="405.5" cy="150" r="2.6"/><circle cx="435.2" cy="150" r="2.6"/><circle cx="464.8" cy="150" r="2.6"/><circle cx="494.5" cy="150" r="2.6"/>
+        </g>
+
+        <g fill="#fff" stroke="#4F46E5" stroke-width="2.5">
+          <circle cx="20" cy="52" r="5"/><circle cx="164.1" cy="98" r="5"/><circle cx="316.6" cy="150" r="5"/><circle cx="520" cy="150" r="5"/>
+        </g>
+
+        <g font-family="Manrope" font-size="12.5" font-weight="700" fill="#14161C">
+          <text x="20" y="41">24 900</text>
+          <text x="174" y="87">23 900</text>
+          <text x="327" y="139">22 700</text>
+        </g>
+        <g font-family="Manrope" font-size="11.5" font-weight="500" fill="#9AA0AE">
+          <text x="20" y="197">13 mai</text>
+          <text x="164.1" y="197" text-anchor="middle">16 juin</text>
+          <text x="316.6" y="197" text-anchor="middle">22 juil.</text>
+          <text x="520" y="197" text-anchor="end">auj.</text>
+        </g>
+      </svg>
+      <p class="note">Dans les 60 jours affichés, <b>une seule des deux baisses</b> est visible.</p>
+    </div>
+
+    <!-- carte 3 -->
+    <div class="carte">
+      <div class="tuiles">
+
+        <div class="tuile">
+          <div class="rond bleu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2.5" y="11" width="19" height="5.6" rx="1.8"/>
+              <path d="M5.2 11l1.9-3.7a2 2 0 0 1 1.8-1.1h6.2a2 2 0 0 1 1.8 1.1L18.8 11"/>
+              <circle cx="7.2" cy="16.6" r="1.7"/><circle cx="16.8" cy="16.6" r="1.7"/>
+            </svg>
+          </div>
+          <div class="tuile-txt">
+            <p class="tuile-t">Cette voiture</p>
+            <p class="tuile-s">Même voiture vue sous un autre identifiant, 12 mai → 3 août</p>
+          </div>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+        </div>
+
+        <div class="tuile">
+          <div class="rond vert">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 20v-6.5"/><path d="M12 20V4.5"/><path d="M19 20v-4"/>
+            </svg>
+          </div>
+          <div class="tuile-txt">
+            <p class="tuile-t">Ce prix</p>
+            <p class="tuile-s">71<sup style="font-size:.7em;font-weight:600">e</sup> centile de 37 comparables · dispersion 14 %</p>
+          </div>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+        </div>
+
+        <div class="tuile">
+          <div class="rond gris">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3.6 9.6 12 4l8.4 5.6"/><path d="M5.6 11.2V19.6h12.8V11.2"/><path d="M10 19.6v-4.3h4v4.3"/>
+            </svg>
+          </div>
+          <div class="tuile-txt">
+            <p class="tuile-t">Ce vendeur</p>
+            <p class="tuile-s">Borgese Auto · 29 annonces vues, 62 % de plus d’un mois</p>
+          </div>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+        </div>
+
+        <div class="tuile">
+          <div class="rond bleu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9.2 4.6H7.6A1.6 1.6 0 0 0 6 6.2v13.2a1.6 1.6 0 0 0 1.6 1.6h8.8a1.6 1.6 0 0 0 1.6-1.6V6.2a1.6 1.6 0 0 0-1.6-1.6h-1.6"/>
+              <rect x="9.2" y="3" width="5.6" height="3.2" rx="1.2"/>
+              <path d="M9.4 13.4l2 2 3.5-3.9"/>
+            </svg>
+          </div>
+          <div class="tuile-txt">
+            <p class="tuile-t">Avant d’y aller</p>
+            <p class="tuile-s">HistoVec, CT, 3 questions</p>
+          </div>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <p class="pied">Relevé sur les pages publiques, avec sa date. adscope ne conclut pas à votre place.</p>
+
+  <p class="desc">Peugeot 208 II 1.2 PureTech 100 Allure, première main, carnet d’entretien à jour, véhicule non fumeur, garantie 12 mois incluse. Écran tactile 7&quot;, régulateur de vitesse, caméra de recul, jantes alliage 16&quot;. Financement sur demande.</p>
+</div>
+
+<!-- ══════════════ VUE 2 — une tuile ouverte ══════════════ -->
+<div class="vue">
+  <div class="vue-h"><b>Une tuile ouverte</b><span>Ce prix — le reste du panneau est inchangé</span></div>
+
+  <div class="fiche-t">Peugeot 208 II 1.2 PureTech 100 Allure</div>
+  <div class="fiche-s">2020 · 3 574 km · Essence · Boîte manuelle · Vitrolles (13)</div>
+  <div class="fiche-p">22 700 €</div>
+  <div class="fiche-d">Annonce publiée il y a 60 jours</div>
+
+  <div class="panneau-h"><b>adscope</b> · La Centrale · 8 sept. 2026</div>
+
+  <div class="pile">
+
+    <div class="carte">
+      <p class="label">En ligne depuis</p>
+      <div class="chiffre-row">
+        <div class="hero">4 ans 11 mois</div>
+        <div class="pilule">Le site affiche 60 j</div>
+      </div>
+      <p class="sous">1 810 jours · mise en ligne le 22 sept. 2021</p>
+    </div>
+
+    <div class="carte">
+      <p class="titre">Prix relevé · 118 jours</p>
+      <svg viewBox="0 0 572 210" role="img" aria-label="Courbe du prix relevé sur 118 jours">
+        <rect x="266" y="24" width="274" height="150" rx="10" fill="#FDF0E4"/>
+        <text x="278" y="41" font-family="Manrope" font-size="11.5" font-weight="700" fill="#B75E12">Affiché par le site</text>
+        <path d="M20 52 H164.1 V98 H316.6 V150 H520" fill="none" stroke="#4F46E5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <g fill="#4F46E5" opacity=".3">
+          <circle cx="49.7" cy="52" r="2.6"/><circle cx="79.3" cy="52" r="2.6"/><circle cx="108.9" cy="52" r="2.6"/><circle cx="138.6" cy="52" r="2.6"/>
+          <circle cx="168.2" cy="98" r="2.6"/><circle cx="197.9" cy="98" r="2.6"/><circle cx="227.5" cy="98" r="2.6"/><circle cx="257.2" cy="98" r="2.6"/><circle cx="286.8" cy="98" r="2.6"/>
+          <circle cx="346.2" cy="150" r="2.6"/><circle cx="375.9" cy="150" r="2.6"/><circle cx="405.5" cy="150" r="2.6"/><circle cx="435.2" cy="150" r="2.6"/><circle cx="464.8" cy="150" r="2.6"/><circle cx="494.5" cy="150" r="2.6"/>
+        </g>
+        <g fill="#fff" stroke="#4F46E5" stroke-width="2.5">
+          <circle cx="20" cy="52" r="5"/><circle cx="164.1" cy="98" r="5"/><circle cx="316.6" cy="150" r="5"/><circle cx="520" cy="150" r="5"/>
+        </g>
+        <g font-family="Manrope" font-size="12.5" font-weight="700" fill="#14161C">
+          <text x="20" y="41">24 900</text><text x="174" y="87">23 900</text><text x="327" y="139">22 700</text>
+        </g>
+        <g font-family="Manrope" font-size="11.5" font-weight="500" fill="#9AA0AE">
+          <text x="20" y="197">13 mai</text>
+          <text x="164.1" y="197" text-anchor="middle">16 juin</text>
+          <text x="316.6" y="197" text-anchor="middle">22 juil.</text>
+          <text x="520" y="197" text-anchor="end">auj.</text>
+        </g>
+      </svg>
+      <p class="note">Dans les 60 jours affichés, <b>une seule des deux baisses</b> est visible.</p>
+    </div>
+
+    <!-- tuile ouverte -->
+    <div class="carte">
+      <div class="ouverte-h">
+        <div class="rond vert">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 20v-6.5"/><path d="M12 20V4.5"/><path d="M19 20v-4"/>
+          </svg>
+        </div>
+        <p class="titre" style="margin:0">Ce prix</p>
+      </div>
+
+      <svg viewBox="0 0 572 108" role="img" aria-label="Distribution des 37 comparables">
+        <rect x="10" y="44" width="552" height="10" rx="5" fill="#E9EBF0"/>
+        <rect x="149.6" y="39" width="193.5" height="20" rx="10" fill="#DCE0E8"/>
+        <rect x="243.4" y="35" width="2.8" height="28" rx="1.4" fill="#8B92A2"/>
+        <path d="M295.5 27 V37" stroke="#4F46E5" stroke-width="1.5" opacity=".4" stroke-linecap="round"/>
+        <circle cx="295.5" cy="49" r="7" fill="#fff" stroke="#4F46E5" stroke-width="3"/>
+        <text x="295.5" y="21" text-anchor="middle" font-family="Manrope" font-size="12.5" font-weight="700" fill="#4F46E5">Cette annonce · 22 700 €</text>
+        <g font-family="Manrope" font-size="12.5" font-weight="700" fill="#22252E">
+          <text x="10" y="82">18 200</text>
+          <text x="149.6" y="82" text-anchor="middle">20 400</text>
+          <text x="244.8" y="82" text-anchor="middle">21 900</text>
+          <text x="343.1" y="82" text-anchor="middle">23 450</text>
+          <text x="562" y="82" text-anchor="end">26 900</text>
+        </g>
+        <g font-family="Manrope" font-size="11" font-weight="500" fill="#9AA0AE">
+          <text x="10" y="98">min</text>
+          <text x="149.6" y="98" text-anchor="middle">Q1</text>
+          <text x="244.8" y="98" text-anchor="middle">médiane</text>
+          <text x="343.1" y="98" text-anchor="middle">Q3</text>
+          <text x="562" y="98" text-anchor="end">max</text>
+        </g>
+      </svg>
+
+      <div class="faits">
+        <p class="fait"><b>23 des 37 comparables</b> ont quitté le marché depuis mars</p>
+        <p class="fait">après <b>34 jours</b> en médiane</p>
+        <p class="fait">dernier prix demandé médian <b>21 400 €</b></p>
+      </div>
+    </div>
+  </div>
+
+  <p class="pied">Relevé sur les pages publiques, avec sa date. adscope ne conclut pas à votre place.</p>
+
+  <p class="desc">Peugeot 208 II 1.2 PureTech 100 Allure, première main, carnet d’entretien à jour, véhicule non fumeur, garantie 12 mois incluse. Écran tactile 7&quot;, régulateur de vitesse, caméra de recul, jantes alliage 16&quot;. Financement sur demande.</p>
+</div>
+
+<!-- ══════════════ VUE 3 — jour 1 ══════════════ -->
+<div class="vue">
+  <div class="vue-h"><b>Jour 1</b><span>annonce découverte hier</span></div>
+
+  <div class="fiche-t">Peugeot 208 II 1.2 PureTech 100 Allure</div>
+  <div class="fiche-s">2020 · 3 574 km · Essence · Boîte manuelle · Vitrolles (13)</div>
+  <div class="fiche-p">22 700 €</div>
+  <div class="fiche-d">Annonce publiée il y a 60 jours</div>
+
+  <div class="panneau-h"><b>adscope</b> · La Centrale · 8 sept. 2026</div>
+
+  <div class="pile">
+
+    <div class="carte">
+      <p class="label">En ligne depuis</p>
+      <div class="chiffre-row">
+        <div class="hero">4 ans 11 mois</div>
+        <div class="pilule">Le site affiche 60 j</div>
+      </div>
+      <p class="sous">1 810 jours · mise en ligne le 22 sept. 2021</p>
+    </div>
+
+    <div class="carte bleue">
+      <p>Deux relevés en deux jours — la courbe apparaîtra d’elle-même.</p>
+    </div>
+
+    <div class="carte">
+      <div class="tuiles">
+
+        <div class="tuile">
+          <div class="rond bleu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2.5" y="11" width="19" height="5.6" rx="1.8"/>
+              <path d="M5.2 11l1.9-3.7a2 2 0 0 1 1.8-1.1h6.2a2 2 0 0 1 1.8 1.1L18.8 11"/>
+              <circle cx="7.2" cy="16.6" r="1.7"/><circle cx="16.8" cy="16.6" r="1.7"/>
+            </svg>
+          </div>
+          <div class="tuile-txt">
+            <p class="tuile-t">Cette voiture</p>
+            <p class="tuile-s">1 810 jours en ligne, 2 observés</p>
+          </div>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+        </div>
+
+        <div class="tuile">
+          <div class="rond vert">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 20v-6.5"/><path d="M12 20V4.5"/><path d="M19 20v-4"/>
+            </svg>
+          </div>
+          <div class="tuile-txt">
+            <p class="tuile-t">Ce prix</p>
+            <p class="tuile-s">71<sup style="font-size:.7em;font-weight:600">e</sup> centile de 37 comparables · dispersion 14 %</p>
+          </div>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+        </div>
+
+        <div class="tuile">
+          <div class="rond bleu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9.2 4.6H7.6A1.6 1.6 0 0 0 6 6.2v13.2a1.6 1.6 0 0 0 1.6 1.6h8.8a1.6 1.6 0 0 0 1.6-1.6V6.2a1.6 1.6 0 0 0-1.6-1.6h-1.6"/>
+              <rect x="9.2" y="3" width="5.6" height="3.2" rx="1.2"/>
+              <path d="M9.4 13.4l2 2 3.5-3.9"/>
+            </svg>
+          </div>
+          <div class="tuile-txt">
+            <p class="tuile-t">Avant d’y aller</p>
+            <p class="tuile-s">HistoVec, CT, 3 questions</p>
+          </div>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <p class="pied">Relevé sur les pages publiques, avec sa date. adscope ne conclut pas à votre place.</p>
+
+  <p class="desc">Peugeot 208 II 1.2 PureTech 100 Allure, première main, carnet d’entretien à jour, véhicule non fumeur, garantie 12 mois incluse. Écran tactile 7&quot;, régulateur de vitesse, caméra de recul, jantes alliage 16&quot;. Financement sur demande.</p>
+</div>
+
+</div>
+</body>
+</html>
