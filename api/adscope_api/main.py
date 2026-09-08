@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
 from .auth import resolve
+from .comparables import comparables_for
 from .db import get_session
 from .disappearance import observe
 from .models import Listing
@@ -13,7 +14,8 @@ from .observations import record
 from .intake import AbsenceIn, ObservationsIn
 from .revisit import due
 from .schemas import (
-    AbsenceOut, BatchIn, RevisitIn, RevisitOut, SellerStatsOut, SignalsOut,
+    AbsenceOut, BatchIn, ComparablesOut, RevisitIn, RevisitOut, SellerStatsOut,
+    SignalsOut,
 )
 from .sellers import stats_for
 from .signals import signals_for
@@ -76,6 +78,21 @@ def get_listing(site: str, site_id: str, session=Depends(get_session),
     if listing is None:
         raise HTTPException(status_code=404, detail="annonce inconnue")
     return signals_for(listing)
+
+
+# Le marché autour d'une annonce : le segment auquel elle appartient et le rang
+# qu'elle y tient. Le calcul reste dans Postgres — un segment de deux cents
+# annonces suivies depuis des mois, ce sont des milliers de points de prix qu'on
+# ne remonte pas en mémoire pour en tirer cinq nombres.
+@app.get("/v1/listings/{site}/{site_id}/comparables", response_model=ComparablesOut)
+def get_comparables(site: str, site_id: str, session=Depends(get_session),
+                    _=Depends(require_license)):
+    listing = session.scalar(
+        select(Listing).where(Listing.site == site, Listing.site_id == site_id)
+    )
+    if listing is None:
+        raise HTTPException(status_code=404, detail="annonce inconnue")
+    return comparables_for(session, listing)
 
 
 # Les statistiques d'un marchand, agrégées à la demande. La popup les demande

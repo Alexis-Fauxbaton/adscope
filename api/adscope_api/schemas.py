@@ -115,3 +115,34 @@ class SellerStatsOut(BaseModel):
     price_drop_listings: int
     price_drop_rate: float | None
     price_drop_after_days: int | None
+
+
+class SegmentOut(BaseModel):
+    """Ce à quoi l'annonce a été comparée."""
+
+    brand: str | None
+    model: str | None
+    year: int | None
+    # Nulle quand le segment a reculé, faute d'assez de comparables.
+    version: str | None
+
+
+class ComparablesOut(BaseModel):
+    """Le marché autour d'une annonce : cinq bornes, ce qu'elles valent, et le
+    rang de l'annonce parmi elles. Jamais un prix cible ni un verdict.
+
+    Au delà de 0,30 de dispersion le segment est trop hétérogène pour être
+    donné à lire : `percentile` se tait, les bornes restent servies.
+    """
+
+    segment: SegmentOut
+    count: int
+    min: int | None
+    q1: int | None
+    median: int | None
+    q3: int | None
+    max: int | None
+    dispersion: float | None
+    percentile: int | None
+    comparable: bool
+    reason: Literal["too_few", "too_dispersed", "no_segment"] | None
