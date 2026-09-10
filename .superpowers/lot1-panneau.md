@@ -181,3 +181,46 @@ sur un attribut de présentation : le tracé disparaîtrait.
   (`viewBox` + `width: 100%`), mais le chiffre héros à 46 px commence à serrer sous 420 px. Une
   requête de conteneur ou un palier à 400 px réglerait le cas ; je ne l'ai pas fait faute de
   savoir sur quelle largeur la fiche mobile s'ouvre réellement.
+
+## Le correctif de revue, quatre points
+
+Repris là où l'agent précédent s'était arrêté — `git status`/`git diff` montraient déjà les trois
+premiers points en place dans l'arbre de travail, aucun commité. Vérifiés un à un, complétés là
+où il manquait la preuve par la casse.
+
+1. **La garde `sellerType === 'pro'`** — déjà isolée dans `tests/market.test.mjs`, passant
+   directement `{sellerType: 'private', sellerId: 'x'}` sans module de site. Confirmé rouge en
+   retirant le conjunct (l'assertion attend `['comparables']`, reçoit `['comparables', 'seller']`).
+   Rien à faire.
+
+2. **« N jours » sous 31 jours** — déjà harmonisé : `ADS.format.spell` (jamais `duration`, qui
+   garde son « N j » pour les contextes d'alerte) porte le hero de la popup (`popup/fiche.js`) et
+   celui du panneau (`src/panel-cards.js`). Le test `tests/fiche.test.mjs` — « sous 31 jours, la
+   fenêtre épelle « jours », jamais l'abréviation » — fige `'5 jours'` sur `onlineDays: 5`. Rien à
+   faire.
+
+3. **La ligne grise unique sous la courbe** — le code était déjà en place (`ADS.view.legend`,
+   ajoutée dans `src/view.js`, appelée une fois par `src/panel-cards.js`) mais **aucun test ne
+   l'exerçait** : ni `ADS.view.legend` en isolation, ni le rendu `.adscope-fine` du panneau. Deux
+   ajouts :
+   - `tests/view.test.mjs` — deux tests sur `legend(r)` : l'accord féminin (« vérifiée », jamais
+     « vérifié » que porte `tracking`) aux deux cadences, et le silence sans `tracked_days`. Rouge
+     confirmé sur le `checked(r, true)` (retirer le `true` fait échouer le premier) et sur le
+     `r.tracked_days != null` (l'enlever transforme le silence en `'Suivie depuis NaN an'`).
+   - `tests/panel-curve.test.mjs` — deux tests sur le rendu : une seule `.adscope-fine` sous la
+     courbe, à la cadence quotidienne puis hebdomadaire selon `price_gap_days`. Rouge confirmé sur
+     le `card.append(...legend(ctx.remote))` de `panel-cards.js` (le retirer fait tomber le compte
+     à zéro) et sur `CHECKED_MAX_DAYS` de `view.js` (l'abaisser à 5 fait échouer le cas
+     hebdomadaire, qui devient « non vérifiée pendant 6 j »).
+
+4. **Le palier compact sous 480 px** — déjà écrit dans `src/panel.css`
+   (`@container (max-width: 480px)` : `.adscope-card { padding: 16px }`, `.adscope-hero { font-size:
+   34px }`, `.adscope-plot { height: 110px }`). Vérifié par capture headless (Chrome, Playwright) :
+   le panneau réel — `ADS.panel.render` chargé dans un navigateur, sans mock — posé dans une
+   colonne de 400 px affiche bien un hero à 34 px, un padding de carte à 16 px et une courbe à
+   110 px de haut (confirmé par `getComputedStyle`, puis par une capture d'écran regardée). Rien à
+   coder ; seule la vérification manquait.
+
+Les deux tests de vue et les deux de rendu portent le compte extension de 331 à 335. Les fichiers
+capturés pour la vérification visuelle (rendu manuel hors banc de test, dans un Chrome piloté par
+Playwright) ne laissent aucune trace dans le dépôt.

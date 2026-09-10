@@ -63,3 +63,26 @@ test("sans fenêtre affichée par le site, la courbe ne commente rien", () => {
     assert.doesNotMatch(text(w), /jours affichés/)
   }, { index_date: stamp(1810) })
 })
+
+// Une seule ligne grise sous la courbe, jamais deux : ce que la maquette ne
+// montre pas doit se limiter au garde-fou d'honnêteté, pas s'étaler en carte
+// « Suivie depuis » / « Prix » séparée. Rouge sur le `card.append(...legend(ctx.remote))`
+// de src/panel-cards.js : le retirer fait disparaître la ligne, en ajouter une
+// deuxième la ferait apparaître deux fois.
+test('sous la courbe, une seule ligne grise porte le suivi et sa cadence', () => {
+  fiche((w) => {
+    w.arrive({ [ID]: { ...SIGNALS, price_gap_days: 1, price_checks: 40 } })
+    const fine = w.panel().querySelectorAll('.adscope-fine')
+    assert.equal(fine.length, 1)
+    assert.equal(fine[0].textContent, 'Suivie depuis 3 mois · vérifiée chaque jour')
+  })
+})
+
+// La cadence hebdomadaire, elle, se lit sur un `price_gap_days` différent —
+// rouge sur le seuil `CHECKED_MAX_DAYS` de src/view.js.
+test('un relevé moins fréquent redit « chaque semaine » sous la courbe', () => {
+  fiche((w) => {
+    w.arrive({ [ID]: { ...SIGNALS, price_gap_days: 6, price_checks: 12 } })
+    assert.equal(w.panel().querySelector('.adscope-fine').textContent, 'Suivie depuis 3 mois · vérifiée chaque semaine')
+  })
+})

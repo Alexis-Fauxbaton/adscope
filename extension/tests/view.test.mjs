@@ -200,3 +200,22 @@ test('une baisse reste une baisse, la vérification ne la commente pas', () => {
   const [, , r] = of('3254194817')
   assert.equal(priceOf(r), `29${NARROW}190${NB}€  ▼ −800${NB}€ en 12 j`)
 })
+
+// La ligne grise sous la courbe du panneau : la même cadence que `tracking`
+// calcule pour le prix, mais dite de l'annonce suivie — au féminin. Rouge sur
+// le `checked(r, true)` de `legend` : sans le `true`, elle dirait « vérifié »,
+// l'accord masculin de `tracking`.
+test('la légende du panneau accorde la vérification au féminin de l’annonce suivie', () => {
+  assert.equal(view.legend(stable()), 'Suivie depuis 1 mois · vérifiée chaque semaine')
+  assert.equal(
+    view.legend(stable({ price_checks: 56, price_gap_days: 1 })),
+    'Suivie depuis 1 mois · vérifiée chaque jour',
+  )
+})
+
+// Rouge sur le `r.tracked_days != null` de `legend` : sans lui, un suivi vide
+// écrirait « Suivie depuis moins d'un jour » au lieu de se taire.
+test('sans suivi observé, la légende du panneau ne dit rien', () => {
+  assert.equal(view.legend(null), '')
+  assert.equal(view.legend({}), '')
+})
