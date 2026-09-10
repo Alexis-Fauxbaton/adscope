@@ -94,6 +94,8 @@ ADS.lacentrale = ADS.sites.register((() => {
     const link = doc.querySelector(`a[href*="${slug(l.siteId)}"]`)
     return link && (link.closest('[data-tracking-meta]') || link)
   }
+  // Le pavé du prix, sous lequel le panneau se pose : un identifiant que le site tient.
+  const mount = (doc) => doc.querySelector('#pavePrix')
 
   // Mesuré : là où le compteur du site s'arrête. La fiche relevée le 2026-09-06 porte
   // 1 810 jours en ligne et affiche « Publiée il y a 60 jours » ; au-delà de ce plafond,
@@ -102,15 +104,13 @@ ADS.lacentrale = ADS.sites.register((() => {
   // Mesuré le 2026-09-06, et la mesure conclut à l'insuffisance : la base porte 24 annonces du
   // site, toutes d'un seul relevé, dont 5 dans la fenêtre [31, 60] que ce seuil découpe. Aucune
   // borne ne s'y dessine, et l'absence est vérifiée : en tirant 23 anciennetés au hasard parmi
-  // les 29 188 de leboncoin, le plus grand écart se place n'importe où entre 18 et 56 jours —
-  // du bruit à cet effectif. Il faut environ 500 annonces pour voir la forme, 2 000 pour y poser
-  // une borne. 31 jours reste emprunté à leboncoin, où il a été mesuré ; ici la valeur ne pèse
-  // que sur l'appui visuel, jamais sur l'alerte.
+  // les 29 188 de leboncoin, le plus grand écart se place n'importe où entre 18 et 56 jours — du
+  // bruit à cet effectif ; il faut environ 500 annonces pour voir la forme, 2 000 pour y poser une
+  // borne. 31 jours reste emprunté à leboncoin ; ici il ne pèse que sur l'appui visuel.
   const OLD_MIN_DAYS = 31
-  // Non mesuré non plus, et volontairement sans effet sur l'alerte : 22 des 23 cartes
-  // relevées portent un `lastUpdate` postérieur de plus d'un jour à la mise en ligne.
-  // Une marque que 96 % des annonces portent ne distingue rien, et le site ne dit pas ce
-  // qu'elle recouvre — elle est affichée comme fait, jamais retenue comme signal.
+  // Non mesuré non plus, et volontairement sans effet sur l'alerte : 22 des 23 cartes relevées
+  // portent un `lastUpdate` postérieur de plus d'un jour à la mise en ligne. Une marque que 96 %
+  // des annonces portent ne distingue rien : affichée comme fait, jamais retenue comme signal.
   const BUMP_MIN_MS = DAY
 
   const signals = (listed, now) => {
@@ -142,7 +142,7 @@ ADS.lacentrale = ADS.sites.register((() => {
 
   return {
     id: SITE, name: 'La Centrale', origins: ['https://www.lacentrale.fr'],
-    urlId, card: cardOf, dateNode, words, claim, displayed,
+    urlId, card: cardOf, dateNode, mount, words, claim, displayed,
     fromDocument, fromScripts, payload, signals,
   }
 })())

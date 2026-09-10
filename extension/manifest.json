@@ -3,9 +3,15 @@
   "name": "adscope",
   "version": "0.1.0",
   "description": "Affiche l'ancienneté réelle des annonces automobiles et signale celles qui ont été réactualisées.",
-  "permissions": ["storage"],
-  "host_permissions": ["http://localhost:8000/*"],
-  "optional_host_permissions": ["https://*/*"],
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*"
+  ],
   "background": {
     "service_worker": "src/sw.js"
   },
@@ -15,7 +21,9 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.leboncoin.fr/*"],
+      "matches": [
+        "https://www.leboncoin.fr/*"
+      ],
       "js": [
         "src/context.js",
         "src/sites.js",
@@ -23,40 +31,72 @@
         "src/sites/leboncoin.js",
         "src/sites/leboncoin-absence.js",
         "src/format.js",
+        "src/curve.js",
         "src/view.js",
         "src/diag.js",
         "src/sync.js",
+        "src/market.js",
         "src/feed.js",
         "src/listing.js",
+        "src/panel-node.js",
+        "src/panel-icons.js",
+        "src/panel-curve.js",
+        "src/panel-note.js",
+        "src/panel-price.js",
+        "src/panel-sections.js",
+        "src/panel-cards.js",
+        "src/panel.js",
         "src/detail.js",
         "src/absence.js"
       ],
-      "css": ["src/ui.css"],
+      "css": [
+        "src/ui.css",
+        "src/panel.css"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://www.leboncoin.fr/*"],
-      "js": ["src/sites/leboncoin-tap.js"],
+      "matches": [
+        "https://www.leboncoin.fr/*"
+      ],
+      "js": [
+        "src/sites/leboncoin-tap.js"
+      ],
       "world": "MAIN",
       "run_at": "document_start"
     },
     {
-      "matches": ["https://www.lacentrale.fr/*"],
+      "matches": [
+        "https://www.lacentrale.fr/*"
+      ],
       "js": [
         "src/context.js",
         "src/sites.js",
         "src/sites/read.js",
         "src/sites/lacentrale.js",
         "src/format.js",
+        "src/curve.js",
         "src/view.js",
         "src/diag.js",
         "src/sync.js",
+        "src/market.js",
         "src/feed.js",
         "src/listing.js",
+        "src/panel-node.js",
+        "src/panel-icons.js",
+        "src/panel-curve.js",
+        "src/panel-note.js",
+        "src/panel-price.js",
+        "src/panel-sections.js",
+        "src/panel-cards.js",
+        "src/panel.js",
         "src/detail.js",
         "src/absence.js"
       ],
-      "css": ["src/ui.css"],
+      "css": [
+        "src/ui.css",
+        "src/panel.css"
+      ],
       "run_at": "document_idle"
     }
   ]

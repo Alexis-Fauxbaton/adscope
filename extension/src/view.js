@@ -48,13 +48,22 @@ ADS.view = (() => {
   // revérifié, ce n'est qu'un aveu sur notre suivi. La ligne dit lequel des
   // deux. Sans les deux nombres — un signal d'avant l'échantillonnage, gardé
   // en cache —, elle n'affirme rien.
-  const checked = (r) => {
+  // `fem` accorde le participe à ce qu'il qualifie : le prix (masculin, dans
+  // `tracking`) ou l'annonce suivie (féminin, dans `legend`) — même cadence,
+  // deux phrases.
+  const checked = (r, fem = false) => {
     if (r.price_gap_days == null || r.stable_days < CHECKED_MAX_DAYS) return ''
-    if (!r.price_checks) return ' · jamais revérifié'
-    if (r.price_gap_days <= DAILY_MAX_DAYS) return ' · vérifié chaque jour'
-    if (r.price_gap_days <= CHECKED_MAX_DAYS) return ' · vérifié chaque semaine'
-    return ` · non vérifié pendant ${duration(r.price_gap_days)}`
+    const v = fem ? 'vérifiée' : 'vérifié'
+    if (!r.price_checks) return fem ? ' · jamais revérifiée' : ' · jamais revérifié'
+    if (r.price_gap_days <= DAILY_MAX_DAYS) return ` · ${v} chaque jour`
+    if (r.price_gap_days <= CHECKED_MAX_DAYS) return ` · ${v} chaque semaine`
+    return ` · non ${v} pendant ${duration(r.price_gap_days)}`
   }
+
+  // Le garde-fou d'honnêteté du panneau, en une ligne : depuis quand on
+  // regarde, et à quelle cadence — la même que `checked` calcule pour `tracking`,
+  // seule la ligne qui la porte a changé.
+  const legend = (r) => (r && r.tracked_days != null ? `Suivie depuis ${duration(r.tracked_days)}${checked(r, true)}` : '')
 
   const tracking = (r) => {
     const rows = []
@@ -71,25 +80,7 @@ ADS.view = (() => {
     return rows
   }
 
-  // Même hiérarchie que la pastille : la durée porte le poids dès qu'elle est le
-  // sujet, et la mise à jour reste une ligne ordinaire. Les mots et la
-  // contradiction, eux, viennent du site — ce que sa date de mise à jour atteste
-  // et ce que sa page affiche de faux ne se transposent pas d'un site à l'autre.
-  const panel = (listing, s, r, displayed, site = ADS.sites.current()) => ({
-    page: [
-      {
-        label: 'En ligne depuis',
-        value: s.onlineDays == null ? UNDATED : duration(s.onlineDays),
-        strong: s.notable || s.dormant,
-      },
-      ...(s.bumped ? [{ label: site.words.bumpLabel, value: ago(s.bumpedDaysAgo) }] : []),
-      { label: 'Vendeur', value: listing.sellerType === 'pro' ? 'professionnel' : 'particulier' },
-    ],
-    claim: site.claim(s, displayed),
-    tracked: tracking(r),
-  })
-
-  return { badge, panel, drop }
+  return { badge, tracking, drop, legend }
 })()
 
 if (typeof module !== 'undefined') module.exports = ADS.view

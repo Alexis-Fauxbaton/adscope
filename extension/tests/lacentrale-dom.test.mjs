@@ -147,12 +147,24 @@ test('les annonces de La Centrale partent au suivi sous leur propre site', () =>
   assert.equal(w.messages()[0].listings.length, 23)
 })
 
-const capped = () =>
+const capped = (over = {}) =>
   page({
     path: '/auto-occasion-annonce-66101733515.html',
     scripts: fiche(FICHES.capped, { lastname: 'F' }),
     label: 'Publiée il y a 60 jours',
+    ...over,
   })
+
+// Sur la fiche de ce site, le libellé d'ancienneté ferme la page au ras du pied,
+// sous les mentions légales : s'y ancrer poserait le panneau là où personne ne
+// le lirait. Le pavé du prix, lui, est en haut. Rouge sur le `mount` de
+// src/sites/lacentrale.js, qui laisserait le panneau retomber sur le libellé.
+test('le panneau se pose sous le prix, pas au pied de la fiche', () => {
+  const w = capped({ price: true })
+  w.load('detail.js')
+  const kin = w.body.children
+  assert.equal(kin[kin.indexOf(w.panel()) - 1].getAttribute('id'), 'pavePrix')
+})
 
 // Le cœur du lot, vu de la page : le site écrit « 60 jours », l'annonce en a
 // 1 810, et l'écart doit se lire sans quitter la fiche.
@@ -161,11 +173,14 @@ test('sur une fiche plafonnée, la contradiction est lisible', () => {
   w.load('detail.js')
   const text = w.panel().textContent
   assert.match(text, /En ligne depuis/)
-  assert.match(text, /ans/)
-  assert.match(text, /La Centrale affiche/)
-  assert.match(text, /Publiée il y a 60 jours/)
-  assert.match(text, /compteur plafonné à 60 jours/)
-  assert.match(w.panel().className, /adscope-panel--notable/)
+  assert.match(text, /4 ans 11 mois/)
+  // La pilule dit la largeur de ce que le site montre ; ce qu'il écrit mot pour
+  // mot et ce que ce libellé recouvre restent lisibles sans encombrer la carte.
+  assert.match(text, /Le site affiche 60 j/)
+  const said = w.panel().querySelector('.adscope-pill').getAttribute('title')
+  assert.match(said, /La Centrale affiche/)
+  assert.match(said, /Publiée il y a 60 jours/)
+  assert.match(said, /compteur plafonné à 60 jours/)
 })
 
 test("la fiche est reconnue par la référence que porte son adresse", () => {
@@ -186,7 +201,7 @@ test("sous le plafond, aucune contradiction n'est inventée", () => {
     label: 'Publiée il y a 23 jours',
   })
   w.load('detail.js')
-  assert.doesNotMatch(w.panel().textContent, /La Centrale affiche/)
+  assert.equal(w.panel().querySelector('.adscope-pill'), null)
   assert.match(w.panel().textContent, /professionnel/)
   assert.equal(w.panel().className, 'adscope-panel')
 })

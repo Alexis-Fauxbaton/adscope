@@ -35,7 +35,7 @@ test("quand aucune annonce ne correspond à l'URL, le panneau reste et se corrig
   const w = world('0', { path: '/ad/voitures/9999999999', data: TWO })
   w.load('detail.js')
   assert.equal(w.panel().getAttribute('data-adscope-detail'), PRO)
-  assert.match(w.panel().textContent, /Lu sur la page/)
+  assert.match(w.panel().textContent, /En ligne depuis/)
 
   w.visit(ad(PRIVATE))
   w.mutate(1)
@@ -67,15 +67,22 @@ const aged = (onlineDays, bumpedDaysAgo) => ({
   index_date: stamp(bumpedDaysAgo),
 })
 
-test('le panneau suit le seuil de la pastille, pas la seule réactualisation', () => {
-  const recent = world('0', { path: `/ad/voitures/${PRO}`, data: block(ad(PRO)) })
-  recent.load('detail.js')
-  assert.equal(recent.panel().className, 'adscope-panel')
+// La contradiction est le sujet du panneau, et l'orangé lui est réservé : la
+// pilule ne paraît que si la page affiche autre chose que l'âge réel. Rouge sur
+// le `site.claim(s, displayed)` de src/panel-cards.js — rendue inconditionnelle,
+// elle accuserait le site sur une annonce dont la page dit la vérité.
+test("la pilule ne paraît que sur l'annonce dont le site masque l'âge", () => {
+  const masked = world('0', { path: '/ad/voitures/4000000001', data: block(aged(400, 2)) })
+  masked.load('detail.js')
+  assert.match(masked.panel().textContent, /Le site affiche/)
+  // L'âge s'épelle, il ne s'arrondit pas : « 1 an 1 mois », pas « 1 an ».
+  assert.match(masked.panel().textContent, /1 an 1 mois/)
 
-  const old = world('0', { path: '/ad/voitures/4000000001', data: block(aged(400, 2)) })
-  old.load('detail.js')
-  assert.equal(old.panel().className, 'adscope-panel adscope-panel--notable')
-  assert.match(old.panel().textContent, /1 an/)
+  // Publiée et indexée le même jour : la page affiche l'âge exact.
+  const honest = world('0', { path: '/ad/voitures/4000000001', data: block(aged(400, 400)) })
+  honest.load('detail.js')
+  assert.match(honest.panel().textContent, /1 an 1 mois/)
+  assert.doesNotMatch(honest.panel().textContent, /Le site affiche/)
 })
 
 // La navigation monopage telle qu'elle se produit : le navigateur reçoit la

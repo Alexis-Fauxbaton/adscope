@@ -6,18 +6,7 @@ globalThis.ADS = globalThis.ADS || {}
 // relevé ; cette fenêtre n'est qu'un constat posé sur la table.
 ADS.fiche = (() => {
   const { el, tag, row, fill } = ADS.dom
-  const { money, number } = ADS.format
-
-  // L'ancienneté est le sujet de la fenêtre : elle se dit sans arrondi grossier.
-  // La pastille peut abréger en « 4 ans » — elle alerte, elle n'argumente pas ;
-  // ici « 4 ans 11 mois » et « 4 ans » ne décrivent pas le même stock.
-  const spell = (n) => {
-    if (n < 31) return `${n} j`
-    const years = Math.floor(n / 365)
-    const months = Math.floor((n - years * 365) / 30)
-    return [years && `${years} an${years > 1 ? 's' : ''}`, months && `${months} mois`]
-      .filter(Boolean).join(' ') || `${n} j`
-  }
+  const { money, number, spell } = ADS.format
 
   // En jours, toujours, pour tout ce qui se compare : « 1 mois » couvrirait de
   // 31 à 60 jours, et c'est précisément l'écart qu'on discute.

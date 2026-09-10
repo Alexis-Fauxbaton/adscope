@@ -99,8 +99,7 @@ ADS.leboncoin = ADS.sites.register((() => {
     }
   }
 
-  // La même lecture pour les deux sources : le bloc du rendu serveur et les
-  // charges que la page reçoit ensuite ont la même forme.
+  // La même lecture pour les deux sources : le bloc du rendu serveur et les charges reçues ont la même forme.
   const fromPayload = (json) => {
     const ads = findAds(json)
     return ads ? ads.map(normalize) : []
@@ -142,7 +141,8 @@ ADS.leboncoin = ADS.sites.register((() => {
 
   return {
     id: 'lbc', name: 'leboncoin', origins: ['https://www.leboncoin.fr'],
-    urlId, card, dateNode, words, claim,
+    // Le prix est dans le bloc que ce libellé ferme : le panneau se pose là, sous les deux.
+    urlId, card, dateNode, mount: (doc, node) => node, words, claim,
     fromDocument, fromPayload, payload, normalize, signals, findAds,
   }
 })())

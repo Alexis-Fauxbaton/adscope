@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url)
 globalThis.location = { origin: 'https://www.leboncoin.fr' }
 require(join(here, '../src/sites.js'))
 require(join(here, '../src/sites/read.js'))
-const { normalize, signals } = require(join(here, '../src/sites/leboncoin.js'))
+const { normalize, signals, claim } = require(join(here, '../src/sites/leboncoin.js'))
 require(join(here, '../src/format.js'))
 const view = require(join(here, '../src/view.js'))
 
@@ -85,64 +85,46 @@ test('une hausse ou un prix stable ne produit aucune baisse', () => {
   assert.equal(view.drop(null), null)
 })
 
-test('le panneau nomme la contradiction affichée par le site', () => {
-  const [l, s, r] = of('3254194817')
-  const { claim } = view.panel(l, s, r, "aujourd'hui à 21:14")
-  assert.equal(claim.label, 'leboncoin affiche')
-  assert.equal(claim.says, "aujourd'hui à 21:14")
-  assert.match(claim.note, /réactualisation/)
+// La contradiction est nommée par le site, jamais par le code partagé : lui
+// seul sait ce que sa page affiche de faux.
+test('le site nomme la contradiction que sa page affiche', () => {
+  const [, s] = of('3254194817')
+  const said = claim(s, "aujourd'hui à 21:14")
+  assert.equal(said.label, 'leboncoin affiche')
+  assert.equal(said.says, "aujourd'hui à 21:14")
+  assert.match(said.note, /réactualisation/)
 })
 
-test('sans réactualisation ou sans date lue, aucune contradiction n\'est inventée', () => {
-  const [l, s, r] = of('3254194817')
-  assert.equal(view.panel(l, s, r, null).claim, null)
+test("sans réactualisation ou sans date lue, aucune contradiction n'est inventée", () => {
+  const [, s] = of('3254194817')
+  assert.equal(claim(s, null), null)
   const calm = normalize({
     list_id: 7, price: [1], owner: { type: 'pro' }, attributes: [],
     first_publication_date: '2026-09-01 10:00:00', index_date: '2026-09-01 10:02:00',
   })
-  assert.equal(view.panel(calm, signals(calm, NOW), null, "aujourd'hui à 21:14").claim, null)
+  assert.equal(claim(signals(calm, NOW), "aujourd'hui à 21:14"), null)
 })
 
-test('le panneau suit la hiérarchie de la pastille : la durée porte le poids', () => {
-  const [l] = of('3254194817')
-  const p = view.panel(l, OLD, null, null)
-  assert.deepEqual(p.page.map((x) => x.label), ['En ligne depuis', 'Réactualisée', 'Vendeur'])
-  assert.equal(p.page[0].value, '6 ans')
-  assert.equal(p.page[0].strong, true)
-  assert.ok(!p.page[1].strong, 'la réactualisation est un aggravant, pas le sujet')
-})
-
-test('une annonce fraîche mais réactualisée ne met sa durée en avant', () => {
-  const [l, s] = of('3254194817')
-  assert.ok(!view.panel(l, s, null, null).page[0].strong)
-  assert.equal(view.panel(l, DORMANT, null, null).page[0].strong, true)
-})
-
-test('le panneau sépare ce qui est lu de ce qui est suivi', () => {
-  const [l, s, r] = of('3254194817')
-  const p = view.panel(l, s, r, "aujourd'hui à 21:14")
-  assert.deepEqual(p.page.map((x) => x.label), ['En ligne depuis', 'Réactualisée', 'Vendeur'])
-  assert.deepEqual(p.tracked, [
+// Ce que le suivi mutualisé ajoute à la page, et qui ne s'y lit nulle part :
+// depuis quand on regarde, combien de fois, et ce que le prix a fait.
+test('le suivi se compte en relevés, jamais en impressions', () => {
+  const [, , r] = of('3254194817')
+  assert.deepEqual(view.tracking(r), [
     { label: 'Suivie depuis', value: '12 j · 3 vues' },
     { label: 'Prix', value: `29${NARROW}190${NB}€  ▼ −800${NB}€ en 12 j`, strong: true },
   ])
 })
 
 test('un prix inchangé se dit « stable depuis », pas « aucun changement »', () => {
-  const [l, s, r] = of('3250252623')
-  const p = view.panel(l, s, r, null)
-  assert.deepEqual(p.tracked, [
+  const [, , r] = of('3250252623')
+  assert.deepEqual(view.tracking(r), [
     { label: 'Suivie depuis', value: '5 j · 1 vue' },
     { label: 'Prix', value: 'stable depuis 5 j' },
   ])
 })
 
-test('sans signaux le panneau garde ses lignes de page et rien d\'autre', () => {
-  const [l, s] = of('3254194817')
-  const p = view.panel(l, s, null, "aujourd'hui à 21:14")
-  assert.equal(p.tracked.length, 0)
-  assert.equal(p.page[0].value, '14 j')
-  assert.ok(p.claim)
+test("sans signaux, le suivi ne dit rien plutôt que zéro", () => {
+  assert.deepEqual(view.tracking(null), [])
 })
 
 test('les montants portent les espaces insécables du français', () => {
@@ -159,10 +141,7 @@ const stable = (over) => ({
   price_delta_since_first: null, tracked_days: 56, observations: 60, ...over,
 })
 
-const priceOf = (r) => {
-  const [l, s] = of('3254194817')
-  return view.panel(l, s, r, null).tracked.find((x) => x.label === 'Prix').value
-}
+const priceOf = (r) => view.tracking(r).find((x) => x.label === 'Prix').value
 
 test('un prix stable vérifié chaque semaine le dit', () => {
   assert.equal(priceOf(stable()), 'stable depuis 1 mois · vérifié chaque semaine')

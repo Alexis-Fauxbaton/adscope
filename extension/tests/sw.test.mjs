@@ -28,9 +28,12 @@ const boot = ({ entries = {}, licenseKey = KEY, offline = false } = {}) => {
     storage: { local: store.local },
     runtime: { onMessage: { addListener: (fn) => (listener = fn) } },
   }
-  globalThis.importScripts = () => {
-    delete require.cache[require.resolve(src('cache.js'))]
-    require(src('cache.js'))
+  globalThis.importScripts = (...files) => {
+    for (const f of files) {
+      const at = src(f.replace('/src/', ''))
+      delete require.cache[require.resolve(at)]
+      require(at)
+    }
   }
   globalThis.fetch = async (url, init) => {
     calls.push({ url, body: JSON.parse(init.body) })

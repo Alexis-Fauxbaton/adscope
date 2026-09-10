@@ -18,7 +18,11 @@ export class El {
     this.children = []
     this.className = ''
     this.own = ''
+    this.handlers = {}
   }
+  addEventListener(type, fn) { (this.handlers[type] = this.handlers[type] || []).push(fn) }
+  // Le clic tel que le lecteur le donne : le panneau n'écoute que celui-là.
+  click() { for (const fn of this.handlers.click || []) fn() }
   set textContent(v) { this.own = v; this.children = [] }
   get textContent() { return this.children.length ? this.children.map((c) => c.textContent).join('') : this.own }
   get descendants() { return this.children.flatMap((c) => [c, ...c.descendants]) }
@@ -27,10 +31,28 @@ export class El {
   append(...nodes) { for (const n of nodes) { n.parentElement = this; this.children.push(n) } }
   appendChild(n) { this.append(n) }
   replaceChildren(...nodes) { this.children = []; this.append(...nodes) }
-  insertBefore(n) { this.append(n) }
+  // Le rang compte : c'est lui qui dit si le panneau s'est posé sous le prix ou
+  // au pied de la page.
+  get nextSibling() {
+    const kin = this.parentElement ? this.parentElement.children : []
+    return kin[kin.indexOf(this) + 1] || null
+  }
+  insertBefore(n, ref) {
+    n.parentElement = this
+    const at = ref ? this.children.indexOf(ref) : -1
+    if (at < 0) this.children.push(n)
+    else this.children.splice(at, 0, n)
+    return n
+  }
   one(sel) {
-    const tag = sel.replace(ATTR, '').trim()
+    const rest = sel.replace(ATTR, '').trim()
+    // Les trois façons de nommer un nœud que le code emploie : par sa balise,
+    // par son identifiant, par une de ses classes.
+    const tag = (rest.match(/^[a-zA-Z][\w-]*/) || [''])[0]
     if (tag && tag !== this.tag) return false
+    for (const [, id] of rest.matchAll(/#([\w-]+)/g)) if (this.getAttribute('id') !== id) return false
+    const classes = String(this.className || this.getAttribute('class') || '').split(/\s+/)
+    for (const [, cls] of rest.matchAll(/\.([\w-]+)/g)) if (!classes.includes(cls)) return false
     for (const [, name, op, value] of sel.matchAll(ATTR)) {
       const got = this.getAttribute(name)
       if (got === null) return false
@@ -77,6 +99,7 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
     title: '',
     getElementById: byId,
     createElement: (t) => new El(t),
+    createElementNS: (ns, t) => new El(t),
     querySelectorAll: (sel) => (counts.scan++, body.querySelectorAll(sel)),
     querySelector: (sel) => body.querySelector(sel),
   }
@@ -90,6 +113,7 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
   const emitted = []
   const asked = []
   const painted = []
+  let relayed = []
   globalThis.chrome = {
     storage: { local: { set: (o) => Object.assign(stored, o) } },
     runtime: {
@@ -102,6 +126,9 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
         // Le badge ne touche ni au réseau ni au cache : le service worker le
         // pose sur l'onglet d'où vient le message.
         if (msg.type === 'badge') return painted.push(msg), respond({ ok: true })
+        // Le marché autour de l'annonce et son vendeur : le service worker les
+        // relaie vers l'API, et c'est le test qui décide s'ils reviennent.
+        if (msg.type === 'comparables' || msg.type === 'seller') return relayed.push({ msg, respond })
         if (msg.type !== 'cached') return emitted.push(msg), pending.push({ msg, respond })
         asked.push(msg)
         const hits = msg.ids.filter((id) => id in cache).map((id) => [id, cache[id]])
@@ -125,7 +152,13 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
   }
   globalThis.ADS = undefined
   const load = (f) => { delete require.cache[require.resolve(src(f))]; require(src(f)) }
-  for (const f of ['context.js', 'sites.js', 'sites/read.js', site, 'format.js', 'view.js', 'diag.js', 'sync.js', 'feed.js']) load(f)
+  // L'ordre du manifeste : chaque module trouve ceux dont il se sert au chargement.
+  const MODULES = [
+    'context.js', 'sites.js', 'sites/read.js', 'format.js', 'curve.js', 'view.js', 'diag.js',
+    'sync.js', 'market.js', 'feed.js', 'panel-node.js', 'panel-icons.js', 'panel-curve.js',
+    'panel-note.js', 'panel-price.js', 'panel-sections.js', 'panel-cards.js', 'panel.js',
+  ]
+  for (const f of ['context.js', 'sites.js', 'sites/read.js', site, ...MODULES.slice(3)]) load(f)
   // Le travail lourd, compté à travers le registre : le code partagé y accède
   // de la même façon, par le site que l'origine désigne.
   const current = ADS.sites.current()
@@ -149,6 +182,12 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
     // Ce que le content script a émis : un message par lot, dédoublonné par lui.
     messages: () => emitted,
     asked: () => asked,
+    relayed: () => relayed.map((r) => r.msg),
+    // La réponse de l'API à l'une de ces demandes, jouée quand le test le veut.
+    answer: (type, body) => {
+      for (const { msg, respond } of relayed) if (msg.type === type) respond({ ok: true, ...body })
+      relayed = relayed.filter((r) => r.msg.type !== type)
+    },
     badges: () => painted,
     queued: () => emitted.flatMap((m) => m.listings.map((l) => l.siteId)),
     // L'API ne répond que sur les identifiants du lot qu'on lui a soumis.

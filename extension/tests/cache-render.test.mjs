@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { ad, block, world } from './world.mjs'
 
 const ID = '3254194817'
-const KNOWN = { price: 29190, price_delta_since_first: -800, price_delta_days_since_first: 12 }
-const FRESHER = { price: 28390, price_delta_since_first: -1600, price_delta_days_since_first: 20 }
+const KNOWN = { price: 29190, price_delta_since_first: -800, price_delta_days_since_first: 12, tracked_days: 12 }
+const FRESHER = { price: 28390, price_delta_since_first: -1600, price_delta_days_since_first: 20, tracked_days: 20 }
 
 const listing = () => world(ID, { path: '/voitures/occasions', data: block(ad(ID)), cache: { [ID]: KNOWN } })
 const detail = () => world(ID, { path: `/ad/voitures/${ID}`, data: block(ad(ID)), cache: { [ID]: KNOWN } })
@@ -26,12 +26,16 @@ test('la réponse du réseau réécrit la pastille posée depuis le cache', () =
   assert.match(w.badge().children[1].textContent, /^▼ −1/)
 })
 
+// Le panneau ne porte plus la baisse (décision de revue : la légende de suivi
+// tient en une ligne, sans le prix) ; `tracked_days` reste le fait qui change
+// entre le cache et le réseau, et qui prouve que le panneau relit l'un puis
+// l'autre.
 test('le panneau de la fiche affiche lui aussi le cache, puis le réseau', () => {
   const w = detail()
   w.load('detail.js')
-  assert.match(w.panel().textContent, /−800/)
+  assert.match(w.panel().textContent, /Suivie depuis 12 j/)
   w.arrive({ [ID]: FRESHER })
-  assert.match(w.panel().textContent, /−1/)
+  assert.match(w.panel().textContent, /Suivie depuis 20 j/)
 })
 
 test('le diagnostic distingue ce qui vient du cache de ce qui vient du réseau', () => {

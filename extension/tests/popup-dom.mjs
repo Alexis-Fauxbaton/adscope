@@ -78,7 +78,7 @@ const FILES = [
   ['../src/', 'sites/leboncoin.js'], ['../src/', 'sites/lacentrale.js'],
   ['../src/', 'format.js'],
   ['../popup/', 'dom.js'], ['../popup/', 'config.js'], ['../popup/', 'report.js'], ['../popup/', 'seller.js'],
-  ['../popup/', 'curve.js'], ['../popup/', 'labels.js'], ['../popup/', 'chart.js'], ['../popup/', 'fiche.js'],
+  ['../src/', 'curve.js'], ['../popup/', 'labels.js'], ['../popup/', 'chart.js'], ['../popup/', 'fiche.js'],
   ['../popup/', 'popup.js'],
 ]
 

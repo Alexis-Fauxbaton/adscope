@@ -1,0 +1,138 @@
+/* Le panneau, au registre de la maquette : sol clair, cartes blanches, ombre
+   douce, aucun filet. Tout est préfixé `adscope-` et rien n'est déclaré hors de
+   la racine : la page hôte n'a pas à subir nos styles. */
+
+.adscope-panel {
+  /* La page hôte n'entre pas : ni sa fonte, ni ses marges, ni ses couleurs. */
+  all: initial;
+  display: block;
+  width: 100%;
+  max-width: 620px;
+  margin: 20px 0;
+  padding: 20px;
+  border-radius: 26px;
+  background: #f3f4f7;
+  color: #14161c;
+  font: 400 14.5px/1.5 -apple-system, BlinkMacSystemFont, Inter, 'Segoe UI', sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+  /* La largeur qui compte est celle de la colonne où le site pose le panneau,
+     jamais celle du viewport : une requête de conteneur, pas de média. */
+  container-type: inline-size;
+}
+
+/* Les descendants héritent de la racine et de rien d'autre. Les nœuds de dessin
+   sont laissés de côté : `all` recouvre `fill` et `stroke`, et une règle CSS
+   l'emporte sur un attribut de présentation — le tracé disparaîtrait. */
+.adscope-panel :where(div, p, span, button, a, b) {
+  all: unset;
+  display: revert;
+  box-sizing: border-box;
+}
+
+.adscope-head { color: #9aa0ae; font-size: 12.5px; font-weight: 500; margin: 0 4px 12px; }
+.adscope-foot { color: #9aa0ae; font-size: 12.5px; line-height: 1.55; margin: 16px 4px 0; }
+
+.adscope-card {
+  display: block;
+  background: #fff;
+  border-radius: 22px;
+  box-shadow: 0 2px 12px rgba(16, 20, 40, 0.06);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+/* Jour 1 : rien à tracer, et la carte le dit au lieu de laisser un vide. */
+.adscope-card--soft { background: #e9ecfd; box-shadow: none; color: #3730a3; font-weight: 500; }
+.adscope-card--soft p { margin: 0; font-size: 15.5px; line-height: 1.55; }
+
+.adscope-label { color: #6b7180; font-size: 13px; font-weight: 600; margin: 0 0 8px; }
+.adscope-title { font-size: 17px; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 18px; }
+.adscope-sub { color: #6b7180; font-size: 13.5px; margin: 10px 0 0; }
+.adscope-fine { color: #9aa0ae; font-size: 12.5px; margin: 8px 0 0; }
+.adscope-said { color: #6b7180; font-size: 13.5px; line-height: 1.5; margin: 16px 0 0; }
+
+.adscope-figure { display: flex; align-items: center; gap: 18px; }
+.adscope-hero {
+  font-size: 46px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+.adscope-hero--undated { font-size: 20px; color: #9aa0ae; font-weight: 600; white-space: normal; }
+
+/* L'orangé n'a qu'un emploi : ce que le site montre à la place de l'âge. */
+.adscope-pill {
+  margin-left: auto;
+  padding: 9px 15px;
+  border-radius: 999px;
+  background: #fdf0e4;
+  color: #b75e12;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.adscope-plot, .adscope-bar { display: block; width: 100%; height: auto; }
+.adscope-window { fill: #fdf0e4; }
+.adscope-window-label { fill: #b75e12; font-size: 11.5px; font-weight: 700; }
+.adscope-line { fill: none; stroke: #4f46e5; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.adscope-change { fill: #fff; stroke: #4f46e5; stroke-width: 2.5; }
+.adscope-check { fill: #4f46e5; opacity: 0.3; }
+.adscope-amount { fill: #14161c; font-size: 12.5px; font-weight: 700; }
+.adscope-axis { fill: #9aa0ae; font-size: 11.5px; font-weight: 500; }
+
+.adscope-track { fill: #e9ebf0; }
+.adscope-iqr { fill: #dce0e8; }
+.adscope-median { fill: #8b92a2; }
+.adscope-stem { stroke: #4f46e5; stroke-width: 1.5; opacity: 0.4; stroke-linecap: round; }
+.adscope-mark { fill: #fff; stroke: #4f46e5; stroke-width: 3; }
+.adscope-mark-label { fill: #4f46e5; font-size: 12.5px; font-weight: 700; }
+.adscope-bound { fill: #22252e; font-size: 12.5px; font-weight: 700; }
+.adscope-bound-name { fill: #9aa0ae; font-size: 11px; font-weight: 500; }
+
+.adscope-open-head { display: flex; align-items: center; gap: 14px; margin: 0 0 22px; }
+.adscope-open-head .adscope-title { margin: 0; }
+
+.adscope-round {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+.adscope-round--blue { background: #e9ecfd; color: #4f46e5; }
+.adscope-round--green { background: #e3f3eb; color: #17845a; }
+.adscope-round--grey { background: #eceef3; color: #6b7180; }
+
+.adscope-tile {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  width: 100%;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.adscope-tile + .adscope-tile { margin-top: 22px; }
+.adscope-tile-text { display: block; min-width: 0; }
+.adscope-tile-title { display: block; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.adscope-tile-fact { display: block; color: #6b7180; font-size: 13px; line-height: 1.45; margin-top: 3px; }
+.adscope-chevron { margin-left: auto; flex: 0 0 auto; color: #c2c7d2; }
+
+.adscope-fact { font-size: 14.5px; line-height: 1.45; color: #6b7180; margin: 16px 0 0; }
+.adscope-reserve { font-size: 12.5px; line-height: 1.5; color: #9aa0ae; margin: 16px 0 0; }
+.adscope-link { color: #4f46e5; font-weight: 600; text-decoration: underline; cursor: pointer; }
+
+/* Palier compact : la colonne où le site pose le panneau, pas seulement le
+   mobile — La Centrale en donnait déjà 404 px à 1440 de viewport. Le chiffre
+   héros et le padding cèdent, le tracé de la courbe se resserre à 110 px. */
+@container (max-width: 480px) {
+  .adscope-card { padding: 16px; }
+  .adscope-hero { font-size: 34px; }
+  .adscope-plot { height: 110px; }
+}

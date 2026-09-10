@@ -9,49 +9,10 @@
   // Le panneau cite lui-même cette date : ne pas la relire dans son propre texte.
   const dateNode = () => site.dateNode(document, `[${MARK}]`)
 
-  const span = (cls, text) => {
-    const el = document.createElement('span')
-    el.className = cls
-    el.textContent = text
-    return el
-  }
-
-  const row = ({ label, value, strong }, tracked) => {
-    const el = document.createElement('div')
-    el.className = 'adscope-row' + (tracked ? ' adscope-row--tracked' : '')
-    el.append(span('adscope-label', label), span('adscope-value' + (strong ? ' adscope-value--strong' : ''), value))
-    return el
-  }
-
-  const caption = (text) => {
-    const el = document.createElement('div')
-    el.className = 'adscope-caption'
-    el.textContent = text
-    return el
-  }
-
-  const claimBlock = (claim) => {
-    const el = document.createElement('div')
-    el.className = 'adscope-claim'
-    const head = document.createElement('div')
-    head.append(span('adscope-label', claim.label), span('adscope-claim-date', `«\u00a0${claim.says}\u00a0»`))
-    const note = document.createElement('div')
-    note.className = 'adscope-note'
-    note.textContent = claim.note
-    el.append(head, note)
-    return el
-  }
-
-  const fill = (el, listing, s, remote, displayed) => {
-    const model = ADS.view.panel(listing, s, remote, displayed)
-    // Le cadre du panneau porte le même poids que la pastille de la carte.
-    el.className =
-      'adscope-panel' + (s.notable ? ' adscope-panel--notable' : s.dormant ? ' adscope-panel--dormant' : '')
-    const nodes = [caption('Lu sur la page'), ...model.page.map((r) => row(r))]
-    if (model.claim) nodes.push(claimBlock(model.claim))
-    if (model.tracked.length) nodes.push(caption('Suivi adscope'), ...model.tracked.map((r) => row(r, true)))
-    el.replaceChildren(...nodes)
-  }
+  // Où le panneau se pose : sous le prix, et c'est le site qui sait où il l'écrit.
+  // Le libellé d'ancienneté déjà trouvé lui est tendu — certains s'y ancrent —, et
+  // le titre reste le dernier recours quand la page n'offre ni l'un ni l'autre.
+  const anchor = (node) => site.mount(document, node) || document.querySelector('h1')
 
   // Ce que la fenêtre montrera de l'annonce. Elle n'a pas la page : tout ce
   // qu'elle affiche de la fiche passe par là, y compris la contradiction — que
@@ -73,7 +34,7 @@
 
   // L'origine des signaux, pas leur seule présence : le panneau posé avec ce
   // que le cache savait doit se réécrire quand le réseau répond.
-  const stampOf = (siteId) => ADS.sync.originOf(siteId) || 'page'
+  const stampOf = (siteId) => `${ADS.sync.originOf(siteId) || 'page'}·${ADS.market.stamp(siteId)}`
 
   // Quelle annonce est lue : l'URL le dit, le panneau déjà posé non — sur une
   // application monopage il survit au passage à la fiche suivante. Hors fiche
@@ -108,24 +69,28 @@
     // affichées nulle part. Les annonces similaires, elles, ont leurs cartes
     // sur la fiche : c'est `listing.js` qui les pastille et les transmet.
     ADS.sync.send([listing])
+    ADS.market.want(listing)
     const remote = ADS.sync.of(listing.siteId)
     const node = dateNode()
     if (!el) {
-      const target = node || document.querySelector('h1')
+      const target = anchor(node)
       if (!target) return
       el = document.createElement('div')
       target.parentElement.insertBefore(el, target.nextSibling)
     }
     el.setAttribute(MARK, listing.siteId)
     el.setAttribute(SRC, stampOf(listing.siteId))
-    const s = site.signals(listing, new Date())
+    const now = new Date()
+    const s = site.signals(listing, now)
     const says = node && node.textContent.trim()
-    fill(el, listing, s, remote, says)
+    const market = ADS.market.of(listing.siteId)
+    ADS.panel.render(el, { site, listing, signals: s, remote, displayed: says, market, now })
     ADS.diag.detail(listings, listing, ADS.feed.detailSource(listing.siteId), card(listing, s, says))
   })
 
   render()
   ADS.sync.onSignals(render)
+  ADS.market.onFound(render)
   // La fiche suivante n'est pas garantie de produire un lot de mutations qu'on
   // observe : sa charge, elle, arrive toujours.
   ADS.feed.onDetail(render)

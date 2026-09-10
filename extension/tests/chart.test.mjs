@@ -9,7 +9,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 globalThis.document = { createElementNS: (_ns, t) => new El(t) }
 globalThis.ADS = undefined
-for (const f of ['../src/format.js', '../popup/curve.js', '../popup/labels.js', '../popup/chart.js']) {
+for (const f of ['../src/format.js', '../src/curve.js', '../popup/labels.js', '../popup/chart.js']) {
   delete require.cache[require.resolve(join(here, f))]
   require(join(here, f))
 }

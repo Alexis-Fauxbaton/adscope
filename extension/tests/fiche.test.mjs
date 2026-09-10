@@ -25,6 +25,16 @@ test("sur une fiche, la fenêtre met l'annonce et son ancienneté réelle en suj
   assert.match(nodes['age-days'].text, /118 j/)
 })
 
+// Décision de revue : sous 31 jours, la popup disait « N j », le panneau
+// « N jours » — deux mots pour le même nombre. `ADS.format.spell`, partagé
+// par les deux surfaces, épelle désormais « jours » partout.
+test('sous 31 jours, la fenêtre épelle « jours », jamais l’abréviation', async () => {
+  const { nodes } = await open({
+    status: detail({ card: card({ onlineDays: 5, publishedAt: ago(5) }) }),
+  })
+  assert.equal(nodes['age-main'].text, '5 jours')
+})
+
 // Le défaut le plus grave du lot : `publishedAt` nul comptait comme l'époque
 // Unix, et le sujet de la fenêtre annonçait « 56 ans 8 mois · 20 702 j » en
 // 27 pixels — pendant que l'axe de la même fenêtre disait « 6 sept. → auj. ».

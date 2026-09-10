@@ -1,4 +1,4 @@
-importScripts('/src/cache.js')
+importScripts('/src/cache.js', '/src/lookup.js')
 
 const DEFAULTS = { apiBase: 'http://localhost:8000', licenseKey: '' }
 
@@ -122,6 +122,8 @@ const handlers = {
   cached: (msg) => cachedSignals(msg.site, msg.ids),
   sync: (msg) => sync(msg.site, msg.listings),
   absent: (msg) => absent(msg.site, msg.siteId, msg.evidence),
+  comparables: async (msg) => ADS.lookup.comparables(msg.site, msg.siteId, await config()),
+  seller: async (msg) => ADS.lookup.seller(msg.site, msg.sellerId, await config()),
   badge: (msg, sender) => badge(msg.alerts, sender && sender.tab),
   'cache-stats': () => ADS.cache.stats(),
   'cache-clear': async () => ({ ok: true, cleared: await ADS.cache.clear() }),

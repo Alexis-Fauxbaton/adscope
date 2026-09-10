@@ -85,9 +85,16 @@ export const results = (cards, similar = []) => [
 // La page telle que le navigateur la montre : le libellé plafonné sous le prix,
 // les cartes de résultats dans le bloc qui porte leurs métadonnées de suivi, et
 // les charges dans des scripts en ligne.
-export const page = ({ path, scripts, label = null, cards = [], cache = {} }) => {
+export const page = ({ path, scripts, label = null, cards = [], cache = {}, price = false }) => {
   const body = new El('body')
   body.append(new El('h1'))
+  // Le pavé du prix, en haut de la fiche ; le libellé plafonné, lui, ferme la
+  // page au ras du pied — c'est tout l'écart entre les deux points d'ancrage.
+  if (price) {
+    const pave = new El('div')
+    pave.setAttribute('id', 'pavePrix')
+    body.append(pave)
+  }
   if (label) {
     const p = new El('p')
     p.textContent = label

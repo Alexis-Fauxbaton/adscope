@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 const here = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 globalThis.ADS = undefined
-const curve = require(join(here, '../popup/curve.js'))
+const curve = require(join(here, '../src/curve.js'))
 
 const DAY = 86400000
 const NOW = new Date('2026-09-06T12:00:00Z')

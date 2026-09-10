@@ -17,7 +17,9 @@ test('la fiche ne refait pas le travail lourd à chaque lot de mutations', () =>
   assert.deepEqual(w.counts, { extract: 2, scan: 2 })
   w.mutate(20)
   assert.deepEqual(w.counts, { extract: 2, scan: 2 })
-  assert.ok(w.panel().textContent.includes('Suivi adscope'))
+  // Et le suivi mutualisé s'écrit : douze jours ne se lisent nulle part sur la
+  // page.
+  assert.match(w.panel().textContent, /Suivie depuis 12 j/)
 })
 
 test('la pastille pose un nœud par origine', () => {
