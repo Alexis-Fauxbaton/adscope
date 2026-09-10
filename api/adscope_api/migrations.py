@@ -71,6 +71,13 @@ MIGRATIONS = (
         "ALTER TABLE listings ADD COLUMN IF NOT EXISTS last_revisit_at timestamptz",
         "CREATE INDEX IF NOT EXISTS ix_listings_revisit ON listings (last_revisit_at)",
     )),
+    # Le segment des comparables balaie `listings` sur marque + modèle + année :
+    # un `Seq Scan` à 14,9 ms sur 46 000 lignes, mesuré avant l'index. Avec lui,
+    # 0,8 ms — à 500 000 annonces le balayage seul aurait coûté 150 ms.
+    ("006_listings_brand_model_year", (
+        "CREATE INDEX IF NOT EXISTS ix_listings_brand_model_year"
+        " ON listings (brand, model, year)",
+    )),
 )
 
 

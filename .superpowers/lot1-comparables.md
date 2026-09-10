@@ -116,3 +116,80 @@ et une autre à 90 000 ne sont pas la même voiture, et l'année seule ne le dit
 - La couverture réelle de `comparable: true` mériterait d'être recomptée sur la
   base entière maintenant que la règle existe : les 63 % mesurés portaient sur
   la taille du segment, pas sur sa dispersion.
+
+## Clôture de la revue
+
+Quatre décisions, prises et appliquées.
+
+### 1. Le test manquant
+
+`test_a_listing_without_a_price_has_a_null_percentile` (`api/tests/test_comparables.py`) :
+segment serré de quinze comparables, annonce sans `PricePoint` → `percentile`
+nul, segment inchangé, toujours comparable. Retirer la garde `if price is not
+None else null()` dans `_measure` fait bien rougir le test — en `ArgumentError`
+de SQLAlchemy (`Only '=', '!=', 'is_()'... can be used with None`), pas en faux
+résultat : la revue avait raison, c'est un crash qui protège, pas une valeur
+silencieusement fausse.
+
+### 2. Les annonces-appâts sont exclues des comparables
+
+Règle posée dans `comparables.py` (`DECOY_RATIO = 0.10`) et documentée dans son
+docstring de module et dans `ComparablesOut` (`schemas.py`) : un comparable
+dont le dernier prix est sous 10 % de la médiane du segment est écarté avant
+que quoi que ce soit ne se calcule. Deux agrégats, tous deux en SQL
+(`_without_decoys`) — la médiane sur tout le segment situe le seuil, puis un
+second `SELECT` ne voit plus que ce qu'il en reste ; aucun prix ne remonte en
+mémoire.
+
+Test `test_a_decoy_priced_listing_is_excluded_from_the_segment` : un segment
+serré de quinze annonces plus cinq à 1 € → bornes et dispersion identiques au
+segment serré seul (`q1` 20 300, médiane 20 700, `q3` 21 100, dispersion 0,04),
+`comparable: true`. Cassé (la fonction rendue identité), le test rougit : les
+cinq appâts restent dans le calcul, `q1` s'effondre à 1 et la dispersion
+explose à 1,02 — le segment bascule en `too_dispersed`. Trois appâts sur un
+segment de vingt ne suffisaient pas à faire basculer le verdict ; il en a
+fallu cinq sur quinze pour que le test prouve quelque chose plutôt que de
+constater un déplacement de bornes sans conséquence.
+
+### 3. L'index
+
+Migration `006_listings_brand_model_year` (`api/adscope_api/migrations.py`),
+idempotente comme les cinq précédentes : `CREATE INDEX IF NOT EXISTS
+ix_listings_brand_model_year ON listings (brand, model, year)`. Testée
+(`test_the_index_serving_the_comparables_query_exists`), cassée puis
+reconstatée rouge.
+
+Sauvegarde avant application : `pg_dump -Fc` de `adscope` dans
+`~/adscope-backups/adscope-20260908-230445.dump` (3,0 Mo), hors dépôt. Migration
+appliquée sur `adscope` via `scripts/migrate.py`, rejouée une seconde fois —
+`schéma déjà à jour`, rien ne bouge. `EXPLAIN ANALYZE` sur la requête de
+segment (Clio 2005) confirme le `Bitmap Index Scan` sur
+`ix_listings_brand_model_year`, exécution en 1,3 ms là où la revue mesurait
+14,9 ms de `Seq Scan`.
+
+### 4. Mesure — part de `comparable: true` avant/après la règle 2
+
+Une requête (CTE en SQL, `priced` = dernier prix par annonce, `seg_before` /
+`seg_after` = agrégats du segment marque+modèle+année avant et après le filtre
+à 10 % de la médiane), sur les 46 572 annonces à marque/modèle/année connus.
+Simplifications de mesure, sans effet sur le calcul servi par l'API :
+l'annonce n'est pas exclue de son propre segment (à 15+ comparables l'écart
+est marginal), et la version n'entre pas dans le regroupement (elle ne joue
+que sous 15 comparables, rarement atteint).
+
+| Tranche d'année | Annonces | `comparable: true` avant | après |
+|---|---:|---:|---:|
+| < 2012 | 37 618 | 0,3 % | 0,6 % |
+| 2012–2017 | 3 578 | 9,7 % | 9,7 % |
+| 2018+ | 5 376 | 23,3 % | 22,2 % |
+
+La règle double un taux déjà proche de zéro sur les voitures d'avant 2012 —
+elle joue dans le bon sens, mais le vrai obstacle sur ce parc n'est pas
+l'appât, c'est `MAX_DISPERSION` lui-même : la dispersion médiane y dépasse
+30 % même en excluant les prix aberrants. Sur 2012-2017 la règle ne change
+rien : aucun segment n'y était à la marge du seuil. Sur le récent (2018+) elle
+fait légèrement reculer le taux (23,3 % → 22,2 %) : en perdant leurs appâts,
+quelques segments tombent sous les quinze comparables requis et basculent en
+`too_few`. Le seuil de 0,30 n'est pas mis en cause par cette mesure — c'est la
+taille minimale de segment sur le parc ancien qui reste le vrai verrou, la
+règle des appâts ne fait qu'un travail de bord.

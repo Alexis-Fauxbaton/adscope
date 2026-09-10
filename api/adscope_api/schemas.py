@@ -132,7 +132,9 @@ class ComparablesOut(BaseModel):
     rang de l'annonce parmi elles. Jamais un prix cible ni un verdict.
 
     Au delà de 0,30 de dispersion le segment est trop hétérogène pour être
-    donné à lire : `percentile` se tait, les bornes restent servies.
+    donné à lire : `percentile` se tait, les bornes restent servies. Les
+    annonces-appâts (dernier prix sous 10 % de la médiane du segment) ne
+    comptent ni dans les bornes ni dans le rang.
     """
 
     segment: SegmentOut

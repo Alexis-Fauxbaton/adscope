@@ -160,6 +160,28 @@ def test_a_car_missing_brand_model_or_year_has_no_segment(session):
         assert out["segment"][missing] is None
 
 
+# La garde qui protège `prix <= NULL` : sans elle, l'annonce sans point de
+# prix passerait pour la moins chère de son segment au lieu de n'être classée
+# nulle part.
+def test_a_listing_without_a_price_has_a_null_percentile(session):
+    segment(session, TIGHT[:15])
+    out = comparables_for(session, car(session, "mine", []))
+    assert out["percentile"] is None
+    assert (out["comparable"], out["reason"]) == (True, None)
+
+
+# Cinq annonces-appâts à 1 € ne doivent ni tirer les bornes ni gonfler la
+# dispersion : elles sortent du calcul avant que quoi que ce soit ne se juge.
+# Sans la règle elles y resteraient, et `q1` s'effondrerait à 1 — le segment
+# basculerait en `too_dispersed` pour une dispersion mensongère.
+def test_a_decoy_priced_listing_is_excluded_from_the_segment(session):
+    segment(session, TIGHT[:15])
+    segment(session, [1] * 5, prefix="appat")
+    out = comparables_for(session, car(session, "mine", [21000]))
+    assert (out["q1"], out["median"], out["q3"]) == (20300, 20700, 21100)
+    assert (out["dispersion"], out["comparable"], out["reason"]) == (0.04, True, None)
+
+
 def test_cheaper_than_all_of_them_sits_at_zero(session):
     segment(session, TIGHT[:15])
     assert comparables_for(session, car(session, "mine", [15000]))["percentile"] == 0

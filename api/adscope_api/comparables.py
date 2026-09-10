@@ -5,7 +5,7 @@ Le segment se lit sur les annonces que nos utilisateurs ont déjà rencontrées,
 et rien d'autre n'en sort — ni prix cible, ni verdict : cinq bornes, la
 dispersion qui dit ce qu'elles valent, et le rang de l'annonce parmi elles.
 
-Trois seuils portent tout le reste, chacun mesuré sur la base réelle :
+Quatre seuils portent tout le reste, chacun mesuré sur la base réelle :
 
 - `MIN_COUNT`, quinze comparables. En dessous, les quartiles sont du bruit.
   Marque + modèle + année les atteint sur 63 % des annonces ; la version,
@@ -18,6 +18,11 @@ Trois seuils portent tout le reste, chacun mesuré sur la base réelle :
 - `MIN_QUARTILES`, quatre. Un segment trop mince pour être jugé garde ses
   bornes si elles ont un sens — sous quatre annonces, `percentile_disc` ne
   fait que recopier les prix qu'on lui donne.
+- `DECOY_RATIO`, dix pour cent. Un comparable sous 10 % de la médiane du
+  segment est une annonce-appât (1 €, 100 €…), pas un prix de marché : 32 des
+  285 Peugeot 207 de 2008 sous 1 000 € en base tirent `q1` et gonflent la
+  dispersion. La médiane sert deux fois, l'une et l'autre en SQL : sur tout
+  le segment pour situer le seuil, puis sur ce qu'il en reste pour juger.
 """
 
 from sqlalchemy import func, null, select
@@ -27,6 +32,7 @@ from .models import Listing, PricePoint
 MIN_COUNT = 15
 MAX_DISPERSION = 0.30
 MIN_QUARTILES = 4
+DECOY_RATIO = 0.10
 
 
 def _last_prices(listing, versioned):
@@ -54,9 +60,20 @@ def _last_prices(listing, versioned):
     )
 
 
+def _without_decoys(session, prices):
+    """Écarte les annonces-appâts : la médiane d'abord sur tout, le filtre
+    ensuite — deux agrégats, aucun en mémoire. Sans prix, rien à comparer."""
+    query = select(func.percentile_disc(0.5).within_group(prices.c.price))
+    median = session.scalar(query.select_from(prices))
+    if median is None:
+        return prices
+    return select(prices.c.price).where(
+        prices.c.price >= median * DECOY_RATIO).subquery()
+
+
 def _measure(session, listing, price, versioned):
     """Les bornes du segment, comptées par Postgres et jamais en mémoire."""
-    prices = _last_prices(listing, versioned)
+    prices = _without_decoys(session, _last_prices(listing, versioned))
     column = prices.c.price
     # Une annonce sans prix ne se compare à rien : `prix <= NULL` ne compte
     # aucune ligne et la ferait passer pour la moins chère du segment.
