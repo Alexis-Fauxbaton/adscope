@@ -1,37 +1,57 @@
-# Feuille de route — état au 2026-09-08
+# Feuille de route — V1 redéfinie le 2026-09-12
 
-Le produit répond à une question d'acheteur : *est-ce que cette voiture vaut le coup, et à
-combien je dois essayer de l'acheter ?* Tout ce qu'il dit est observé, jamais estimé.
+Utilisateur : **le marchand**. La vue qui fait le produit : ce qu'il ouvre le matin.
 
-## En cours
+## V1 — contre l'existant
 
-**Lot 1 — le panneau.** Comparables côté API (`/comparables`, segment marque+modèle+année
-± version, dispersion, centile, porte à 0,30) et panneau dans la page côté extension
-(`panneau-conception.md`). Jour 1 réel : chiffre, courbe, Ce prix, Avant d'y aller.
+| Sur la fiche | État | Reste |
+|---|---|---|
+| Ancienneté réelle | fait (carte chiffre) | — |
+| Historique de prix : chaque baisse, date, montant, cumul | courbe faite | liste des baisses avec cumul |
+| Republication : même véhicule, nouvel ID | mécanisme absent | **gated par `disappeared_at`** — 0 sur 46 572, la file de revisite n'est drainée par personne |
+| Réactualisation : remontée sans baisse | fait (`republished` depuis l'horodatage du site) | afficher dans « Cette voiture » |
+| Stats vendeur : actives, ancienneté du stock, propension à baisser | fait (`SellerStatsOut`) | « actives » exclut les disparues quand elles existeront |
 
-## Ensuite, dans l'ordre
+| Sur les listings | État | Reste |
+|---|---|---|
+| Badge d'ancienneté | fait | — |
+| Flèche de baisse sur la carte | — | à faire, depuis `price_delta_since_first` |
+| Tri / filtre par ancienneté | — | à faire, dans la page, **sur la page chargée seulement** — on ne demande jamais d'autres pages |
 
-| Lot | Contenu | Prêt quand | Porte |
-|---|---|---|---|
-| 2 · Éditorial | risques moteur par marque+modèle+année, questions au vendeur ; top 20 modèles de la base d'abord (Clio, 206, 207, 208, C4 Picasso…) | tout de suite | chaque ligne sourcée (RappelConso, constructeur) — sinon elle n'existe pas |
-| 3 · Store | icônes, description, `optional_host_permissions` réduit aux deux domaines, politique de confidentialité hébergée, déclaration « web browsing activity », captures 1280×800 | tout de suite | la soumission attend l'URL de prod |
-| 4 · Disparition | sortie du marché des comparables (Ce prix), republication par empreinte (disparue **et** rare), durée de vie par segment | quand la revisite a produit des semaines de données | jamais « vendue » ; l'expiration des particuliers séparée d'une vraie disparition |
-| 5 · Vendeur | section Ce vendeur enrichie | quand la couverture crawl le permet — 76 % des vendeurs ont ≤ 2 annonces vues aujourd'hui | seuil ≥ 3 annonces |
-| 6 · Mobile | lecture de notre base par lien collé | après Render | jamais de récupération de page depuis notre serveur |
-| Render | déploiement, puis manifeste `host_permissions` sur l'URL de prod, puis soumission | **en dernier**, décision d'Alexis | — |
-| La Centrale | corpus à constituer (Alexis, résultats triés par ancienneté), puis signature de disparition | quand le corpus est là | deux témoins structurels, pas un libellé seul |
+| La vue | État | Reste |
+|---|---|---|
+| Mes opportunités | — | bouton **Suivre** (serveur, par licence) · calcul des changements depuis la dernière ouverture · vue « ce matin » |
 
-## Décisions ouvertes
+| Contraintes données | État | Reste |
+|---|---|---|
+| Annonce inconnue → « pas encore suivie » + ajouter à la file | jour 1 honnête déjà rendu | l'état nommé, le bouton, l'entrée en file de revisite |
+| Périmètre = familles de modèles des premiers marchands | crawl par tranche de prix | table des familles par licence, revisites priorisées dedans, crawl par famille (côté Alexis) |
 
-- seuil « segment trop dispersé » : 0,30 posé, à arbitrer sur données ;
-- kilométrage par relevé (aujourd'hui au niveau annonce seulement) — utile pour « km inchangé
-  depuis N jours », demande une colonne sur les points ;
-- profil Chrome distinct pour le crawl, pour que son trafic cesse de compter comme usage
-  humain — décision de poste.
+## Sortis de V1 — gardés, non branchés
 
-## Ce qu'on ne fera pas
+Comparables et « Ce prix » (route `/comparables` livrée, section retirée du panneau), risques
+moteur et questions (`shared/vehicle-notes.json`, 51 lignes sourcées), cote, score, mobile,
+doublon multi-plateformes.
 
-Financement (interdit par le brief, sans intérêt pour un acheteur qui n'est pas là pour ça),
-tendance de marché sur transactions (pas de fichier des ventes automobiles), popularité
-(tout le trafic vient du crawl), prix cible affirmé (on n'observe pas de vente), verdict ou
-score (on compose des faits, l'acheteur conclut).
+## Lots, dans l'ordre
+
+| Lot | Contenu | Dépend de |
+|---|---|---|
+| A · Panneau V1 | retirer Ce prix / Avant d'y aller · liste des baisses avec cumul · ligne réactualisation · état « pas encore suivie » + bouton Suivre · Ce vendeur avec « actives » | — |
+| B · Périmètre | familles par licence · file de revisite priorisée dans le périmètre · doc du crawl par famille | familles des premiers marchands |
+| C · Listing | flèche de baisse · tri/filtre par ancienneté sur la page | — |
+| D · Mes opportunités | suivis serveur · changements depuis la dernière ouverture · vue | A (Suivre) |
+| E · Republication | empreinte rare **et** annonce disparue → « même véhicule » | `disappeared_at` alimenté, donc revisites qui tournent |
+| Store puis Render | inchangé, en dernier | — |
+
+## Ce qui n'est pas dans le dépôt, et qui bloque
+
+- **Le crawl est arrêté depuis le 8 septembre 20 h 13.** La tâche horaire côté Claude cowork
+  est à mettre en pause de toute façon : le périmètre par famille remplace les tranches de prix.
+- **La file de revisite n'a jamais été drainée** : deux runs le 8 septembre, « file vide »
+  les deux fois — rien n'avait alors trois jours de silence. Aujourd'hui tout en a quatre.
+  Sans revisites, pas de `disappeared_at`, donc pas de republication : **le lot E est bloqué
+  tant que `RUNBOOK-revisites.md` n'est pas programmé** côté Alexis, avec un seul Chrome
+  connecté au compte.
+- Aucune fiche leboncoin sauvegardée à la racine : le panneau est vérifié sur fixture, pas sur
+  le gabarit réel.
