@@ -2,7 +2,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from adscope_api.models import Listing
+from adscope_api.auth import hash_key, new_key
+from adscope_api.follow_models import Follow, TrackedFamily
+from adscope_api.models import License, Listing
 from adscope_api.observations import record
 from adscope_api.intake import ObservationIn
 from adscope_api.revisit import ADDRESS, QUIET, SPACING, due
@@ -25,6 +27,15 @@ def listed(session, site_id, *, seller_type="pro", published=None, last_seen=LON
 
 def ids(served):
     return [item["site_id"] for item in served]
+
+
+def merchant(session):
+    """Une licence quelconque : la file est commune, ce n'est jamais l'appelant
+    qui décide de ce qui passe en tête, c'est quelqu'un."""
+    key_hash = hash_key(new_key())
+    session.add(License(key_hash=key_hash, label="marchand"))
+    session.commit()
+    return key_hash
 
 
 # Fait rougir `Listing.last_seen <= now - QUIET` dans `revisit.due` : sans ce
@@ -121,3 +132,55 @@ def test_the_route_serves_the_queue(client, key, session):
 
 def test_the_route_needs_a_license(client, session):
     assert client.post("/v1/revisits", json={"site": "lbc"}).status_code == 401
+
+
+# Fait rougir `(_wanted(), 0)` dans `revisit._rank` : sans ce rang, l'annonce
+# qu'un marchand a mise de côté attendrait derrière les 9 000 professionnelles
+# anciennes de la base — c'est-à-dire des semaines, alors qu'il l'a ouverte ce
+# matin. C'est le seul rang qui vienne de quelqu'un.
+def test_a_followed_listing_comes_before_the_old_professional(session):
+    listed(session, "1000000003", seller_type="pro", published=NOW - timedelta(days=200))
+    mine = listed(session, "1000000001", seller_type="private",
+                  published=NOW - timedelta(days=2))
+    session.add(Follow(license_key_hash=merchant(session), listing_id=mine.id,
+                       followed_at=NOW))
+    session.commit()
+    assert ids(due(session, "lbc", 10, NOW)) == ["1000000001", "1000000003"]
+
+
+# Fait rougir la moitié `tracked` de `_wanted` : le périmètre vaut le suivi.
+# Le marchand ne peut pas suivre une à une les annonces qu'il n'a pas encore
+# vues ; dire « les Clio » est la seule façon de les faire revisiter.
+def test_a_listing_of_the_perimeter_comes_first_too(session):
+    listed(session, "1000000003", seller_type="pro", published=NOW - timedelta(days=200))
+    listed(session, "1000000001", seller_type="private", published=NOW - timedelta(days=2),
+           brand="Renault", model="Clio")
+    session.add(TrackedFamily(license_key_hash=merchant(session), brand="Renault",
+                              model="Clio"))
+    session.commit()
+    assert ids(due(session, "lbc", 10, NOW)) == ["1000000001", "1000000003"]
+
+
+# Fait rougir `TrackedFamily.model == Listing.model` : la famille est marque
+# *et* modèle. Sans le modèle, « les Clio » tirerait toutes les Renault de la
+# base — 12 000 annonces — dans le rang que le marchand croyait réserver.
+def test_the_perimeter_holds_on_the_model_too(session):
+    listed(session, "1000000003", seller_type="pro", published=NOW - timedelta(days=200))
+    listed(session, "1000000001", seller_type="private", published=NOW - timedelta(days=2),
+           brand="Renault", model="Megane")
+    session.add(TrackedFamily(license_key_hash=merchant(session), brand="Renault",
+                              model="Clio"))
+    session.commit()
+    assert ids(due(session, "lbc", 10, NOW)) == ["1000000003", "1000000001"]
+
+
+# Fait rougir `Listing.last_seen <= now - QUIET`, que le rang 0 ne lève pas :
+# suivre une annonce ne fait pas rouvrir une fiche que le balayage vient de
+# montrer vivante. Le geste du marchand change l'ordre de la file, jamais ce
+# qu'elle s'autorise.
+def test_a_followed_listing_still_owes_the_silence(session):
+    mine = listed(session, "3263259495", last_seen=NOW - timedelta(hours=2))
+    session.add(Follow(license_key_hash=merchant(session), listing_id=mine.id,
+                       followed_at=NOW))
+    session.commit()
+    assert due(session, "lbc", 10, NOW) == []

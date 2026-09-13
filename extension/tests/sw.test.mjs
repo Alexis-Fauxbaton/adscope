@@ -186,6 +186,25 @@ test("la constatation d'absence part sur sa propre route", async () => {
 })
 
 
+// Fait rougir `follow` dans `sw.js` : le suivi s'écrit par licence, sur sa
+// propre route, et le corps porte l'annonce telle que le contrat la nomme —
+// `site_id`, pas le `siteId` du message. Rien n'entre en cache : la liste des
+// suivis est au serveur, le cache ne range que des signaux de page.
+test("suivre une annonce part sur sa propre route", async () => {
+  const { calls, ask, store } = boot()
+  const res = await ask({ type: 'follow', site: 'lbc', siteId: '1' })
+  assert.deepEqual(calls, [{ url: 'http://api/v1/follows', body: { site: 'lbc', site_id: '1' } }])
+  assert.equal(res.ok, true)
+  assert.deepEqual(Object.keys(store.data).filter((k) => k.startsWith('a:')), [])
+})
+
+test("sans licence, aucun suivi ne part", async () => {
+  const { calls, ask } = boot({ licenseKey: '' })
+  assert.deepEqual(await ask({ type: 'follow', site: 'lbc', siteId: '1' }), { ok: false, reason: 'no-key' })
+  assert.deepEqual(calls, [])
+})
+
+
 test("sans licence, aucune constatation ne part", async () => {
   const { calls, ask } = boot({ licenseKey: '' })
   assert.deepEqual(await ask({ type: 'absent', site: 'lbc', siteId: '1', evidence: 'absent' }),

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { COMPARABLES, ID, SIGNALS, fiche, point, stamp, text, tiles } from './panel-page.mjs'
+import { ID, SELLER, SIGNALS, fiche, text, tiles } from './panel-page.mjs'
 
 // La maquette pose une chose par carte : le chiffre, puis la courbe. L'âge
 // s'épelle — rouge sur le `spell` de src/format.js, qui rendrait « 4 ans » là
@@ -9,7 +9,7 @@ test("la carte chiffre épelle l'âge, le compte en jours et le date", () => {
   fiche((w) => {
     assert.match(text(w), /En ligne depuis/)
     assert.match(text(w), /4 ans 11 mois/)
-    assert.match(text(w), /1 810 jours · mise en ligne le 22 sept\. 2021/)
+    assert.match(text(w), /1\u202f810 jours · mise en ligne le 22 sept\. 2021/)
   })
 })
 
@@ -28,13 +28,12 @@ test('le panneau se pose sous le bloc que le site nomme', () => {
 // figé sur un défaut, le clic n'ouvrirait plus rien.
 test('cliquer une rangée repliée permute la section ouverte', () => {
   fiche((w) => {
-    w.answer('comparables', { comparables: COMPARABLES })
-    assert.match(text(w), /71 % des 37 comparables sont à ce prix ou en dessous\./)
-    const before = tiles(w).find((t) => t.textContent.includes("Avant d'y aller"))
-    before.click()
-    assert.match(text(w), /HistoVec/)
-    assert.doesNotMatch(text(w), /71 % des 37 comparables/)
-    assert.ok(tiles(w).some((t) => t.textContent.includes('Ce prix')))
+    w.arrive({ [ID]: SIGNALS })
+    assert.match(text(w), /−1\u202f200\u00a0€ le 20 juil\./)
+    tiles(w).find((t) => t.textContent.includes('Cette voiture')).click()
+    assert.match(text(w), /Suivie par adscope/)
+    assert.doesNotMatch(text(w), /−1\u202f200\u00a0€ le 20 juil\./)
+    assert.ok(tiles(w).some((t) => t.textContent.includes('Prix')))
   })
 })
 
@@ -44,7 +43,6 @@ test('cliquer une rangée repliée permute la section ouverte', () => {
 test('le panneau rejoué garde la section que le lecteur a ouverte', () => {
   fiche((w) => {
     w.arrive({ [ID]: SIGNALS })
-    w.answer('comparables', { comparables: COMPARABLES })
     tiles(w).find((t) => t.textContent.includes('Cette voiture')).click()
     assert.match(text(w), /Suivie par adscope/)
     w.mutate(5)
@@ -58,9 +56,9 @@ test('le panneau rejoué garde la section que le lecteur a ouverte', () => {
 test("le panneau ne prononce jamais un mot qui lui est interdit", () => {
   fiche((w) => {
     w.arrive({ [ID]: SIGNALS })
-    w.answer('comparables', { comparables: COMPARABLES })
+    w.answer('seller', { stats: SELLER })
     const seen = [text(w)]
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 2; i++) {
       tiles(w)[0].click()
       seen.push(text(w))
     }
@@ -75,12 +73,12 @@ test("le panneau ne prononce jamais un mot qui lui est interdit", () => {
 // Rouge sur le `if (asked.has(l.siteId)) return` de src/market.js : le panneau
 // est rendu à nouveau chaque fois que le suivi répond, et sans ce garde chaque
 // rendu redemanderait à l'API ce qu'elle vient de dire.
-test("le marché autour d'une annonce ne se demande qu'une fois", () => {
+test("le vendeur d'une annonce ne se demande qu'une fois", () => {
   fiche((w) => {
     w.mutate(20)
     w.arrive({ [ID]: SIGNALS })
-    assert.deepEqual(w.relayed().map((m) => m.type), ['comparables', 'seller'])
-    assert.deepEqual(w.relayed()[0], { type: 'comparables', site: 'lbc', siteId: ID })
+    assert.deepEqual(w.relayed().map((m) => m.type), ['seller'])
+    assert.deepEqual(w.relayed()[0], { type: 'seller', site: 'lbc', sellerId: '5551' })
   })
 })
 
@@ -89,9 +87,27 @@ test("le marché autour d'une annonce ne se demande qu'une fois", () => {
 // après elle, et la section resterait absente jusqu'à la fiche suivante.
 test("la réponse du marché fait reparaître le panneau avec sa section", () => {
   fiche((w) => {
-    assert.doesNotMatch(text(w), /Ce prix/)
-    w.answer('comparables', { comparables: COMPARABLES })
-    assert.match(text(w), /Ce prix/)
-    assert.ok(w.panel().querySelector('.adscope-bar'))
+    assert.doesNotMatch(text(w), /Ce vendeur/)
+    w.answer('seller', { stats: SELLER })
+    assert.match(text(w), /Ce vendeur/)
+  })
+})
+
+// Les deux sections sorties de la V1 marchand. Rouge sur le `all` de
+// src/panel-sections.js : y remettre `Ce prix` ou `Avant d'y aller` les ferait
+// reparaître dans le panneau, avec la comparaison et l'éditorial qu'on a sortis.
+test("ni « Ce prix » ni « Avant d'y aller » ne subsistent dans le panneau", () => {
+  fiche((w) => {
+    w.arrive({ [ID]: SIGNALS })
+    w.answer('seller', { stats: SELLER })
+    const seen = [text(w)]
+    for (let i = 0; i < 2; i++) {
+      tiles(w)[0].click()
+      seen.push(text(w))
+    }
+    for (const said of seen) {
+      assert.doesNotMatch(said, /Ce prix|Avant d'y aller|HistoVec|comparables?/i)
+    }
+    assert.equal(w.panel().querySelector('.adscope-bar'), null)
   })
 })

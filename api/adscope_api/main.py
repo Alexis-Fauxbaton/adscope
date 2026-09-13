@@ -1,35 +1,30 @@
 from datetime import datetime, timezone
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
-from .auth import resolve
+from .auth import require_license
 from .comparables import comparables_for
 from .db import get_session
-from .disappearance import observe
+from .disappearance import AbsenceOut, observe
+from . import families, follows
+from .follows import followed_ids
 from .models import Listing
 from .observations import record
 from .intake import AbsenceIn, ObservationsIn
 from .revisit import due
 from .schemas import (
-    AbsenceOut, BatchIn, ComparablesOut, RevisitIn, RevisitOut, SellerStatsOut,
-    SignalsOut,
+    BatchIn, ComparablesOut, RevisitIn, RevisitOut, SellerStatsOut, SignalsOut,
 )
 from .sellers import stats_for
 from .signals import signals_for
 from .usage import compact_daily
 
 app = FastAPI(title="adscope", version="0.1.0")
-
-
-def require_license(authorization: str = Header(default=""), session=Depends(get_session)):
-    scheme, _, key = authorization.partition(" ")
-    license_ = resolve(session, key) if scheme.lower() == "bearer" and key else None
-    if license_ is None:
-        raise HTTPException(status_code=401, detail="licence invalide")
-    return license_
+app.include_router(follows.router)
+app.include_router(families.router)
 
 
 # Le lot verrouille chaque annonce qu'il touche jusqu'à son commit. Deux lots
@@ -60,24 +55,28 @@ def post_observations(payload: ObservationsIn, session=Depends(get_session),
 
 
 @app.post("/v1/listings/batch", response_model=list[SignalsOut])
-def post_batch(payload: BatchIn, session=Depends(get_session), _=Depends(require_license)):
+def post_batch(payload: BatchIn, session=Depends(get_session),
+               license_=Depends(require_license)):
     listings = session.scalars(
         select(Listing)
         .where(Listing.site == payload.site, Listing.site_id.in_(payload.ids))
         .options(selectinload(Listing.prices))
     ).all()
-    return [signals_for(listing) for listing in listings]
+    # Une requête pour tout le lot, jamais une par annonce : la page de
+    # résultats en porte trente.
+    kept = followed_ids(session, license_, [listing.id for listing in listings])
+    return [signals_for(listing, followed=listing.id in kept) for listing in listings]
 
 
 @app.get("/v1/listings/{site}/{site_id}", response_model=SignalsOut)
 def get_listing(site: str, site_id: str, session=Depends(get_session),
-                _=Depends(require_license)):
+                license_=Depends(require_license)):
     listing = session.scalar(
         select(Listing).where(Listing.site == site, Listing.site_id == site_id)
     )
     if listing is None:
         raise HTTPException(status_code=404, detail="annonce inconnue")
-    return signals_for(listing)
+    return signals_for(listing, followed=bool(followed_ids(session, license_, [listing.id])))
 
 
 # Le marché autour d'une annonce : le segment auquel elle appartient et le rang

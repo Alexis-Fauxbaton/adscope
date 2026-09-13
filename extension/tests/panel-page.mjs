@@ -45,10 +45,15 @@ export const SIGNALS = {
   price_history: [point(118, 24900), point(90, 24900, true), point(84, 23900), point(48, 22700)],
 }
 
-export const COMPARABLES = {
-  segment: { brand: 'Peugeot', model: '208', year: 2020, version: null },
-  count: 37, min: 18200, q1: 20400, median: 21900, q3: 23450, max: 26900,
-  dispersion: 0.14, percentile: 71, comparable: true, reason: null,
+// L'annonce que le pool découvre à l'instant : un seul relevé, du jour même.
+// C'est l'état « pas encore suivie » du contrat, et rien d'autre ne le produit.
+export const FIRST = {
+  first_seen: back(0).toISOString(),
+  tracked_days: 0,
+  observations: 1,
+  price: 22700,
+  price_history: [point(0, 22700)],
+  followed: false,
 }
 
 export const SELLER = {
@@ -68,3 +73,4 @@ export const fiche = (fn, over) =>
 export const text = (w) => w.panel().textContent
 export const tiles = (w) => w.panel().querySelectorAll('.adscope-tile')
 export const openTile = (w, name) => tiles(w).find((t) => t.textContent.includes(name)).click()
+export const buttons = (w) => w.panel().querySelectorAll('.adscope-follow')

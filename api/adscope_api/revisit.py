@@ -21,6 +21,11 @@ d'aller voir, et la page ouverte tranchera.
 
 Ce qu'elle sert en premier :
 
+- ce qu'un marchand a demandé : une annonce qu'il suit, ou une annonce de son
+  périmètre. C'est le seul rang qui ne se déduit pas de la base — il vient de
+  quelqu'un, et il passe devant tout le reste parce que c'est la seule fiche
+  dont on sait qu'elle sera lue. « Un marchand », pas l'appelant : la file est
+  commune, le crawler la tire avec sa propre licence.
 - le professionnel. Ses annonces n'expirent pas — la base en porte au-delà de
   834 jours quand aucune annonce de particulier ne dépasse 120 —, si bien que sa
   disparition est un retrait et non une échéance administrative. C'est la seule
@@ -44,6 +49,7 @@ from datetime import timedelta
 
 from sqlalchemy import case, or_, select
 
+from .follow_models import Follow, TrackedFamily
 from .models import Listing
 
 log = logging.getLogger("adscope.revisit")
@@ -72,12 +78,27 @@ def _lbc(site_id: str) -> str | None:
 ADDRESS = {"lbc": _lbc}
 
 
+# Demandée par quelqu'un : suivie par une licence quelconque, ou d'une famille
+# que l'une d'elles surveille. La marque nulle ne rejoint aucune famille — la
+# comparaison rend NULL, donc faux, et c'est le résultat voulu.
+def _wanted():
+    followed = select(1).where(Follow.listing_id == Listing.id).exists()
+    tracked = (
+        select(1)
+        .where(TrackedFamily.brand == Listing.brand,
+               TrackedFamily.model == Listing.model)
+        .exists()
+    )
+    return or_(followed, tracked)
+
+
 def _rank(now):
     old = now - OLD
     return case(
-        (Listing.seller_type == "pro", case((Listing.published_at <= old, 0), else_=1)),
-        (Listing.published_at <= old, 2),
-        else_=3,
+        (_wanted(), 0),
+        (Listing.seller_type == "pro", case((Listing.published_at <= old, 1), else_=2)),
+        (Listing.published_at <= old, 3),
+        else_=4,
     )
 
 

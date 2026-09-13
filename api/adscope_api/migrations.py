@@ -78,6 +78,28 @@ MIGRATIONS = (
         "CREATE INDEX IF NOT EXISTS ix_listings_brand_model_year"
         " ON listings (brand, model, year)",
     )),
+    # Ce que le marchand suit, et le périmètre qu'il surveille. Deux tables
+    # neuves : rien des 46 857 annonces enregistrées n'est touché. La cascade
+    # part de la licence — un suivi n'a de sens que pour celui qui l'a posé —
+    # et de l'annonce. L'index sur `listing_id` porte la colonne qui référence,
+    # que Postgres n'indexe pas de lui-même : sans lui, supprimer une annonce
+    # balaie `follows` en entier pour honorer la cascade.
+    ("007_follows_and_families", (
+        "CREATE TABLE IF NOT EXISTS follows ("
+        " license_key_hash varchar(64) NOT NULL"
+        "   REFERENCES licenses (key_hash) ON DELETE CASCADE,"
+        " listing_id integer NOT NULL"
+        "   REFERENCES listings (id) ON DELETE CASCADE,"
+        " followed_at timestamptz NOT NULL,"
+        " PRIMARY KEY (license_key_hash, listing_id))",
+        "CREATE INDEX IF NOT EXISTS ix_follows_listing ON follows (listing_id)",
+        "CREATE TABLE IF NOT EXISTS tracked_families ("
+        " license_key_hash varchar(64) NOT NULL"
+        "   REFERENCES licenses (key_hash) ON DELETE CASCADE,"
+        " brand varchar(64) NOT NULL,"
+        " model varchar(128) NOT NULL,"
+        " PRIMARY KEY (license_key_hash, brand, model))",
+    )),
 )
 
 

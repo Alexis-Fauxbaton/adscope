@@ -1,9 +1,13 @@
 globalThis.ADS = globalThis.ADS || {}
 
-// Ce que la fiche ouverte ne porte pas : le marché autour de l'annonce, et ce
-// que le vendeur ne montre pas de lui-même. Les deux se demandent à l'API et à
-// elle seule — jamais à une page que le lecteur n'a pas ouverte —, et une seule
-// fois par annonce : la réponse ne change pas d'un lot de mutations à l'autre.
+// Ce que la fiche ouverte ne porte pas : ce que le vendeur ne montre pas de
+// lui-même. Cela se demande à l'API et à elle seule — jamais à une page que le
+// lecteur n'a pas ouverte —, et une seule fois par annonce : la réponse ne
+// change pas d'un lot de mutations à l'autre.
+//
+// Les comparables ne sont plus demandés : le panneau de la V1 marchand n'en
+// affiche rien, et une requête dont personne ne lit la réponse reste une
+// requête. La route et son relais dans le service worker sont intacts.
 //
 // La demande passe par le service worker : partie du content script, elle
 // porterait l'origine du site ouvert et le navigateur la refuserait.
@@ -28,8 +32,6 @@ ADS.market = (() => {
   const want = ADS.context.guard((l) => {
     if (asked.has(l.siteId)) return
     asked.add(l.siteId)
-    ask({ type: 'comparables', site: l.site, siteId: l.siteId }, (res) =>
-      keep(l.siteId, { comparables: res.comparables }))
     // Un particulier n'a pas de catalogue : agréger ses annonces serait de la
     // donnée personnelle, et l'API ne le connaît pas.
     if (l.sellerType === 'pro' && l.sellerId) {

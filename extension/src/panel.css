@@ -31,7 +31,24 @@
   box-sizing: border-box;
 }
 
-.adscope-head { color: #9aa0ae; font-size: 12.5px; font-weight: 500; margin: 0 4px 12px; }
+.adscope-head-row { display: flex; align-items: center; gap: 12px; margin: 0 4px 12px; }
+.adscope-head { color: #9aa0ae; font-size: 12.5px; font-weight: 500; margin: 0; }
+
+/* Le seul geste du panneau. Il porte l'accent de la mesure d'adscope, jamais
+   l'orangé : suivre une annonce ne dit rien de ce que le site cache. */
+.adscope-follow {
+  margin-left: auto;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: #4f46e5;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.adscope-follow--on { background: #e9ecfd; color: #4f46e5; cursor: default; }
+.adscope-follow--card { display: inline-block; margin: 16px 0 0; padding: 10px 18px; font-size: 14px; }
 .adscope-foot { color: #9aa0ae; font-size: 12.5px; line-height: 1.55; margin: 16px 4px 0; }
 
 .adscope-card {
@@ -75,7 +92,7 @@
   white-space: nowrap;
 }
 
-.adscope-plot, .adscope-bar { display: block; width: 100%; height: auto; }
+.adscope-plot { display: block; width: 100%; height: auto; }
 .adscope-window { fill: #fdf0e4; }
 .adscope-window-label { fill: #b75e12; font-size: 11.5px; font-weight: 700; }
 .adscope-line { fill: none; stroke: #4f46e5; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
@@ -83,15 +100,6 @@
 .adscope-check { fill: #4f46e5; opacity: 0.3; }
 .adscope-amount { fill: #14161c; font-size: 12.5px; font-weight: 700; }
 .adscope-axis { fill: #9aa0ae; font-size: 11.5px; font-weight: 500; }
-
-.adscope-track { fill: #e9ebf0; }
-.adscope-iqr { fill: #dce0e8; }
-.adscope-median { fill: #8b92a2; }
-.adscope-stem { stroke: #4f46e5; stroke-width: 1.5; opacity: 0.4; stroke-linecap: round; }
-.adscope-mark { fill: #fff; stroke: #4f46e5; stroke-width: 3; }
-.adscope-mark-label { fill: #4f46e5; font-size: 12.5px; font-weight: 700; }
-.adscope-bound { fill: #22252e; font-size: 12.5px; font-weight: 700; }
-.adscope-bound-name { fill: #9aa0ae; font-size: 11px; font-weight: 500; }
 
 .adscope-open-head { display: flex; align-items: center; gap: 14px; margin: 0 0 22px; }
 .adscope-open-head .adscope-title { margin: 0; }
@@ -126,7 +134,6 @@
 
 .adscope-fact { font-size: 14.5px; line-height: 1.45; color: #6b7180; margin: 16px 0 0; }
 .adscope-reserve { font-size: 12.5px; line-height: 1.5; color: #9aa0ae; margin: 16px 0 0; }
-.adscope-link { color: #4f46e5; font-weight: 600; text-decoration: underline; cursor: pointer; }
 
 /* Palier compact : la colonne où le site pose le panneau, pas seulement le
    mobile — La Centrale en donnait déjà 404 px à 1440 de viewport. Le chiffre

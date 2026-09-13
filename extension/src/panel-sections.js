@@ -1,38 +1,78 @@
 globalThis.ADS = globalThis.ADS || {}
 
-// Les quatre sections, et la règle qui décide de leur existence. Chacune rend
+// Les trois sections, et la règle qui décide de leur existence. Chacune rend
 // un titre, un fait en sous-titre — ce qu'on lit sans ouvrir — et son corps.
 // Aucune ne se fabrique un contenu : sans donnée, elle n'existe pas.
 ADS.sections = (() => {
   const { el } = ADS.node
-  const { number, ago } = ADS.format
+  const { number, money, ago } = ADS.format
 
   // En dessous, un catalogue n'en est pas un : deux annonces vues ne disent
   // rien d'un marchand, et les additionner le ferait croire.
   const MIN_LISTINGS = 3
-  const HISTOVEC = 'https://histovec.interieur.gouv.fr'
+  // Le seuil de l'API, redit ici : en deçà, republier et réindexer à quelques
+  // heures d'écart est le fonctionnement normal d'un site. Un changement de
+  // prix tombé dans cette fenêtre autour de la remontée est celui de la
+  // remontée ; au delà, c'est un autre jour et une autre décision.
+  const BUMP_MIN_DAYS = 1
+  const DAY = 86400000
 
   const fact = (text) => el('p', 'adscope-fact', text)
   const day = (v) => new Date(v).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  // Les changements de prix portent les mots de l'axe de la courbe juste
+  // au-dessus : c'est la même série qu'on relit, ligne à ligne.
+  const when = (v) => new Date(v).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
   const percent = (v) => `${Math.round(v * 100)} %`
+  const plural = (n) => (n > 1 ? 's' : '')
+  // Le signe porte la direction, et lui seul : une hausse se lit « + » et rien
+  // ne l'alerte — l'orangé n'existe que pour ce que le site cache.
+  const signed = (n) => `${n < 0 ? '−' : '+'}${money(n)}`
 
-  const link = (label, href, tail) => {
-    const line = el('p', 'adscope-fact')
-    const a = el('a', 'adscope-link', label)
-    a.setAttribute('href', href)
-    a.setAttribute('target', '_blank')
-    a.setAttribute('rel', 'noreferrer noopener')
-    line.append(a, el('span', null, ` — ${tail}`))
-    return line
+  // Les changements de prix relevés, du plus récent au plus ancien — le dernier
+  // est ce qui vient de se passer. Chacun porte son montant et le cumul depuis
+  // la première observation : c'est le cumul qui dit de combien le prix a cédé
+  // depuis qu'adscope le regarde, et aucune page ne l'affiche.
+  const changes = (history = []) => {
+    const out = []
+    for (let i = 1; i < history.length; i++) {
+      const move = history[i].price - history[i - 1].price
+      if (move) out.push({ at: history[i].at, move, total: history[i].price - history[0].price })
+    }
+    return out.reverse()
   }
 
-  // La remise en avant, dite avec le mot du site : `index_date` atteste une
-  // réactualisation, `lastUpdate` seulement qu'on a touché à l'annonce. Le
-  // relevé mutualisé la date au jour près ; la page, elle, ne sait que compter.
+  // Le cumul se tait sur le premier changement : il y répète le montant.
+  const step = (m) =>
+    fact(`${signed(m.move)} le ${when(m.at)}${m.total === m.move ? '' : ` · ${signed(m.total)} cumulés`}`)
+
+  const price = ({ remote: r }) => {
+    if (!r || !r.price_history || !r.price_history.length) return null
+    const moves = changes(r.price_history)
+    const falls = moves.filter((m) => m.move < 0).length
+    const word = falls === moves.length ? 'baisse' : 'changement'
+    return {
+      key: 'price', tone: 'green', icon: ADS.icons.bars, title: 'Prix',
+      short: moves.length
+        ? `${moves.length} ${word}${plural(moves.length)} · ${signed(moves[0].total)} cumulés`
+        : 'aucun changement de prix relevé',
+      body: moves.length
+        ? moves.map(step)
+        : [fact(`Aucun changement de prix depuis la première observation, le ${day(r.first_seen)}.`)],
+    }
+  }
+
+  // La remise en avant, dite avec le mot du site, et ce qu'elle valait. Une
+  // remontée au même prix est exactement ce que la date fraîche de la page
+  // recouvre : la nommer est tout l'objet de la ligne. Le relevé mutualisé la
+  // date au jour près ; la page, elle, ne sait que compter.
   const bump = ({ signals: s, remote: r, site }) => {
-    if (r && r.republished && r.republished_at) return fact(`${site.words.bumpLabel} le ${day(r.republished_at)}.`)
-    if (s.bumped) return fact(`${site.words.bumpLabel} ${ago(s.bumpedDaysAgo)}.`)
-    return null
+    const at = r && r.republished && (r.bumped_at || r.republished_at)
+    if (!at) return s.bumped ? fact(`${site.words.bumpLabel} ${ago(s.bumpedDaysAgo)}.`) : null
+    const near = changes(r.price_history)
+      .filter((m) => Math.abs(Date.parse(m.at) - Date.parse(at)) <= BUMP_MIN_DAYS * DAY)
+    const fell = near.filter((m) => m.move < 0).reduce((sum, m) => sum + m.move, 0)
+    const said = fell ? `, prix baissé de ${money(fell)}` : ' sans baisse de prix'
+    return fact(`${site.words.bumpLabel} le ${when(at)}${said}.`)
   }
 
   const car = (ctx) => {
@@ -44,23 +84,14 @@ ADS.sections = (() => {
         : fact(`En ligne depuis ${number(s.onlineDays)} jours, mise en ligne le ${day(listing.publishedAt)}.`),
       bump(ctx),
       r && r.tracked_days != null
-        ? fact(`Suivie par adscope depuis ${number(r.tracked_days)} jours, ${seen} relevé${seen > 1 ? 's' : ''}.`)
+        ? fact(`Suivie par adscope depuis ${number(r.tracked_days)} jours, ${seen} relevé${plural(seen)}.`)
         : null,
     ].filter(Boolean)
     const age = s.onlineDays == null ? 'date absente de la page' : `${number(s.onlineDays)} jours en ligne`
     return {
       key: 'car', tone: 'blue', icon: ADS.icons.car, title: 'Cette voiture',
-      short: seen ? `${age}, ${seen} observé${seen > 1 ? 's' : ''}` : age,
+      short: seen ? `${age}, ${seen} observé${plural(seen)}` : age,
       body,
-    }
-  }
-
-  const price = (ctx) => {
-    const c = ctx.market.comparables
-    if (!c) return null
-    return {
-      key: 'price', tone: 'green', icon: ADS.icons.bars, title: 'Ce prix',
-      short: ADS.spread.short(c), body: ADS.spread.open(ctx),
     }
   }
 
@@ -79,7 +110,13 @@ ADS.sections = (() => {
   const seller = ({ listing, market }) => {
     const s = market.seller
     if (listing.sellerType !== 'pro' || !s || s.listings < MIN_LISTINGS) return null
-    const body = [fact(`${s.listings} de ses annonces vues par adscope.`)]
+    // Actives et vues se comptent aujourd'hui sur le même nombre : rien ne
+    // disparaît encore en base. Le jour où les disparues seront écartées, c'est
+    // cette ligne-ci qui maigrira, et l'écart entre les deux sera le fait.
+    const body = [
+      fact(`${s.listings} annonces actives.`),
+      fact(`${s.listings} de ses annonces vues par adscope.`),
+    ]
     if (s.over_a_month_share != null) {
       const share = percent(s.over_a_month_share)
       body.push(fact(`${share} en ligne depuis plus d'un mois (${s.over_a_month} sur ${s.aged}).`))
@@ -97,24 +134,9 @@ ADS.sections = (() => {
     }
   }
 
-  // Ce qui se vérifie ailleurs, et que le panneau ne prétend pas savoir. Une
-  // question porte les chiffres de cette annonce : c'est elle qu'on pose au
-  // vendeur, et il ne l'attend pas.
-  const before = ({ signals: s }) => ({
-    key: 'before', tone: 'blue', icon: ADS.icons.list, title: "Avant d'y aller",
-    short: 'HistoVec, CT, 3 questions',
-    body: [
-      link('HistoVec', HISTOVEC, "le service de l'État qui rend l'historique d'un véhicule."),
-      fact('Le procès-verbal du dernier contrôle technique : son relevé de compteur date le kilométrage.'),
-      fact(s.onlineDays == null
-        ? 'À demander : depuis quand cette annonce est-elle en ligne ?'
-        : `À demander : en ligne depuis ${number(s.onlineDays)} jours, pourquoi n'est-elle pas partie ?`),
-      fact('À demander : le prix a-t-il déjà baissé, et de combien ?'),
-      fact('À demander : puis-je voir le véhicule et son procès-verbal avant de me décider ?'),
-    ],
-  })
-
-  const all = (ctx) => [car(ctx), price(ctx), seller(ctx), before(ctx)].filter(Boolean)
+  // `Prix` en tête : c'est la section ouverte par défaut, et celle qui prend sa
+  // place quand elle manque est la suivante, jamais un contenu de remplacement.
+  const all = (ctx) => [price(ctx), car(ctx), seller(ctx)].filter(Boolean)
 
   return { all }
 })()

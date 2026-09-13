@@ -57,7 +57,7 @@ def thinned(points: list) -> list:
     return [*kept, points[-1]]
 
 
-def signals_for(listing: Listing, now=None) -> dict:
+def signals_for(listing: Listing, now=None, followed=False) -> dict:
     if now is None:
         now = datetime.now(timezone.utc)
     points = listing.prices
@@ -69,6 +69,7 @@ def signals_for(listing: Listing, now=None) -> dict:
         "first_seen": listing.first_seen,
         "last_seen": listing.last_seen,
         "observations": listing.observations,
+        "followed": followed,
         "tracked_days": (now - listing.first_seen).days,
         "seller_type": listing.seller_type,
         "site_published_first": listing.site_published_first,

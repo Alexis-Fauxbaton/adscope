@@ -34,13 +34,24 @@ code ni la colonne ne le supposent.
 
 import logging
 from datetime import timedelta
+from typing import Literal
 
+from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 
 from .models import Listing
 from .revisit import CONFIRM_DELAY
 
 log = logging.getLogger("adscope.disappearance")
+
+
+class AbsenceOut(BaseModel):
+    """Ce que la constatation a produit, dit sans détour : `first` a seulement
+    posé un rendez-vous, `recorded` a écrit, `held` s'est heurté au garde-fou
+    de flotte, `logged` n'a rien conclu."""
+
+    verdict: Literal["unknown", "logged", "already", "first", "too_soon",
+                     "held", "recorded"]
 
 # La seule preuve qui écrive.
 WRITES = "absent"

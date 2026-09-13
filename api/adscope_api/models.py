@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 # Réexportées : `Base.metadata` doit les porter, et `from .models import ...`
 # continue de les trouver là où on les a toujours prises.
+from .follow_models import Follow, TrackedFamily  # noqa: F401
 from .usage_models import UsageDay, UsageSummary  # noqa: F401
 
 

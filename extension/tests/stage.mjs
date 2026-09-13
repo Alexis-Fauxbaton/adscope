@@ -126,9 +126,9 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
         // Le badge ne touche ni au réseau ni au cache : le service worker le
         // pose sur l'onglet d'où vient le message.
         if (msg.type === 'badge') return painted.push(msg), respond({ ok: true })
-        // Le marché autour de l'annonce et son vendeur : le service worker les
-        // relaie vers l'API, et c'est le test qui décide s'ils reviennent.
-        if (msg.type === 'comparables' || msg.type === 'seller') return relayed.push({ msg, respond })
+        // Ce que le service worker relaie vers l'API — le vendeur, le suivi
+        // d'une annonce : c'est le test qui décide si la réponse revient.
+        if (msg.type === 'seller' || msg.type === 'follow') return relayed.push({ msg, respond })
         if (msg.type !== 'cached') return emitted.push(msg), pending.push({ msg, respond })
         asked.push(msg)
         const hits = msg.ids.filter((id) => id in cache).map((id) => [id, cache[id]])
@@ -155,8 +155,8 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
   // L'ordre du manifeste : chaque module trouve ceux dont il se sert au chargement.
   const MODULES = [
     'context.js', 'sites.js', 'sites/read.js', 'format.js', 'curve.js', 'view.js', 'diag.js',
-    'sync.js', 'market.js', 'feed.js', 'panel-node.js', 'panel-icons.js', 'panel-curve.js',
-    'panel-note.js', 'panel-price.js', 'panel-sections.js', 'panel-cards.js', 'panel.js',
+    'sync.js', 'market.js', 'follow.js', 'feed.js', 'panel-node.js', 'panel-icons.js',
+    'panel-curve.js', 'panel-note.js', 'panel-sections.js', 'panel-cards.js', 'panel.js',
   ]
   for (const f of ['context.js', 'sites.js', 'sites/read.js', site, ...MODULES.slice(3)]) load(f)
   // Le travail lourd, compté à travers le registre : le code partagé y accède

@@ -1,0 +1,164 @@
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import delete, select
+
+from adscope_api.auth import hash_key, new_key
+from adscope_api.follow_models import Follow
+from adscope_api.models import License, Listing
+
+from conftest import auth
+
+NOW = datetime(2026, 9, 12, 9, 0, tzinfo=timezone.utc)
+ONE = "3263259495"
+TWO = "3263259496"
+
+
+def listed(session, site_id=ONE, site="lbc", **kw):
+    listing = Listing(site=site, site_id=site_id, first_seen=NOW, last_seen=NOW,
+                      observations=1, **kw)
+    session.add(listing)
+    session.commit()
+    return listing
+
+
+def other_license(session):
+    raw = new_key()
+    session.add(License(key_hash=hash_key(raw), label="autre"))
+    session.commit()
+    return raw
+
+
+def follow(client, key, site_id=ONE, site="lbc"):
+    return client.post("/v1/follows", json={"site": site, "site_id": site_id},
+                       headers=auth(key))
+
+
+# Fait rougir `if listing is None: raise HTTPException(404)` dans
+# `follows.post_follow` : sans lui, suivre une annonce que la base ne connaît
+# pas écrirait une ligne pointant sur rien — et l'annonce inconnue est
+# précisément le cas que le panneau nomme « pas encore suivie ».
+def test_following_an_unknown_listing_is_a_404(client, key):
+    assert follow(client, key, "jamais-vue").status_code == 404
+
+
+def test_following_answers_201_and_the_moment(client, key, session):
+    listed(session)
+    res = follow(client, key)
+    assert res.status_code == 201
+    body = res.json()
+    assert (body["site"], body["site_id"]) == ("lbc", ONE)
+    assert body["followed_at"]
+
+
+# Fait rougir `.on_conflict_do_nothing()` et la branche `if followed_at is
+# None` : sans elles, un second clic — deux onglets, un doigt qui glisse —
+# rendrait 500 sur la clé primaire, ou écraserait la date à laquelle le
+# marchand avait mis l'annonce de côté.
+def test_following_twice_answers_200_and_keeps_the_first_moment(client, key, session):
+    listed(session)
+    first = follow(client, key)
+    second = follow(client, key)
+    assert (first.status_code, second.status_code) == (201, 200)
+    assert second.json() == first.json()
+
+
+# Fait rougir `listing.next_detail_crawl = now` : c'est tout ce que suivre
+# change au crawl. Sans cette ligne l'annonce garderait l'espacement posé par
+# la dernière revisite — une semaine — et le geste du marchand n'aurait aucun
+# effet sur ce que la base saura demain.
+def test_following_puts_the_listing_at_the_head_of_the_queue(client, key, session):
+    listing = listed(session, next_detail_crawl=NOW + timedelta(days=30))
+    follow(client, key)
+    assert listing.next_detail_crawl <= datetime.now(timezone.utc)
+
+
+# Fait rougir le `else:` qui tient cette même ligne : un second clic sur une
+# annonce déjà suivie n'est pas un second geste, et ne doit pas rappeler la
+# file.
+def test_a_second_click_does_not_reopen_the_queue(client, key, session):
+    listing = listed(session)
+    follow(client, key)
+    later = NOW + timedelta(days=30)
+    listing.next_detail_crawl = later
+    session.commit()
+    follow(client, key)
+    assert listing.next_detail_crawl == later
+
+
+def test_unfollowing_answers_204_and_drops_it(client, key, session):
+    listed(session)
+    follow(client, key)
+    assert client.delete(f"/v1/follows/lbc/{ONE}", headers=auth(key)).status_code == 204
+    assert client.get("/v1/follows", headers=auth(key)).json() == []
+
+
+def test_unfollowing_what_was_never_followed_is_still_204(client, key, session):
+    listed(session)
+    assert client.delete(f"/v1/follows/lbc/{ONE}", headers=auth(key)).status_code == 204
+
+
+# Fait rougir `Follow.license_key_hash == license_.key_hash` dans
+# `follows.delete_follow` : sans ce filtre, un marchand qui cesse de suivre une
+# annonce l'arracherait de la liste de tous les autres.
+def test_unfollowing_touches_only_the_caller(client, key, session):
+    listed(session)
+    other = other_license(session)
+    follow(client, key)
+    follow(client, other)
+    client.delete(f"/v1/follows/lbc/{ONE}", headers=auth(key))
+    assert [f["site_id"] for f in client.get("/v1/follows", headers=auth(other)).json()] \
+        == [ONE]
+
+
+# Fait rougir le même filtre dans `follows.get_follows` : la liste est celle du
+# marchand qui la demande, jamais celle de la base.
+def test_the_list_is_the_caller_s_own(client, key, session):
+    listed(session, ONE)
+    listed(session, TWO)
+    other = other_license(session)
+    follow(client, key, ONE)
+    follow(client, other, TWO)
+    assert [f["site_id"] for f in client.get("/v1/follows", headers=auth(key)).json()] \
+        == [ONE]
+
+
+def test_the_follow_routes_need_a_license(client, session):
+    assert client.post("/v1/follows", json={"site": "lbc", "site_id": ONE}) \
+        .status_code == 401
+    assert client.get("/v1/follows").status_code == 401
+    assert client.delete(f"/v1/follows/lbc/{ONE}").status_code == 401
+
+
+# Fait rougir `followed=...` dans `main.get_listing` et le filtre par licence
+# de `follows.followed_ids` : le panneau affiche « suivie » ou « pas encore
+# suivie », et le suivi d'un autre marchand n'est pas le sien.
+def test_the_listing_says_followed_for_the_calling_license_only(client, key, session):
+    listed(session)
+    other = other_license(session)
+    follow(client, key)
+    mine = client.get(f"/v1/listings/lbc/{ONE}", headers=auth(key)).json()
+    theirs = client.get(f"/v1/listings/lbc/{ONE}", headers=auth(other)).json()
+    assert (mine["followed"], theirs["followed"]) == (True, False)
+
+
+# Fait rougir `followed=listing.id in kept` dans `main.post_batch` : sans lui
+# la page de résultats ne saurait pas lesquelles de ses trente cartes sont
+# déjà suivies.
+def test_the_batch_says_which_are_followed(client, key, session):
+    listed(session, ONE)
+    listed(session, TWO)
+    follow(client, key, ONE)
+    body = client.post("/v1/listings/batch", json={"site": "lbc", "ids": [ONE, TWO]},
+                       headers=auth(key)).json()
+    assert {item["site_id"]: item["followed"] for item in body} == {ONE: True, TWO: False}
+
+
+# Fait rougir `ondelete="CASCADE"` sur `Follow.license_key_hash` : un suivi n'a
+# de sens que pour celui qui l'a posé, et resterait sinon à pointer une licence
+# qui n'existe plus.
+def test_a_deleted_license_takes_its_follows_with_it(client, key, session):
+    listed(session)
+    follow(client, key)
+    session.execute(delete(License).where(License.key_hash == hash_key(key)))
+    session.commit()
+    assert session.scalars(select(Follow)).all() == []

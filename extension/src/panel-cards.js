@@ -48,6 +48,34 @@ ADS.cards = (() => {
     return said ? [el('p', 'adscope-fine', said)] : []
   }
 
+  // Le bouton, posé là où se trouve ce qu'il change : dans l'en-tête sur toute
+  // fiche, dans la carte pâle quand c'est elle qui pose la question.
+  const follow = (state, cls) => {
+    const n = el('button', state.on ? `${cls} adscope-follow--on` : cls, state.on ? 'Suivie' : 'Suivre')
+    n.setAttribute('type', 'button')
+    if (!state.on) n.addEventListener('click', state.act)
+    return n
+  }
+
+  // « Pas encore suivie » : première observation, faite aujourd'hui. La visite
+  // en cours est donc la première jamais faite — il n'y a rien à tracer, et
+  // rien non plus à promettre tant que personne n'a demandé à la revoir.
+  const unseen = (r, now) =>
+    (r.observations || 0) <= 1 && new Date(r.first_seen).toDateString() === now.toDateString()
+
+  const first = (state) => {
+    const card = el('div', 'adscope-card adscope-card--soft')
+    if (state.on) {
+      card.append(el('p', null, "Suivie depuis aujourd'hui."))
+      return card
+    }
+    card.append(
+      el('p', null, "Première fois qu'adscope voit cette annonce — pas encore suivie."),
+      follow(state, 'adscope-follow adscope-follow--card'),
+    )
+    return card
+  }
+
   // Sous deux relevés, la carte pâle plutôt qu'une courbe d'un seul point : elle
   // dit ce qu'on a, et que la suite viendra sans rien demander à personne.
   const waiting = (r) => {
@@ -61,8 +89,9 @@ ADS.cards = (() => {
     return card
   }
 
-  const curve = (ctx) => {
+  const curve = (ctx, state) => {
     if (!ctx.remote) return []
+    if (unseen(ctx.remote, ctx.now)) return [first(state)]
     const model = ADS.plot.model(ctx)
     if (!model) return [waiting(ctx.remote)]
     const card = el('div', 'adscope-card')
@@ -73,7 +102,7 @@ ADS.cards = (() => {
     return [card]
   }
 
-  return { figure, curve }
+  return { figure, curve, follow }
 })()
 
 if (typeof module !== 'undefined') module.exports = ADS.cards

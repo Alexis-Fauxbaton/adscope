@@ -9,6 +9,8 @@ from adscope_api.migrations import MIGRATIONS, apply_migrations
 
 
 def to_old_shape(session):
+    session.execute(text("DROP TABLE IF EXISTS follows"))
+    session.execute(text("DROP TABLE IF EXISTS tracked_families"))
     session.execute(text("DROP INDEX IF EXISTS ix_listings_brand_model_year"))
     session.execute(text("DROP INDEX IF EXISTS ix_listings_revisit"))
     session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS absent_since"))
@@ -193,3 +195,53 @@ def test_the_index_serving_the_comparables_query_exists(session):
         "SELECT indexname FROM pg_indexes WHERE tablename = 'listings'"
     ))
     assert "ix_listings_brand_model_year" in {row[0] for row in indexes}
+
+
+def tables(session):
+    rows = session.execute(text(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+    ))
+    return {row[0] for row in rows}
+
+
+# Les deux tables du marchand arrivent sur une base qui porte 46 857 annonces
+# et quatre licences : elles sont neuves et vides, rien de ce qui est
+# enregistré n'est touché.
+def test_migration_adds_the_follow_tables(session):
+    to_old_shape(session)
+    assert not {"follows", "tracked_families"} & tables(session)
+    apply_migrations(session.connection())
+    assert {"follows", "tracked_families"} <= tables(session)
+
+
+def test_the_listings_already_recorded_survive_the_new_tables(session):
+    to_old_shape(session)
+    with_history(session)
+    apply_migrations(session.connection())
+    rows = session.execute(text("SELECT site_id FROM listings")).all()
+    assert rows == [("87103336930",)]
+    assert session.execute(text("SELECT count(*) FROM follows")).scalar() == 0
+
+
+# La clé primaire commence par la licence : la colonne qui référence l'annonce
+# n'est indexée par personne, et sans cet index toute suppression d'annonce
+# balaie `follows` en entier pour honorer la cascade.
+def test_the_index_on_the_referencing_column_exists(session):
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    indexes = session.execute(text(
+        "SELECT indexname FROM pg_indexes WHERE tablename = 'follows'"
+    ))
+    assert "ix_follows_listing" in {row[0] for row in indexes}
+
+
+# La migration et `create_all` doivent produire le même schéma : la base de
+# développement passe par l'une, la base de test par l'autre, et un écart entre
+# les deux ne se verrait qu'en production.
+def test_the_migration_produces_the_columns_that_create_all_produces(session):
+    from adscope_api.follow_models import Follow, TrackedFamily
+
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    for model in (Follow, TrackedFamily):
+        assert columns(session, model.__tablename__) == set(model.__table__.c.keys())

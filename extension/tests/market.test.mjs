@@ -28,14 +28,14 @@ const setup = () => {
 // objet où seul `sellerId` est vrai — comme celui-ci — déclenche la demande
 // vendeur. Aucun module de site n'intervient : les sites mettent déjà
 // `sellerId: null` pour un particulier, ce qui masquerait la régression.
-test('un particulier porteur d’un identifiant ne déclenche jamais la demande vendeur', () => {
+test('un particulier porteur d’un identifiant ne déclenche aucune demande', () => {
   const sent = setup()
   globalThis.ADS.market.want({ siteId: 'x1', site: 'lbc', sellerType: 'private', sellerId: 'x' })
-  assert.deepEqual(sent.map((m) => m.type), ['comparables'])
+  assert.deepEqual(sent, [])
 })
 
-test('un marchand porteur d’un identifiant, lui, déclenche les deux demandes', () => {
+test('un marchand porteur d’un identifiant, lui, déclenche la demande vendeur', () => {
   const sent = setup()
   globalThis.ADS.market.want({ siteId: 'x2', site: 'lbc', sellerType: 'pro', sellerId: 'y' })
-  assert.deepEqual(sent.map((m) => m.type), ['comparables', 'seller'])
+  assert.deepEqual(sent.map((m) => m.type), ['seller'])
 })

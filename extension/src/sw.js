@@ -103,6 +103,16 @@ const absent = async (site, siteId, evidence) => {
   return { ok: true, verdict }
 }
 
+// Suivre une annonce, par licence : la seule écriture que le lecteur commande.
+// L'API répond 201 la première fois et 200 ensuite ; rien ici ne les distingue
+// — suivre deux fois, c'est suivre. La réponse n'est pas mise en cache : le
+// cache range des signaux de page, et la liste des suivis est au serveur.
+const follow = async (site, siteId) => {
+  const cfg = await config()
+  if (!cfg.licenseKey) return { ok: false, reason: 'no-key' }
+  return { ok: true, ...(await call('/v1/follows', { site, site_id: siteId }, cfg)) }
+}
+
 // Le rouge de tampon, réservé à l'alerte — le même que celui de la fenêtre.
 const BADGE_COLOR = '#9f1239'
 
@@ -122,6 +132,7 @@ const handlers = {
   cached: (msg) => cachedSignals(msg.site, msg.ids),
   sync: (msg) => sync(msg.site, msg.listings),
   absent: (msg) => absent(msg.site, msg.siteId, msg.evidence),
+  follow: (msg) => follow(msg.site, msg.siteId),
   comparables: async (msg) => ADS.lookup.comparables(msg.site, msg.siteId, await config()),
   seller: async (msg) => ADS.lookup.seller(msg.site, msg.sellerId, await config()),
   badge: (msg, sender) => badge(msg.alerts, sender && sender.tab),

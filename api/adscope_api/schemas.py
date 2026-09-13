@@ -1,4 +1,6 @@
-"""Ce que l'API rend. Ce qu'elle reçoit vit dans `intake`, avec son gabarit."""
+"""Ce que l'API rend, sauf ce qui tient en un mot du module qui le produit —
+`AbsenceOut` dans `disappearance`, les suivis et le périmètre dans `follows` et
+`families`. Ce que l'API reçoit vit dans `intake`, avec son gabarit."""
 
 from datetime import date, datetime
 from typing import Literal
@@ -30,15 +32,6 @@ class RevisitOut(BaseModel):
     site: str
     site_id: str
     url: str
-
-
-class AbsenceOut(BaseModel):
-    """Ce que la constatation a produit, dit sans détour : `first` a seulement
-    posé un rendez-vous, `recorded` a écrit, `held` s'est heurté au garde-fou
-    de flotte, `logged` n'a rien conclu."""
-
-    verdict: Literal["unknown", "logged", "already", "first", "too_soon",
-                     "held", "recorded"]
 
 
 class PricePointOut(BaseModel):
@@ -86,6 +79,8 @@ class SignalsOut(BaseModel):
     # un jour pour une annonce revue chaque jour.
     price_checks: int | None
     price_gap_days: int | None
+    # Suivie par la licence qui appelle, et par elle seule.
+    followed: bool
 
 
 class SellerStatsOut(BaseModel):
