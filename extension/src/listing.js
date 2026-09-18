@@ -5,7 +5,9 @@
   if (!site) return
   const MARK = 'data-adscope'
   const SRC = 'data-adscope-src'
-  const DAYS = ADS.order.DAYS
+  // L'ancienneté écrite sur la pastille : la seule mesure que la carte porte,
+  // pour que la fiche ouverte la relise sans en refaire le calcul.
+  const DAYS = 'data-adscope-days'
 
   const span = (cls, text) => {
     const el = document.createElement('span')
@@ -39,9 +41,9 @@
     // Réécrit à chaque rendu, pas à la seule création : c'est ce marquage que la
     // comparaison ci-dessus relit.
     el.setAttribute(MARK, listing.siteId)
-    // L'ancienneté, une fois calculée, est écrite là où la barre de tête la
-    // relira : elle trie et filtre sur ce nombre, elle n'en refait aucun. Une
-    // annonce sans date n'en porte pas plutôt que d'en porter un faux.
+    // L'ancienneté, une fois calculée, est écrite sur la pastille : c'est là que
+    // les deux cartes d'une même annonce vont la relire pour rester d'accord.
+    // Une annonce sans date n'en porte pas plutôt que d'en porter une fausse.
     if (s.onlineDays == null) el.removeAttribute(DAYS)
     else el.setAttribute(DAYS, s.onlineDays)
     const { page, tracked } = ADS.view.badge(s, remote)
@@ -101,9 +103,6 @@
       const badges = document.querySelectorAll(`[${MARK}]`).length
       ADS.diag.listing(shown, listings.length - shown.length, badges, ADS.feed.source(), counts)
     }
-    // La barre de tête travaille sur les pastilles qu'on vient de poser : elle
-    // relit la page, elle ne recalcule aucun âge et ne demande rien.
-    ADS.sort.sync()
   })
 
   render()

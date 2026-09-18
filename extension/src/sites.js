@@ -11,23 +11,9 @@ globalThis.ADS = globalThis.ADS || {}
 ADS.sites = (() => {
   const all = []
 
-  // Le conteneur des cartes d'une page de résultats, déduit de ce que le site
-  // déclare de ses cartes : `cards` est la prise sur une carte — un attribut que
-  // le site écrit lui-même, jamais une classe que son empaqueteur régénère à
-  // chaque build —, `wrap` le bloc qui l'entoure quand la prise est posée
-  // dedans. Leur parent commun est le conteneur : aucun site n'a à le nommer, et
-  // ce qui le partage sans être une carte — un emplacement publicitaire — n'y
-  // est pas compté et n'en bouge pas.
-  const list = (site) => (doc) => {
-    const found = site.cards ? doc.querySelector(site.cards) : null
-    const card = found && site.wrap ? found.closest(site.wrap) : found
-    return (card && card.parentElement) || null
-  }
-
   // Rechargé — les tests le font entre deux mondes —, un site remplace sa
   // déclaration au lieu de la doubler.
   const register = (site) => {
-    site.list = list(site)
     const seen = all.findIndex((s) => s.id === site.id)
     if (seen < 0) all.push(site)
     else all[seen] = site

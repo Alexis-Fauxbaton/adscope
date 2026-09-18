@@ -167,7 +167,7 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
   // L'ordre du manifeste : chaque module trouve ceux dont il se sert au chargement.
   const MODULES = [
     'context.js', 'sites.js', 'sites/read.js', 'format.js', 'curve.js', 'view.js', 'diag.js',
-    'sync.js', 'market.js', 'follow.js', 'feed.js', 'order.js', 'sort.js', 'panel-node.js',
+    'sync.js', 'market.js', 'follow.js', 'feed.js', 'panel-node.js',
     'panel-icons.js', 'panel-curve.js', 'panel-note.js', 'panel-sections.js', 'panel-cards.js',
     'panel.js',
   ]
