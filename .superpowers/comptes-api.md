@@ -161,5 +161,77 @@ ce rapport n'y touche.
   livrable à un marchand qui n'est pas Alexis.
 - **Les sessions périmées ne sont pas balayées** : la ligne reste, elle ne vaut
   plus rien. Un ménage quand la table pèsera.
-- **`migrations.py` est à 151 lignes.** Le registre grossit d'un lot à l'autre ;
-  au suivant, c'est la liste qui doit partir dans son propre module.
+
+## Revue de sécurité, close le 2026-09-18
+
+Quatre correctifs, sur HEAD `89eda88` → `66eb0ed`. 336 tests (332 + 4), chacun
+nommant en commentaire la ligne qu'il fait rougir ; les deux correctifs
+principaux ont été rejoués sur l'ancien code pour confirmer qu'ils rougissent
+avant d'être restaurés. `web/` (52) inchangé et vert ; `extension/` non touché
+par ce lot (l'autre revue travaillait dans son dossier en parallèle).
+
+**Lien de vérification forgeable par `Host`.** `auth_email.post_login`
+construisait le lien envoyé au marchand avec `request.url_for('verify_login')`
+— un `Host: evil.example` forgé faisait émettre un lien vers cet hôte. Dès
+qu'un vrai transport d'envoi serait branché, un inconnu aurait pu faire
+envoyer à un client un lien qui livrait son propre jeton à l'attaquant.
+Correctif : `config.public_url()`, une base d'URL de configuration
+(`ADSCOPE_PUBLIC_URL`, défaut `http://localhost:8000` — l'hôte que
+l'extension utilise), jamais la requête. Testé par `Host: evil.example` qui ne
+change plus le lien, et par la variable qui reste configurable. Posée dans le
+gabarit `scripts/fr.adscope.api.plist` et la copie installée ; service
+rechargé par son label (`bootout` puis `bootstrap`) et vérifié en vrai : lien
+émis en `localhost:8000` malgré un `Host` forgé.
+
+**Usage unique non tenu en concurrence.** `login_tokens.consume` lisait le
+jeton (`session.get`) puis écrivait `used_at` en deux temps : huit requêtes
+lancées ensemble sur le même lien lisaient toutes un jeton encore valable
+avant qu'aucune ne l'ait marqué, et ouvraient huit sessions pour un lien qui
+n'en vaut qu'une. Correctif : une seule instruction —
+`UPDATE login_tokens SET used_at = :now WHERE token_hash = :h AND used_at IS
+NULL AND expires_at > :now RETURNING account_id`. Postgres sérialise les
+écritures concurrentes sur la même ligne ; une seule la trouve encore
+`used_at IS NULL`. `consume` rend directement `account_id` plutôt que la ligne
+— son seul appelant (`get_verify`) n'avait besoin que de ça. Testé avec la
+fixture `concurrently` : huit consommations simultanées → exactement une
+session (l'ancien code en ouvrait huit, rejoué pour le vérifier).
+
+**Email normalisé dans `attach_account.py`.** La connexion (`post_login`)
+abaissait déjà la casse et retirait les espaces ; `attach_account.account_for`
+ne le faisait pas — un `--email Alexis@…` collé à la main aurait posé un
+second compte à côté de `alexis@…`. Corrigé, testé.
+
+**`migrations.py` rendu à son registre.** À 151 lignes, il dépassait la
+limite. Le registre SQL (`LEDGER`, `MIGRATIONS`) part dans
+`api/adscope_api/migration_registry.py` (122 lignes, commentaires inclus) ;
+`migrations.py` (43 lignes) ne garde que `apply_migrations` et `migrate`, et
+réexporte `MIGRATIONS` pour que `tests/test_migrations.py` n'ait rien à
+changer.
+
+**`/v1/me` garde `expires_at`, contrairement à ce que demandait la tâche.**
+« Le site ne le lit pas » est vrai de `web/`, mais la tâche demandait de
+vérifier par grep dans `web/` **et** `extension/` avant de le retirer — et
+`extension/popup/config.js` le lit bel et bien (`body.expires_at`, testé dans
+`extension/tests/config.test.mjs`) pour afficher l'échéance d'une clé de
+machine collée dans l'écran de configuration (« Licence valide — label ·
+jusqu'au DATE »). Le retirer aurait fait disparaître cet affichage en
+production sans qu'aucun test ne le révèle (le test JS mocke sa propre
+réponse). Non fait ; à reprendre avec l'autre lot si `expires_at` doit
+vraiment disparaître de la réponse — pas depuis ce dossier seul.
+
+**Host unique dans le runbook de revisite.** `crawler/RUNBOOK-revisites.md`
+(non suivi par git, non ajouté) pointait vers `127.0.0.1:8000` pour ouvrir le
+site et la page de revisite, alors que l'extension appelle toujours
+`localhost:8000` : pour un cookie de session, ce sont deux hôtes — une session
+ouverte sur l'un n'existe pas sur l'autre. Remplacé partout où il s'agit
+d'ouvrir une page (le prérequis devient « se connecter une fois, à la main,
+par email, sur `http://localhost:8000/app` », la connexion par email ayant
+remplacé le collage de clé), avec une ligne datée du 2026-09-18 qui l'explique.
+L'encadré de terrain daté du 2026-09-08 (la sonde `/v1/me`), qui porte aussi
+`127.0.0.1:8000`, est resté mot pour mot — ce n'est pas une URL à ouvrir, c'est
+un piège déjà constaté et documenté tel quel.
+
+**Vérifié en vrai sur le service rechargé**, avec `curl -c/-b`, en une seule
+fois : login → lien `localhost:8000` (`Host` forgé y compris) → verify → 303
++ cookie → `/v1/me` répond le compte → lien rejoué → `303 …?login=expired` →
+`/v1/follows` `200` par cookie → logout `204` → cookie rejoué → `401`.
