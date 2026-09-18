@@ -4,8 +4,13 @@ ADS.format = {
   duration(n) {
     if (n <= 0) return "moins d'un jour"
     if (n < 31) return `${n} j`
-    if (n < 365) return `${Math.floor(n / 30)} mois`
-    const years = Math.floor(n / 365)
+    // Le mois est une approximation à 30 jours : un reste de 360 à 364 jours y
+    // vaut déjà 12, ce qui n'est plus « sous un an » mais un an tout court.
+    if (n < 365) {
+      const months = Math.floor(n / 30)
+      if (months < 12) return `${months} mois`
+    }
+    const years = Math.floor(n / 365) || 1
     return `${years} an${years > 1 ? 's' : ''}`
   },
 
@@ -14,8 +19,12 @@ ADS.format = {
   spell(n) {
     if (n <= 0) return "moins d'un jour"
     if (n < 31) return `${n} jour${n > 1 ? 's' : ''}`
-    const years = Math.floor(n / 365)
-    const months = Math.floor((n - years * 365) / 30)
+    let years = Math.floor(n / 365)
+    let months = Math.floor((n - years * 365) / 30)
+    // Même approximation à 30 jours que `duration` : un reste de 360 à 364
+    // jours vaut 12 mois, qu'on reporte sur l'année plutôt que d'afficher « 12
+    // mois ».
+    if (months >= 12) { years += 1; months = 0 }
     return [years && `${years} an${years > 1 ? 's' : ''}`, months && `${months} mois`]
       .filter(Boolean).join(' ') || `${n} jours`
   },

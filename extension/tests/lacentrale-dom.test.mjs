@@ -167,10 +167,16 @@ test('le panneau se pose sous le prix, pas au pied de la fiche', () => {
 })
 
 // Le cœur du lot, vu de la page : le site écrit « 60 jours », l'annonce en a
-// 1 810, et l'écart doit se lire sans quitter la fiche.
+// 1 810, et l'écart doit se lire sans quitter la fiche. Le compte de 1 810
+// jours n'est vrai qu'au jour du relevé : ce test lisait l'horloge réelle et
+// dérivait d'un jour par jour — gelée sur `RELEVE`, l'annonce en a toujours
+// 1 810 à la lecture de `detail.js`.
 test('sur une fiche plafonnée, la contradiction est lisible', () => {
-  const w = capped()
-  w.load('detail.js')
+  const w = at(RELEVE, () => {
+    const w = capped()
+    w.load('detail.js')
+    return w
+  })
   const text = w.panel().textContent
   assert.match(text, /En ligne depuis/)
   assert.match(text, /4 ans 11 mois/)
