@@ -1,0 +1,96 @@
+/* Registre validé le 2026-09-08 : app consumer. Sol gris très clair, cartes
+   blanches rayon 22, ombre douce, aucun filet, beaucoup d'air. */
+
+:root{
+  --sol:#F3F4F7; --carte:#fff; --r:22px; --ombre:0 2px 12px rgba(16,20,40,.06);
+  --encre:#14161C; --douce:#6B7180; --faible:#9AA0AE; --grise:#A9AEBB;
+  --accent:#4F46E5; --accent-pale:#E9ECFD; --accent-encre:#3730A3;
+  --vert-pale:#E3F3EB; --vert:#17845A;
+  --gris-pale:#ECEEF3;
+  --orange-pale:#FDF0E4; --orange:#B75E12;
+  --col:920px;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--sol);
+  font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  color:var(--encre);
+  font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;
+  font-size:15px; line-height:1.5;
+}
+h1,h2,h3,p{margin:0}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input{font:inherit;color:inherit}
+a{color:inherit}
+
+/* ── entête ── */
+.tete{padding:26px 24px 0}
+.tete-in{
+  width:100%; max-width:var(--col); margin:0 auto;
+  display:flex; align-items:center; gap:22px;
+}
+.marque{font-size:17px; font-weight:800; letter-spacing:-.03em}
+.nav{display:flex; gap:6px; margin-left:8px}
+.nav-a{
+  text-decoration:none; font-size:14.5px; font-weight:600; color:var(--douce);
+  padding:9px 16px; border-radius:999px; white-space:nowrap;
+}
+.nav-a.on{background:var(--carte); color:var(--encre); box-shadow:var(--ombre)}
+.deco{
+  margin-left:auto; font-size:13.5px; font-weight:600; color:var(--faible);
+  white-space:nowrap;
+}
+.deco:hover{color:var(--douce)}
+
+/* ── page ── */
+.vue{width:100%; max-width:var(--col); margin:0 auto; padding:36px 24px 88px}
+.vue-t{font-size:30px; font-weight:800; letter-spacing:-.03em}
+.vue-s{font-size:14.5px; color:var(--faible); margin-top:8px; line-height:1.55}
+.pile{display:flex; flex-direction:column; gap:16px}
+.carte{background:var(--carte); border-radius:var(--r); box-shadow:var(--ombre); padding:24px 28px}
+.vide{color:var(--douce); font-size:15.5px; line-height:1.6}
+
+/* ── contrôles ── */
+.seg{display:flex; gap:4px; background:var(--gris-pale); border-radius:999px; padding:4px}
+.seg-b{
+  font-size:13.5px; font-weight:600; color:var(--douce);
+  padding:8px 13px; border-radius:999px; white-space:nowrap;
+}
+.seg-b.on{background:var(--carte); color:var(--encre); box-shadow:0 1px 4px rgba(16,20,40,.08)}
+.champ{
+  background:var(--gris-pale); border:0; border-radius:14px;
+  padding:11px 15px; font-size:14.5px; width:100%;
+}
+.champ::placeholder{color:var(--grise)}
+.champ:focus{outline:2px solid var(--accent); outline-offset:1px}
+.select{
+  appearance:none; background:var(--gris-pale); border:0; border-radius:999px;
+  padding:9px 34px 9px 16px; font-size:13.5px; font-weight:600; color:var(--douce);
+  cursor:pointer;
+  background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.75 6 7.75 9 4.75' fill='none' stroke='%236B7180' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 13px center;
+}
+.select:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.bouton{
+  background:var(--accent); color:#fff; font-size:15px; font-weight:700;
+  border-radius:14px; padding:13px 22px;
+}
+.bouton:disabled{background:var(--grise); cursor:default}
+.lien-sortant{
+  color:var(--accent); font-size:14px; font-weight:700; text-decoration:none;
+  white-space:nowrap;
+}
+.lien-sortant:hover{text-decoration:underline}
+
+@media (max-width:640px){
+  .tete{padding:18px 16px 0}
+  .tete-in{flex-wrap:wrap; gap:12px}
+  .nav{margin-left:0; order:3; width:100%}
+  .nav-a{flex:1; text-align:center; padding:10px 12px}
+  .vue{padding:28px 16px 72px}
+  .vue-t{font-size:25px}
+  .carte{padding:22px; border-radius:20px}
+}

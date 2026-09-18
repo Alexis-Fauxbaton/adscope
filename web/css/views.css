@@ -1,0 +1,79 @@
+/* ── connexion ── */
+/* Un écran qui ne porte qu'une carte la pose au milieu, pas contre le haut. */
+.entree{
+  max-width:472px; margin:0 auto; padding:24px 16px 12vh;
+  min-height:100vh; display:flex; flex-direction:column; justify-content:center;
+}
+.entree .marque{display:block; font-size:22px; margin-bottom:34px}
+.entree-t{font-size:22px; font-weight:700; letter-spacing:-.02em; margin-bottom:10px}
+.entree-s{font-size:14.5px; color:var(--faible); line-height:1.6; margin-bottom:24px}
+.entree .champ{margin-bottom:16px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13.5px}
+.entree .bouton{width:100%}
+.erreur{color:#B4243A; font-size:14px; margin-top:16px; line-height:1.5}
+
+/* ── mes suivis ── */
+.bascule{display:inline-flex; margin:22px 0 26px}
+.carte-suivi{display:flex; flex-direction:column; gap:15px}
+.suivi-h{font-size:16px; font-weight:700; letter-spacing:-.015em}
+.suivi-prix{font-size:14.5px; color:var(--douce); margin-top:5px}
+.fait{font-size:27px; font-weight:700; letter-spacing:-.03em; line-height:1.15}
+.fait-dropped{color:var(--vert)}
+.fait-raised,.fait-crossed{color:var(--accent)}
+.fait-disappeared{color:var(--douce)}
+.fait-2{font-size:13.5px; color:var(--faible); margin-top:9px; line-height:1.5}
+.suivi-pied{display:flex; align-items:baseline; gap:16px}
+.suivi-vendeur{font-size:13.5px; color:var(--faible); margin-left:auto}
+
+/* liste repliée des suivis sans changement */
+.repli{margin-top:28px}
+.repli-b{
+  display:flex; align-items:center; gap:10px; font-size:14.5px;
+  font-weight:600; color:var(--douce); padding:4px; cursor:pointer;
+  list-style:none;
+}
+.repli-b::-webkit-details-marker{display:none}
+.repli-b .chev{color:var(--grise); transition:transform .15s}
+.repli[open] .repli-b .chev{transform:rotate(90deg)}
+.repli-corps{margin-top:16px; display:flex; flex-direction:column; gap:22px}
+.calme{display:flex; align-items:baseline; gap:14px; font-size:14.5px}
+.calme-h{font-weight:600}
+.calme-age{color:var(--faible); margin-left:auto; white-space:nowrap}
+
+/* ── le marché ── */
+.filtres{display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin:26px 0 24px}
+.filtres .famille{flex:0 0 190px}
+.compte-ligne{display:flex; align-items:center; gap:16px; margin-bottom:20px; padding:0 4px}
+.compte{font-size:14.5px; font-weight:700; color:var(--douce)}
+.compte-ligne > *:last-child{margin-left:auto}
+.annonce{display:grid; grid-template-columns:1fr auto; gap:28px; align-items:stretch}
+.annonce-h{font-size:16.5px; font-weight:700; letter-spacing:-.015em; line-height:1.35}
+.annonce-s{font-size:13.5px; color:var(--faible); margin-top:6px}
+.annonce-p{font-size:23px; font-weight:700; letter-spacing:-.025em; margin-top:16px}
+.baisse{
+  font-size:13px; font-weight:700; color:var(--vert); background:var(--vert-pale);
+  border-radius:999px; padding:5px 11px; margin-left:10px; vertical-align:3px;
+  display:inline-block; letter-spacing:0;
+}
+.annonce-v{font-size:13.5px; color:var(--douce); margin-top:10px}
+.annonce-age{text-align:right; display:flex; flex-direction:column;
+  justify-content:space-between; align-items:flex-end; gap:16px}
+.age-hero{font-size:27px; font-weight:700; letter-spacing:-.03em; white-space:nowrap; line-height:1.15}
+.age-s{font-size:13px; color:var(--faible); margin-top:5px}
+
+.plus{
+  display:block; margin:26px auto 0; background:var(--carte); box-shadow:var(--ombre);
+  border-radius:999px; padding:13px 28px; font-size:14.5px; font-weight:700;
+  color:var(--accent);
+}
+
+@media (max-width:640px){
+  .filtres{gap:12px}
+  .filtres .famille{flex:1 1 100%; min-width:0}
+  .filtres .seg{flex-wrap:wrap}
+  .annonce{grid-template-columns:1fr; gap:18px}
+  .annonce-age{text-align:left; align-items:flex-start}
+  .age-hero{font-size:23px}
+  .fait{font-size:23px}
+  .annonce-p{font-size:21px}
+  .entree{padding-bottom:8vh}
+}
