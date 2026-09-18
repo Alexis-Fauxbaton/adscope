@@ -1,4 +1,4 @@
-import test from 'node:test'
+import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { ID, SELF, SELLER, SIGNALS, fiche, openTile, point, text } from './panel-page.mjs'
 
@@ -102,4 +102,26 @@ test('au delà de trois annonces vues, le marchand a sa section et sa réserve',
     assert.match(text(w), /9 de ses annonces ont baissé après 42 jours en ligne\./)
     assert.match(text(w), /son catalogue réel nous est inconnu/)
   })
+})
+
+// Le défaut constaté en vrai : le service worker MV3 endormi au chargement de
+// la fiche ferme le port avant de répondre, et sans reprise la section
+// n'apparaissait plus jamais pour toute la vie de l'onglet. Rouge sur le
+// `setTimeout(() => attempt(l, tries + 1), ...)` de src/market.js : sans lui,
+// le second `w.answer('seller', ...)` ci-dessous ne trouve plus de demande à
+// répondre, `relayed()` étant resté vide après l'échec.
+test('un port fermé au premier essai n’efface pas la section : elle arrive à la reprise', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  try {
+    fiche((w) => {
+      w.fail('seller')
+      assert.doesNotMatch(text(w), /Ce vendeur/)
+      mock.timers.tick(5000)
+      w.answer('seller', { stats: SELLER })
+      assert.match(text(w), /Ce vendeur/)
+      assert.match(text(w), /Borgese Auto · 29 annonces vues/)
+    })
+  } finally {
+    mock.timers.reset()
+  }
 })

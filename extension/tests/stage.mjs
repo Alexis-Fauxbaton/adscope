@@ -201,6 +201,24 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
       for (const { msg, respond } of relayed) if (msg.type === type) respond({ ok: true, ...body })
       relayed = relayed.filter((r) => r.msg.type !== type)
     },
+    // L'échec que 363 tests ne savaient pas simuler — celui qui laissait
+    // passer l'oubli de reprise dans market.js et follow.js. `port` rejoue le
+    // service worker endormi : le port se ferme, `lastError` se pose, la
+    // réponse n'arrive pas. Sans lui, c'est un refus net de l'API (401, 500) —
+    // `ok: false`, sans `lastError`.
+    fail: (type, { port = true } = {}) => {
+      for (const { msg, respond } of relayed) {
+        if (msg.type !== type) continue
+        if (port) {
+          globalThis.chrome.runtime.lastError = { message: 'The message port closed before a response was received.' }
+          respond(undefined)
+          globalThis.chrome.runtime.lastError = null
+        } else {
+          respond({ ok: false })
+        }
+      }
+      relayed = relayed.filter((r) => r.msg.type !== type)
+    },
     badges: () => painted,
     queued: () => emitted.flatMap((m) => m.listings.map((l) => l.siteId)),
     // L'API ne répond que sur les identifiants du lot qu'on lui a soumis.

@@ -60,6 +60,25 @@ test('deux clics avant la réponse ne demandent le suivi qu’une fois', () => {
 // Rouge sur le `ctx.remote.followed ||` de src/panel.js : ce que la licence suit
 // déjà arrive avec les signaux, et le panneau n'a rien à redemander pour le
 // savoir — le bouton de l'en-tête le porte sur toute fiche, courbe comprise.
+// Rouge sur le `return asked.delete(at)` de src/follow.js : sans lui, un clic
+// qui échoue verrouille le bouton pour le reste de la vie de l'onglet — un
+// clic de l'utilisateur perdu en silence, sans recours. Aucune reprise
+// automatique ici : c'est un geste, pas une lecture, et c'est à l'utilisateur
+// de redemander.
+test('un suivi qui échoue laisse le bouton recliquable, et le second clic renvoie la demande', () => {
+  fiche((w) => {
+    w.arrive({ [ID]: FIRST })
+    buttons(w)[1].click()
+    w.fail('follow')
+    assert.equal(asked(w).length, 0)
+    assert.deepEqual(buttons(w).map((b) => b.textContent), ['Suivre', 'Suivre'])
+    buttons(w)[1].click()
+    assert.equal(asked(w).length, 1)
+    w.answer('follow', { followed_at: '2026-09-06T12:00:00Z' })
+    assert.match(text(w), /Suivie depuis aujourd'hui\./)
+  })
+})
+
 test('une annonce déjà suivie par la licence est dite suivie, sans rien demander', () => {
   fiche((w) => {
     w.arrive({ [ID]: { ...SIGNALS, followed: true } })
