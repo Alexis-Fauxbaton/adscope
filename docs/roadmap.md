@@ -44,6 +44,28 @@ doublon multi-plateformes.
 | E · Republication | empreinte rare **et** annonce disparue → « même véhicule » | `disappeared_at` alimenté, donc revisites qui tournent |
 | Store puis Render | inchangé, en dernier | — |
 
+## Lot « Comptes » — au go-live, avec la facturation
+
+Décidé le 2026-09-18. La clé collée à la main ne tient pas pour un marchand ; l'email est de
+toute façon requis pour facturer.
+
+- **Site** : email → lien magique → cookie de session. Pas de mot de passe. Demande un
+  fournisseur d'envoi et un domaine, donc l'hébergement : d'où le go-live.
+- **Extension** : reste connectée par le même cookie que le site (permission d'hôte sur le
+  domaine). Session longue et glissante.
+- **Session tombée = visible, jamais silencieuse** : « reconnectez-vous » à la place de la
+  pastille, et un « ! » sur l'icône de la barre d'outils. Pas de bandeau dans la page hôte.
+- **Les machines gardent une clé** : crawl et file de revisite. L'extension accepte les deux —
+  clé si elle est configurée, cookie sinon. Sans ça, une pastille « reconnectez-vous » passerait
+  le contrôle de santé du runbook (il compte les éléments `adscope-`) et le crawl tournerait à
+  vide en se croyant sain.
+- **CSRF** : `SameSite` + contrôle d'origine sur les routes qui écrivent — surface nouvelle dès
+  qu'un cookie authentifie.
+- **À vérifier avant de coder** : que Chrome traite bien comme « même site » les requêtes d'une
+  extension vers un hôte qu'elle a en permission, et l'effet du blocage des cookies tiers.
+- Schéma : table `accounts`, licences rattachées. Les emails sont de la donnée personnelle :
+  politique de confidentialité et déclaration du Store à écrire en conséquence.
+
 ## Ce qui n'est pas dans le dépôt, et qui bloque
 
 - **Le crawl est arrêté depuis le 8 septembre 20 h 13.** La tâche horaire côté Claude cowork
