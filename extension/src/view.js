@@ -39,9 +39,14 @@ ADS.view = (() => {
     return days ? `${amount} en ${duration(days)}` : amount
   }
 
+  // Sur une carte de résultats, la baisse se réduit à ce qui frappe : la flèche
+  // et le montant, en valeur absolue. Le délai et le cumul sont l'affaire du
+  // panneau — une chose par carte. Sans baisse, la carte n'en porte rien.
+  const fall = (r) => (r && r.price_delta_since_first < 0 ? `↓ ${money(r.price_delta_since_first)}` : null)
+
   // Deux fragments, jamais concaténés : `page` se lit sur l'annonce ouverte,
   // `tracked` n'existe que parce que l'annonce a déjà été vue avant.
-  const badge = (s, r, site = ADS.sites.current()) => ({ page: age(s, site), tracked: drop(r) })
+  const badge = (s, r, site = ADS.sites.current()) => ({ page: age(s, site), tracked: fall(r) })
 
   // « Stable depuis deux mois » ne vaut que ce que valent les observations qui
   // l'ont vu : vérifié chaque semaine, c'est un fait sur le vendeur ; jamais
@@ -80,7 +85,7 @@ ADS.view = (() => {
     return rows
   }
 
-  return { badge, tracking, drop, legend }
+  return { badge, tracking, drop, fall, legend }
 })()
 
 if (typeof module !== 'undefined') module.exports = ADS.view

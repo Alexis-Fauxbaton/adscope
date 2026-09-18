@@ -63,9 +63,23 @@ test('sans API la pastille tient avec la seule page', () => {
   assert.equal(view.badge(s, null).tracked, null)
 })
 
+// La flèche de la carte : le montant seul, en valeur absolue, sans le délai que
+// porte la ligne du panneau. Rouge sur `fall` de src/view.js — la rendre par
+// `drop` y ramènerait « ▼ −800 € en 12 j ».
 test('la baisse de prix vient des signaux et s\'ajoute à la pastille', () => {
   const [, s, r] = of('3254194817')
-  assert.equal(view.badge(s, r).tracked, `▼ −800${NB}€ en 12 j`)
+  assert.equal(view.badge(s, r).tracked, `↓ 800${NB}€`)
+  assert.ok(!view.badge(s, r).tracked.includes('−'))
+})
+
+// Rien à afficher sans baisse : une hausse, un prix stable, aucun suivi. Rouge
+// sur la condition `price_delta_since_first < 0` de `fall`.
+test("sans baisse, la carte ne porte aucune flèche", () => {
+  const [, s] = of('3254194817')
+  assert.equal(view.fall(null), null)
+  assert.equal(view.fall({ price_delta_since_first: 0 }), null)
+  assert.equal(view.fall({ price_delta_since_first: 500 }), null)
+  assert.equal(view.badge(s, { price: 29190 }).tracked, null)
 })
 
 test('la pastille sépare la page du suivi en deux fragments', () => {
@@ -73,7 +87,7 @@ test('la pastille sépare la page du suivi en deux fragments', () => {
   const b = view.badge(s, r)
   // Ce que dit la page ne porte jamais la baisse, qui suppose une observation
   // antérieure ; l'inverse non plus.
-  assert.ok(!b.page.includes('▼'))
+  assert.ok(!b.page.includes('↓'))
   assert.ok(!b.tracked.includes('en ligne'))
   assert.deepEqual(Object.keys(b), ['page', 'tracked'])
 })

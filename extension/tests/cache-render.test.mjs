@@ -16,14 +16,14 @@ test('la pastille montre le suivi connu avant toute réponse du réseau', () => 
   w.load('listing.js')
   const [, tracked] = w.badge().children
   assert.equal(tracked.className, 'adscope-badge-tracked')
-  assert.match(tracked.textContent, /^▼ −800/)
+  assert.match(tracked.textContent, /^↓ 800/)
 })
 
 test('la réponse du réseau réécrit la pastille posée depuis le cache', () => {
   const w = listing()
   w.load('listing.js')
   w.arrive({ [ID]: FRESHER })
-  assert.match(w.badge().children[1].textContent, /^▼ −1/)
+  assert.match(w.badge().children[1].textContent, /^↓ 1/)
 })
 
 // Le panneau ne porte plus la baisse (décision de revue : la légende de suivi

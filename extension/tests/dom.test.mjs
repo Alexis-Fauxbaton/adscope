@@ -31,8 +31,30 @@ test('la pastille pose un nœud par origine', () => {
   w.arrive({ 3254194817: { price: 29190, price_delta_since_first: -800, price_delta_days_since_first: 12 } })
   const [page, tracked] = w.badge().children
   assert.equal(tracked.className, 'adscope-badge-tracked')
-  assert.match(tracked.textContent, /^▼ −800/)
-  assert.ok(!page.textContent.includes('▼'))
+  assert.match(tracked.textContent, /^↓ 800/)
+  assert.ok(!page.textContent.includes('↓'))
+})
+
+// La flèche descend, elle n'alarme pas : l'orangé est réservé à ce que le site
+// cache, et une baisse est au contraire ce qu'adscope a mesuré. Rouge sur le
+// `weight` de src/listing.js, dont le `|| tracked` peignait la carte en alerte
+// pour une annonce dont la page ne dit rien d'anormal.
+test("la flèche de baisse ne met pas la carte en alerte", () => {
+  const w = world('3254194817')
+  w.load('listing.js')
+  w.arrive({ 3254194817: { price: 29190, price_delta_since_first: -1200, price_delta_days_since_first: 9 } })
+  assert.match(w.badge().children[1].textContent, /^↓ 1/)
+  assert.doesNotMatch(w.badge().className, /adscope-badge--notable/)
+})
+
+// Un prix qui monte, ou qui n'a jamais bougé, n'a pas de flèche : la pastille
+// reste au seul fragment de la page. Rouge sur `fall` de src/view.js.
+test("sans baisse, la carte ne porte que ce que la page dit", () => {
+  const w = world('3254194817')
+  w.load('listing.js')
+  w.arrive({ 3254194817: { price: 29990, price_delta_since_first: 800, price_delta_days_since_first: 12 } })
+  assert.deepEqual(w.badge().children.map((c) => c.className), ['adscope-badge-page'])
+  assert.ok(!w.badge().textContent.includes('↓'))
 })
 
 test('la fiche suivante chasse la précédente en navigation monopage', () => {

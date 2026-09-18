@@ -68,7 +68,7 @@ test('les signaux de la page suivante atteignent sa pastille', () => {
   w.load('listing.js')
   w.receive({ ads: [ad(PAGE2)] })
   w.arrive({ [PAGE2]: { price: 12000, price_delta_since_first: -500, price_delta_days_since_first: 4 } })
-  assert.match(w.badge().textContent, /▼ −500/)
+  assert.match(w.badge().textContent, /↓ 500/)
 })
 
 test("le diagnostic dit ce qui a réellement été transmis", () => {
