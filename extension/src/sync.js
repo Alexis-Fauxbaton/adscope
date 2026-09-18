@@ -12,6 +12,9 @@ ADS.sync = (() => {
   const origin = {}
   let signals = null
   let acked = 0
+  // La session tombée, hors mode clé : un 401 sur l'appel réseau, jamais sur
+  // celui du cache — le cache ne parle pas à l'API et ne peut rien en dire.
+  let authDown = false
 
   // Le réseau fait autorité : les deux réponses courent en parallèle, et celle
   // du cache, si elle traîne, ne doit pas recouvrir ce qui vient d'arriver.
@@ -33,9 +36,17 @@ ADS.sync = (() => {
   const ask = (msg, fn, fail) =>
     chrome.runtime.sendMessage(msg, (res) => {
       // Lire lastError évite que Chrome le rapporte dans la console de la page.
-      if (chrome.runtime.lastError || !res || !res.ok) return fail && fail()
+      if (chrome.runtime.lastError || !res || !res.ok) return fail && fail(res)
       fn(res)
     })
+
+  // Ne notifie que si l'état change : la fenêtre ne doit pas rejouer son rendu
+  // à chaque appel réseau qui confirme ce qu'on savait déjà.
+  const setAuth = (down) => {
+    if (down === authDown) return
+    authDown = down
+    notify()
+  }
 
   // Ce que l'API n'a pas pris doit repartir : un lot refusé — serveur éteint,
   // 500, lot mal formé — emportait sinon toute la page, sans trace. Les
@@ -68,10 +79,12 @@ ADS.sync = (() => {
       // Même sans signal nouveau, l'accusé de réception change ce que le
       // diagnostic doit dire : le rendu est rejoué.
       signals = signals || {}
+      setAuth(false)
       notify()
-    }, () => {
+    }, (res) => {
       for (const l of fresh) queued.delete(l.siteId)
       pausedUntil = Date.now() + RETRY_PAUSE_MS
+      setAuth(!!(res && res.authRequired))
     })
   })
 
@@ -106,6 +119,7 @@ ADS.sync = (() => {
     sent: () => acked,
     of: (siteId) => (signals && signals[siteId]) || null,
     originOf: (siteId) => origin[siteId] || null,
+    authDown: () => authDown,
   }
 })()
 

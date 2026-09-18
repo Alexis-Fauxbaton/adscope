@@ -91,6 +91,9 @@ export const open = async ({
   apiBase = 'http://api',
   licenseKey = 'adsc_' + 'a'.repeat(32),
   granted = true,
+  // Ce que le service worker répond à `{ type: 'me' }` — déconnecté par
+  // défaut, comme la popup doit l'être tant qu'elle n'a rien appris.
+  me = { ok: false },
 } = {}) => {
   const nodes = {}
   // Les sections écrites masquées dans popup.html : c'est l'état de départ.
@@ -113,6 +116,7 @@ export const open = async ({
       sendMessage: async (msg) => {
         messages.push(msg)
         if (msg.type === 'cached') return { ok: true, signals: cached ? { [status.pickedId]: cached } : {} }
+        if (msg.type === 'me') return me
         return { entries: 0, bytes: 0, quota: 1000 }
       },
     },

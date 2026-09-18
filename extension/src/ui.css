@@ -114,3 +114,19 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+
+/* La mention qui remplace la pastille quand la session est tombée. Classe
+   volontairement hors du préfixe `adscope-` — voir src/auth-notice.js. */
+.ads-auth-msg {
+  all: unset;
+  cursor: pointer;
+  display: inline-block;
+  margin: 6px 0 2px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px dashed #a1a1aa;
+  color: #52525b;
+  font: 500 11px/1.4 system-ui, -apple-system, sans-serif;
+}
+
+.ads-auth-msg:hover { text-decoration: underline; }

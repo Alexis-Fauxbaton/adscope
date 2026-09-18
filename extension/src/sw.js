@@ -1,15 +1,12 @@
-importScripts('/src/cache.js', '/src/lookup.js')
+importScripts('/src/cache.js', '/src/auth.js', '/src/lookup.js')
 
 const DEFAULTS = { apiBase: 'http://localhost:8000', licenseKey: '' }
 
 // Six heures. Ce que l'encart affiche se compte en jours pleins — « suivie
-// depuis 12 j », « stable depuis 3 j », « ▼ −500 € en 2 mois » — et une baisse
-// de prix ou une réactualisation est un événement quotidien : rien de visible
-// ne peut changer dans l'intervalle. Le seuil range donc les passages répétés
-// d'un marchand sur la même page de résultats — l'usage réel — en un seul
-// aller-retour, tout en laissant au moins quatre observations par jour et par
-// annonce consultée : le compteur de fraîcheur partagé avec le crawler et la
-// mesure d'usage par licence restent justes à la journée.
+// depuis 12 j », « stable depuis 3 j » — et rien de visible ne peut changer
+// dans l'intervalle. Le seuil range donc les passages répétés d'un marchand
+// sur la même page de résultats en un seul aller-retour, tout en laissant au
+// moins quatre observations par jour et par annonce consultée.
 const FRESH_MS = 6 * 3600 * 1000
 
 const config = async () => ({
@@ -41,24 +38,29 @@ const signature = (l) => [l.price ?? '', l.publishedAt ?? '', l.bumpedAt ?? ''].
 const stale = (listing, entry, now) =>
   !entry || now - entry.at >= FRESH_MS || entry.sig !== signature(listing)
 
-const call = async (path, body, { apiBase, licenseKey }) => {
-  const res = await fetch(apiBase + path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${licenseKey}` },
-    body: JSON.stringify(body),
+// Clé configurée → Bearer, machines inchangées ; sinon cookie de session et
+// jeton CSRF. `method` vaut POST par défaut ; `me` seul lit, en GET.
+const call = async (path, body, cfg, method = 'POST') => {
+  const res = await fetch(cfg.apiBase + path, {
+    method,
+    headers: ADS.auth.headers(cfg, body ? { 'Content-Type': 'application/json' } : {}),
+    credentials: ADS.auth.credentials(cfg),
+    ...(body ? { body: JSON.stringify(body) } : {}),
   })
-  if (!res.ok) throw new Error(`${res.status}`)
+  const authRequired = await ADS.auth.mark(cfg, res.status)
+  if (!res.ok) {
+    const e = new Error(`${res.status}`)
+    e.authRequired = authRequired
+    throw e
+  }
   return res.json()
 }
 
 // Un seul aller-retour côté content script : on pousse ce qui a été vu, puis
-// on récupère ce que le pool sait déjà — mais seulement pour ce qui manque au
-// cache ou y a vieilli.
+// on récupère ce que le pool sait déjà, pour ce qui manque au cache ou a vieilli.
 const sync = async (site, listings) => {
   const now = Date.now()
   const cfg = await config()
-  if (!cfg.licenseKey) return { ok: false, reason: 'no-key' }
-
   await ADS.cache.purgeDaily(now).catch(() => {})
   const known = await ADS.cache.read(site, listings.map((l) => l.siteId))
   const due = listings.filter((l) => stale(l, known[l.siteId], now))
@@ -94,32 +96,29 @@ const cachedSignals = async (site, ids) => {
 }
 
 // Ce que la page a dit d'elle-même quand elle ne portait plus d'annonce. Rien
-// n'est mis en cache : ce n'est pas un signal à afficher, et l'API seule sait
-// si la constatation en vaut une seconde ou si elle se journalise.
+// n'est mis en cache : ce n'est pas un signal à afficher.
 const absent = async (site, siteId, evidence) => {
   const cfg = await config()
-  if (!cfg.licenseKey) return { ok: false, reason: 'no-key' }
   const { verdict } = await call('/v1/disappearances', { site, site_id: siteId, evidence }, cfg)
   return { ok: true, verdict }
 }
 
 // Suivre une annonce, par licence : la seule écriture que le lecteur commande.
-// L'API répond 201 la première fois et 200 ensuite ; rien ici ne les distingue
-// — suivre deux fois, c'est suivre. La réponse n'est pas mise en cache : le
-// cache range des signaux de page, et la liste des suivis est au serveur.
+// L'API répond 201 la première fois et 200 ensuite, sans distinction ici — la
+// réponse n'est pas mise en cache, la liste des suivis reste au serveur.
 const follow = async (site, siteId) => {
   const cfg = await config()
-  if (!cfg.licenseKey) return { ok: false, reason: 'no-key' }
   return { ok: true, ...(await call('/v1/follows', { site, site_id: siteId }, cfg)) }
 }
+
+// Ce que la popup montre à la place d'une clé : qui est connecté (`email` nul pour une clé de machine).
+const me = async () => ({ ok: true, ...(await call('/v1/me', null, await config(), 'GET')) })
 
 // Le rouge de tampon, réservé à l'alerte — le même que celui de la fenêtre.
 const BADGE_COLOR = '#9f1239'
 
-// Le badge de l'icône, par onglet : ce que le content script a trouvé sur la
-// page qu'il occupe. Rien à dire, rien d'affiché — un badge toujours porteur
-// d'un nombre devient du papier peint en deux jours, et une navigation
-// monopage n'efface rien d'elle-même : c'est le compte à zéro qui l'efface.
+// Le badge de l'icône, par onglet — un nombre toujours affiché devient du
+// papier peint en deux jours, donc rien à dire, rien d'affiché.
 const badge = async (alerts, tab) => {
   if (!tab) return { ok: false, reason: 'no-tab' }
   const text = alerts > 0 ? String(alerts) : ''
@@ -136,6 +135,7 @@ const handlers = {
   comparables: async (msg) => ADS.lookup.comparables(msg.site, msg.siteId, await config()),
   seller: async (msg) => ADS.lookup.seller(msg.site, msg.sellerId, await config()),
   badge: (msg, sender) => badge(msg.alerts, sender && sender.tab),
+  me: () => me(),
   'cache-stats': () => ADS.cache.stats(),
   'cache-clear': async () => ({ ok: true, cleared: await ADS.cache.clear() }),
 }
@@ -145,6 +145,6 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
   if (!handler) return false
   handler(msg, sender)
     .then(respond)
-    .catch((e) => respond({ ok: false, reason: e.message }))
+    .catch((e) => respond({ ok: false, reason: e.message, authRequired: !!e.authRequired }))
   return true
 })

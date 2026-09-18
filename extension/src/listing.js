@@ -22,11 +22,14 @@
   // La pastille est posée avec la seule page, puis réécrite si des signaux
   // arrivent — d'où l'estampille, qui évite aussi de boucler avec l'observateur.
   const paint = (card, listing, s) => {
+    const down = ADS.sync.authDown()
     const remote = ADS.sync.of(listing.siteId)
     // L'origine entre dans l'estampille : les signaux du cache sont posés
     // d'abord, ceux du réseau les remplacent, et sans cette distinction la
-    // pastille resterait sur les premiers.
-    const stamp = ADS.sync.originOf(listing.siteId) || 'page'
+    // pastille resterait sur les premiers. L'état de la session y entre aussi :
+    // sans lui, la mention posée sur une session tombée resterait affichée
+    // une fois la session revenue.
+    const stamp = (ADS.sync.originOf(listing.siteId) || 'page') + (down ? '·down' : '')
     let el = card.querySelector(`[${MARK}]`)
     // Quelle annonce la pastille décrit, et pas seulement d'où viennent ses
     // données : une application monopage réattribue ses nœuds de carte —
@@ -41,6 +44,15 @@
     // Réécrit à chaque rendu, pas à la seule création : c'est ce marquage que la
     // comparaison ci-dessus relit.
     el.setAttribute(MARK, listing.siteId)
+    el.setAttribute(SRC, stamp)
+    // La session tombée efface la pastille : un signal qu'on ne rafraîchit
+    // plus ne mérite pas d'être affiché comme s'il l'était encore.
+    if (down) {
+      el.removeAttribute(DAYS)
+      el.className = ''
+      el.replaceChildren(ADS.authNotice.mention())
+      return true
+    }
     // L'ancienneté, une fois calculée, est écrite sur la pastille : c'est là que
     // les deux cartes d'une même annonce vont la relire pour rester d'accord.
     // Une annonce sans date n'en porte pas plutôt que d'en porter une fausse.
@@ -54,7 +66,6 @@
     el.className =
       `adscope-badge adscope-badge--${weight}` +
       (listing.sellerType === 'private' ? ' adscope-badge--private' : '')
-    el.setAttribute(SRC, stamp)
     // Un nœud par origine : le suivi mutualisé ne se fond pas dans la page.
     el.replaceChildren(
       span('adscope-badge-page', page),

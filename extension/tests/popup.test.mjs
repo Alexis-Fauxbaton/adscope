@@ -86,3 +86,26 @@ test('une adresse d’API mal formée ne déclenche aucune ouverture', async () 
   nodes['open-app'].onclick()
   assert.deepEqual(opened, [])
 })
+
+// Un humain ne voit plus jamais de clé : la popup lit `/v1/me` par le service
+// worker, jamais une clé stockée — c'est `showAccount` dans popup.js.
+test('popup déconnectée propose de se connecter, sans montrer de compte', async () => {
+  const { nodes } = await open({ status: detail(), me: { ok: false } })
+  assert.equal(nodes['open-app'].textContent, 'Se connecter')
+  assert.equal(nodes.account.hidden, true)
+})
+
+test('popup connectée affiche l’email du compte, pas une clé', async () => {
+  const { nodes } = await open({ status: detail(), me: { ok: true, email: 'garage@dupont.fr', label: 'Garage Dupont' } })
+  assert.equal(nodes.account.hidden, false)
+  assert.equal(nodes.account.textContent, 'garage@dupont.fr')
+  assert.equal(nodes['open-app'].textContent, 'Ouvrir adscope')
+})
+
+// Une clé de machine n'a pas d'email : `/v1/me` répond `email: null`, et la
+// popup doit rester sur « Se connecter » plutôt que de montrer un compte vide.
+test('une clé de machine ne fait pas passer la popup pour un compte connecté', async () => {
+  const { nodes } = await open({ status: detail(), me: { ok: true, email: null, label: 'crawl' } })
+  assert.equal(nodes.account.hidden, true)
+  assert.equal(nodes['open-app'].textContent, 'Se connecter')
+})

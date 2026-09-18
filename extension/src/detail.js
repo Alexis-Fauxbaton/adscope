@@ -33,8 +33,10 @@
   })
 
   // L'origine des signaux, pas leur seule présence : le panneau posé avec ce
-  // que le cache savait doit se réécrire quand le réseau répond.
-  const stampOf = (siteId) => `${ADS.sync.originOf(siteId) || 'page'}·${ADS.market.stamp(siteId)}`
+  // que le cache savait doit se réécrire quand le réseau répond — et pareil
+  // quand la session tombe ou revient, d'où le marqueur qui la suit ici.
+  const stampOf = (siteId) =>
+    `${ADS.sync.originOf(siteId) || 'page'}·${ADS.market.stamp(siteId)}` + (ADS.sync.authDown() ? '·down' : '')
 
   // Quelle annonce est lue : l'URL le dit, le panneau déjà posé non — sur une
   // application monopage il survit au passage à la fiche suivante. Hors fiche
@@ -83,8 +85,15 @@
     const now = new Date()
     const s = site.signals(listing, now)
     const says = node && node.textContent.trim()
-    const market = ADS.market.of(listing.siteId)
-    ADS.panel.render(el, { site, listing, signals: s, remote, displayed: says, market, now })
+    // La session tombée efface le panneau : un suivi qu'on ne rafraîchit
+    // plus ne mérite pas d'être affiché comme s'il l'était encore.
+    if (ADS.sync.authDown()) {
+      el.className = ''
+      el.replaceChildren(ADS.authNotice.mention())
+    } else {
+      const market = ADS.market.of(listing.siteId)
+      ADS.panel.render(el, { site, listing, signals: s, remote, displayed: says, market, now })
+    }
     ADS.diag.detail(listings, listing, ADS.feed.detailSource(listing.siteId), card(listing, s, says))
   })
 

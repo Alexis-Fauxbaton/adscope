@@ -16,17 +16,26 @@ const key = (id) => `a:lbc:${id}`
 const listing = (siteId, price = 9900) => ({ site: 'lbc', siteId, price })
 const signalsOf = (id) => ({ site_id: id, tracked_days: 4, price: 9900 })
 
-// Le service worker tel qu'il tourne : le cache lui est fourni par
-// `importScripts`, les messages arrivent par l'écouteur qu'il pose.
-const boot = ({ entries = {}, licenseKey = KEY, offline = false } = {}) => {
+// Le service worker tel qu'il tourne : le cache et l'authentification lui
+// sont fournis par `importScripts`, les messages arrivent par l'écouteur
+// qu'il pose. `status` se change en cours de test avec `setStatus` — c'est
+// ainsi qu'on rejoue un 401 qui tombe, puis un appel qui repasse.
+const boot = ({ entries = {}, licenseKey = KEY, offline = false, status = 200 } = {}) => {
   const store = storage({ entries: { licenseKey, apiBase: 'http://api', ...entries } })
   const calls = []
+  const auths = []
+  const badge = []
+  let currentStatus = status
   let listener = null
   Date.now = () => NOW
   globalThis.ADS = undefined
   globalThis.chrome = {
     storage: { local: store.local },
     runtime: { onMessage: { addListener: (fn) => (listener = fn) } },
+    action: {
+      setBadgeText: async (o) => badge.push(o),
+      setBadgeBackgroundColor: async () => {},
+    },
   }
   globalThis.importScripts = (...files) => {
     for (const f of files) {
@@ -36,12 +45,14 @@ const boot = ({ entries = {}, licenseKey = KEY, offline = false } = {}) => {
     }
   }
   globalThis.fetch = async (url, init) => {
-    calls.push({ url, body: JSON.parse(init.body) })
+    calls.push({ url, body: init.body ? JSON.parse(init.body) : undefined })
+    auths.push({ url, headers: init.headers, credentials: init.credentials })
     if (offline) throw new TypeError('Failed to fetch')
     const batch = url.endsWith('/batch')
     const absent = url.endsWith('/disappearances')
     return {
-      ok: true,
+      ok: currentStatus < 400,
+      status: currentStatus,
       json: async () =>
         batch ? JSON.parse(init.body).ids.map(signalsOf)
         : absent ? { verdict: 'first' }
@@ -50,7 +61,11 @@ const boot = ({ entries = {}, licenseKey = KEY, offline = false } = {}) => {
   }
   delete require.cache[require.resolve(src('sw.js'))]
   require(src('sw.js'))
-  return { store, calls, ask: (msg) => new Promise((r) => listener(msg, null, r)) }
+  return {
+    store, calls, auths, badge,
+    setStatus: (s) => (currentStatus = s),
+    ask: (msg) => new Promise((r) => listener(msg, null, r)),
+  }
 }
 
 const seed = (id, at, sig = '9900||') => ({
@@ -123,10 +138,55 @@ test("hors ligne, la synchronisation échoue sans vider le cache", async () => {
   assert.equal(store.data[key('1')].signals.tracked_days, 4)
 })
 
+// Le handler `cached` ne consulte jamais la licence — hors ligne comme en
+// mode session, c'est la seule réponse qui vient sans réseau.
 test('sans licence, le cache répond quand même', async () => {
   const { ask } = boot({ licenseKey: '', entries: seed('1', NOW) })
-  assert.equal((await ask({ type: 'sync', site: 'lbc', listings: [listing('1')] })).reason, 'no-key')
   assert.equal((await ask({ type: 'cached', site: 'lbc', ids: ['1'] })).signals['1'].tracked_days, 4)
+})
+
+// Fait rougir `ADS.auth.credentials`/`headers` dans src/auth.js : sans clé,
+// l'appel doit porter le cookie et le jeton CSRF plutôt que rien.
+test('sans licence, la synchronisation part quand même — en cookie de session', async () => {
+  const { auths, ask } = boot({ licenseKey: '' })
+  const res = await ask({ type: 'sync', site: 'lbc', listings: [listing('9')] })
+  assert.equal(res.ok, true)
+  assert.equal(auths[0].headers.Authorization, undefined)
+  assert.equal(auths[0].headers['X-Adscope'], '1')
+  assert.equal(auths[0].credentials, 'include')
+})
+
+// Fait rougir la branche `cfg.licenseKey ?` de `ADS.auth.headers`/`credentials` :
+// une clé configurée doit continuer à partir en Bearer, sans cookie.
+test('avec licence, la synchronisation part en Bearer, sans cookie ni jeton CSRF', async () => {
+  const { auths, ask } = boot()
+  await ask({ type: 'sync', site: 'lbc', listings: [listing('9')] })
+  assert.equal(auths[0].headers.Authorization, `Bearer ${KEY}`)
+  assert.equal(auths[0].headers['X-Adscope'], undefined)
+  assert.equal(auths[0].credentials, undefined)
+})
+
+// Fait rougir `ADS.auth.mark` : un 401 hors mode clé doit poser le badge, et
+// un appel réussi qui suit doit l'effacer — jamais silencieux, jamais permanent.
+test("un 401 hors mode clé pose le badge « ! » ; un appel réussi l'efface", async () => {
+  const { badge, ask, setStatus } = boot({ licenseKey: '', status: 401 })
+  const down = await ask({ type: 'sync', site: 'lbc', listings: [listing('1')] })
+  assert.equal(down.reason, '401')
+  assert.equal(down.authRequired, true)
+  assert.deepEqual(badge.at(-1), { text: '!' })
+
+  setStatus(200)
+  await ask({ type: 'sync', site: 'lbc', listings: [listing('2')] })
+  assert.deepEqual(badge.at(-1), { text: '' })
+})
+
+// Fait rougir `if (cfg.licenseKey) return false` dans `ADS.auth.mark` : une
+// mauvaise clé de machine est son propre défaut, pas une session à rouvrir.
+test('en mode clé, un 401 ne pose aucun badge', async () => {
+  const { badge, ask } = boot({ status: 401 })
+  const res = await ask({ type: 'sync', site: 'lbc', listings: [listing('1')] })
+  assert.equal(res.authRequired, false)
+  assert.deepEqual(badge, [])
 })
 
 test('la purge opportuniste a lieu au chargement, une fois par jour', async () => {
@@ -198,16 +258,33 @@ test("suivre une annonce part sur sa propre route", async () => {
   assert.deepEqual(Object.keys(store.data).filter((k) => k.startsWith('a:')), [])
 })
 
-test("sans licence, aucun suivi ne part", async () => {
-  const { calls, ask } = boot({ licenseKey: '' })
-  assert.deepEqual(await ask({ type: 'follow', site: 'lbc', siteId: '1' }), { ok: false, reason: 'no-key' })
-  assert.deepEqual(calls, [])
+test("sans licence, le suivi part quand même — en cookie de session", async () => {
+  const { calls, auths, ask } = boot({ licenseKey: '' })
+  const res = await ask({ type: 'follow', site: 'lbc', siteId: '1' })
+  assert.deepEqual(calls, [{ url: 'http://api/v1/follows', body: { site: 'lbc', site_id: '1' } }])
+  assert.equal(auths[0].credentials, 'include')
+  assert.equal(res.ok, true)
 })
 
 
-test("sans licence, aucune constatation ne part", async () => {
-  const { calls, ask } = boot({ licenseKey: '' })
-  assert.deepEqual(await ask({ type: 'absent', site: 'lbc', siteId: '1', evidence: 'absent' }),
-                   { ok: false, reason: 'no-key' })
-  assert.deepEqual(calls, [])
+test("sans licence, la constatation d'absence part quand même — en cookie de session", async () => {
+  const { calls, auths, ask } = boot({ licenseKey: '' })
+  const res = await ask({ type: 'absent', site: 'lbc', siteId: '1', evidence: 'absent' })
+  assert.deepEqual(calls, [{
+    url: 'http://api/v1/disappearances',
+    body: { site: 'lbc', site_id: '1', evidence: 'absent' },
+  }])
+  assert.equal(auths[0].credentials, 'include')
+  assert.equal(res.verdict, 'first')
+})
+
+// Fait rougir le handler `me` : la popup lit qui est connecté par cette route,
+// jamais en lisant une clé — la licence l'authentifie comme toute autre route.
+test('/v1/me part sur sa propre route, en GET, avec la licence', async () => {
+  const { calls, auths, ask } = boot()
+  const res = await ask({ type: 'me' })
+  assert.equal(calls[0].url, 'http://api/v1/me')
+  assert.equal(calls[0].body, undefined)
+  assert.equal(auths[0].headers.Authorization, `Bearer ${KEY}`)
+  assert.equal(res.ok, true)
 })

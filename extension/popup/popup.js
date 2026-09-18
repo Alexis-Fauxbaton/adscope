@@ -50,10 +50,21 @@ el('api-save').onclick = async () => {
 
 // Ouvrir l'application sur le site, dans un nouvel onglet : `window.open` reste
 // dans les gestes qu'une popup fait déjà sans permission propre, à la
-// différence de `chrome.tabs.create`.
+// différence de `chrome.tabs.create`. Même bouton, connecté ou non : c'est le
+// seul geste qu'un humain fait ici — se connecter, ou revoir son compte.
 el('open-app').onclick = () => {
   const apiBase = base(el('api').value)
   if (isBase(apiBase)) window.open(`${apiBase}/app`, '_blank')
+}
+
+// Ce que la popup montre à la place d'une clé : qui est connecté. Passe par
+// le service worker — lui seul sait Bearer ou cookie de session — jamais une
+// clé lue ici, pour rester vrai même quand aucune n'est configurée.
+const showAccount = (me) => {
+  const connected = me && me.ok && me.email
+  el('account').textContent = connected ? me.email : ''
+  el('account').hidden = !connected
+  el('open-app').textContent = connected ? 'Ouvrir adscope' : 'Se connecter'
 }
 
 el('test').onclick = async () => {
@@ -137,6 +148,7 @@ chrome.storage.local.get(['licenseKey', 'apiBase', 'status']).then(async (stored
   el('api').value = stored.apiBase || 'http://localhost:8000'
   showKey()
   showCache()
+  showAccount(await ask({ type: 'me' }))
   const status = stored.status
   diagnose(status)
   if (!status) return showEmpty()

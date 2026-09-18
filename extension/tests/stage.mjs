@@ -126,8 +126,20 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
   const asked = []
   const painted = []
   let relayed = []
+  // Ce que la mention de reconnexion ouvre : le seul geste qu'elle fait.
+  const opened = []
+  globalThis.window = { open: (url, target) => opened.push({ url, target }) }
   globalThis.chrome = {
-    storage: { local: { set: (o) => Object.assign(stored, o) } },
+    storage: {
+      local: {
+        set: (o) => Object.assign(stored, o),
+        get: async (keys) => {
+          const out = {}
+          for (const k of [].concat(keys)) if (k in stored) out[k] = stored[k]
+          return out
+        },
+      },
+    },
     runtime: {
       id: 'adscope',
       lastError: null,
@@ -167,7 +179,7 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
   // L'ordre du manifeste : chaque module trouve ceux dont il se sert au chargement.
   const MODULES = [
     'context.js', 'sites.js', 'sites/read.js', 'format.js', 'curve.js', 'view.js', 'diag.js',
-    'sync.js', 'market.js', 'follow.js', 'feed.js', 'panel-node.js',
+    'sync.js', 'market.js', 'follow.js', 'feed.js', 'auth-notice.js', 'panel-node.js',
     'panel-icons.js', 'panel-curve.js', 'panel-note.js', 'panel-sections.js', 'panel-cards.js',
     'panel.js',
   ]
@@ -229,7 +241,14 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
         respond({ ok: true, sent: msg.listings.length, signals: Object.fromEntries(answered) })
       }
     },
+    // La session tombée, telle que sw.js la rapporte hors mode clé : un 401,
+    // sans quoi la pastille et le panneau n'ont aucune raison de s'effacer.
+    denySession: () => {
+      for (const { respond } of pending.splice(0)) respond({ ok: false, reason: '401', authRequired: true })
+    },
     receive: (payload, name = 'payload') =>
       bus.dispatchEvent(new CustomEvent(`adscope:${name}`, { detail: JSON.stringify(payload) })),
+    // Où la mention de reconnexion ouvre l'application.
+    opened: () => opened,
   }
 }
