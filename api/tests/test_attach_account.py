@@ -73,6 +73,17 @@ def test_the_account_is_created_once(session, two_licenses):
     assert len(session.scalars(select(Account)).all()) == 1
 
 
+# Fait rougir `email = email.strip().lower()` dans `account_for` : le lien
+# magique ne connaît le marchand que par sa forme abaissée
+# (`auth_email.post_login`), une majuscule collée à la main ne doit pas poser
+# un second compte pour la même adresse.
+def test_an_uppercase_address_is_the_same_account(session, two_licenses):
+    first = attach.account_for(session, "Alexis@Garage.fr")
+    session.commit()
+    assert attach.account_for(session, "alexis@garage.fr").id == first.id
+    assert len(session.scalars(select(Account)).all()) == 1
+
+
 # Fait rougir l'insertion de `merge` : les suivis de la licence fusionnée sont
 # ce que le marchand a mis de côté, ils ne se perdent pas en route.
 def test_the_merge_carries_the_follows_over(session, two_licenses):

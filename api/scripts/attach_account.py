@@ -44,6 +44,10 @@ def by_prefix(session, prefix: str) -> License:
 
 
 def account_for(session, email: str) -> Account:
+    # Abaissée en casse, débarrassée de ses espaces : le lien magique ne
+    # connaît le marchand que par cette forme-là (`auth_email.post_login`), et
+    # une majuscule collée à la main ne doit pas poser un second compte.
+    email = email.strip().lower()
     account = session.scalar(select(Account).where(Account.email == email))
     if account is None:
         account = Account(email=email)

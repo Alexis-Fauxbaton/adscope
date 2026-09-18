@@ -7,8 +7,9 @@ import pytest
 from sqlalchemy import func, select
 
 from adscope_api import login_tokens
+from adscope_api import sessions as sessions_module
 from adscope_api.auth import hash_key, new_key
-from adscope_api.auth_models import Account, LoginToken
+from adscope_api.auth_models import Account, LoginToken, SessionToken
 from adscope_api.models import License
 
 from conftest import NOW
@@ -82,7 +83,29 @@ def test_the_link_never_comes_back_without_the_variable(client, session, clock, 
 
 def test_the_link_comes_back_with_the_variable(client, session, clock, dev):
     enrolled(session)
-    assert login(client).json()["dev_link"].startswith("http://testserver/v1/auth/verify?")
+    assert login(client).json()["dev_link"].startswith(
+        "http://localhost:8000/v1/auth/verify?"
+    )
+
+
+# Fait rougir `f"{public_url()}/v1/auth/verify?token={raw}"` redevenu
+# `f"{request.url_for('verify_login')}?token={raw}"` : un `Host` forgé ne doit
+# jamais décider où pointe le lien envoyé au marchand — sans quoi un inconnu
+# ferait envoyer, à un vrai client, un lien qui lui livre son propre jeton.
+def test_a_forged_host_does_not_change_the_link(client, session, clock, dev):
+    enrolled(session)
+    link = client.post(
+        "/v1/auth/login", json={"email": EMAIL}, headers={"Host": "evil.example"}
+    ).json()["dev_link"]
+    assert link.startswith("http://localhost:8000/v1/auth/verify?")
+
+
+def test_the_link_host_is_configurable(client, session, clock, dev, monkeypatch):
+    monkeypatch.setenv("ADSCOPE_PUBLIC_URL", "https://app.adscope.fr")
+    enrolled(session)
+    assert login(client).json()["dev_link"].startswith(
+        "https://app.adscope.fr/v1/auth/verify?"
+    )
 
 
 # Fait rougir `send_login_link(email, link)` : sans cet appel, le lien n'atteint
@@ -153,6 +176,27 @@ def test_a_link_still_fresh_is_taken(client, session, clock, dev):
     link = login(client).json()["dev_link"]
     clock.now = NOW + timedelta(minutes=14)
     assert verify(client, link).headers["location"] == "/app/"
+
+
+# Fait rougir l'ancien `consume` (lecture puis écriture en deux temps) : huit
+# requêtes lancées ensemble sur le même lien lisent toutes un jeton encore
+# valable avant qu'aucune ne l'ait marqué, et ouvrent huit sessions. La mise à
+# jour atomique (`UPDATE ... RETURNING`) n'en laisse passer qu'une.
+def test_eight_concurrent_uses_of_the_same_link_open_one_session(
+    session, sessions, clock, concurrently
+):
+    account, _ = enrolled(session)
+    raw = login_tokens.mint(session, account.id, clock.now)
+    session.commit()
+
+    def use_once(_, s):
+        account_id = login_tokens.consume(s, raw, clock.now)
+        if account_id is not None:
+            sessions_module.create(s, account_id, clock.now)
+
+    errors = concurrently(8, use_once)
+    assert errors == []
+    assert session.scalar(select(func.count()).select_from(SessionToken)) == 1
 
 
 # Fait rougir `if row is None` dans `get_verify` : un jeton inventé ne doit pas

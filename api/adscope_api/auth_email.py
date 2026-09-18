@@ -16,6 +16,7 @@ from sqlalchemy import select
 from . import login_tokens, sessions
 from .auth import require_license
 from .auth_models import Account
+from .config import public_url
 from .db import get_session
 from .login_tokens import consume, dev_login, enroll, mint, open_signup
 from .sessions import now_utc
@@ -32,8 +33,7 @@ class LoginIn(BaseModel):
 
 
 @router.post("/v1/auth/login", status_code=202)
-def post_login(payload: LoginIn, request: Request,
-               session=Depends(get_session), now=Depends(now_utc)):
+def post_login(payload: LoginIn, session=Depends(get_session), now=Depends(now_utc)):
     email = payload.email.strip().lower()
     account = session.scalar(select(Account).where(Account.email == email))
     if account is None and open_signup():
@@ -41,7 +41,9 @@ def post_login(payload: LoginIn, request: Request,
     raw = mint(session, account.id, now) if account is not None else None
     body = {"sent": True}
     if raw is not None:
-        link = f"{request.url_for('verify_login')}?token={raw}"
+        # `public_url()`, jamais l'en-tête `Host` : un `Host` forgé ne doit pas
+        # décider où le lien envoyé au marchand pointe.
+        link = f"{public_url()}/v1/auth/verify?token={raw}"
         # Par le module : le transport se remplace à un seul endroit.
         login_tokens.send_login_link(email, link)
         if dev_login():
@@ -53,12 +55,12 @@ def post_login(payload: LoginIn, request: Request,
 @router.get("/v1/auth/verify", name="verify_login")
 def get_verify(request: Request, token: str = "",
                session=Depends(get_session), now=Depends(now_utc)):
-    row = consume(session, token, now)
-    if row is None:
+    account_id = consume(session, token, now)
+    if account_id is None:
         session.commit()
         return RedirectResponse("/app/?login=expired", status_code=303,
                                 headers=NO_REFERRER)
-    raw = sessions.create(session, row.account_id, now)
+    raw = sessions.create(session, account_id, now)
     response = RedirectResponse("/app/", status_code=303, headers=NO_REFERRER)
     sessions.set_cookie(response, raw, sessions.is_secure(request))
     session.commit()

@@ -20,7 +20,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 
 from .auth import hash_key, new_key
 from .auth_models import Account, LoginToken
@@ -91,14 +91,23 @@ def mint(session, account_id: int, now: datetime) -> str | None:
     return raw
 
 
-def consume(session, raw: str, now: datetime) -> LoginToken | None:
-    """Brûle le jeton et rend sa ligne ; rien s'il est inconnu, usé ou périmé.
+def consume(session, raw: str, now: datetime) -> int | None:
+    """Brûle le jeton et rend le compte qu'il ouvre ; rien s'il est inconnu,
+    usé ou périmé.
 
-    `used_at` marque au lieu d'effacer : la ligne reste, et le second clic sur
-    le même lien est refusé pour ce qu'il est, un jeton déjà servi.
+    Lire puis écrire laisserait une fenêtre : huit requêtes simultanées sur le
+    même lien liraient chacune un jeton encore valable avant qu'aucune ne l'ait
+    marqué, et ouvriraient huit sessions pour un lien qui n'en vaut qu'une.
+    `UPDATE ... RETURNING` marque et lit en une seule instruction ; Postgres
+    sérialise les écritures concurrentes sur la même ligne, si bien qu'une
+    seule les trouve encore `used_at IS NULL` — les autres ne rendent aucune
+    ligne, pas une erreur.
     """
-    row = session.get(LoginToken, hash_token(raw)) if raw else None
-    if row is None or row.used_at is not None or row.expires_at <= now:
+    if not raw:
         return None
-    row.used_at = now
-    return row
+    row = session.execute(
+        text("UPDATE login_tokens SET used_at = :now WHERE token_hash = :hash"
+             " AND used_at IS NULL AND expires_at > :now RETURNING account_id"),
+        {"now": now, "hash": hash_token(raw)},
+    ).first()
+    return row.account_id if row is not None else None

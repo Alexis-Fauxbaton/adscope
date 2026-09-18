@@ -24,6 +24,12 @@
          n'importe quel compte. Le service l'annonce au démarrage dans
          ~/Library/Logs/adscope-api.log. -->
     <key>ADSCOPE_DEV_LOGIN</key><string>1</string>
+    <!-- L'hôte du lien de vérification envoyé par email, jamais celui de la
+         requête (`Host` peut être forgé). C'est l'hôte que l'extension utilise
+         par défaut (`extension/src/sw.js`, DEFAULTS.apiBase) — un seul hôte
+         partout, sans quoi le cookie de session posé par la vérification
+         n'existe pas pour l'autre. -->
+    <key>ADSCOPE_PUBLIC_URL</key><string>http://localhost:8000</string>
   </dict>
 
   <key>RunAtLoad</key><true/>

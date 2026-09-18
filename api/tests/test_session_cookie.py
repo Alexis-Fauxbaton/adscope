@@ -94,7 +94,13 @@ def posed_cookie(opened):
 # le cookie hors de portée d'un script de page, `SameSite=Lax` l'empêche de
 # partir sur une écriture venue d'ailleurs, et les quatre-vingt-dix jours sont
 # la session longue que le marchand ne doit pas rouvrir chaque matin.
-def test_the_cookie_carries_its_attributes(client, session, clock):
+#
+# Le lien de vérification pointe sur `ADSCOPE_PUBLIC_URL`, jamais sur le `Host`
+# de la requête (voir `test_auth_email.py`) : pour éprouver `Secure` sur un
+# hôte distant, ce test configure explicitement un tel hôte plutôt que de
+# compter sur celui du client de test.
+def test_the_cookie_carries_its_attributes(client, session, clock, monkeypatch):
+    monkeypatch.setenv("ADSCOPE_PUBLIC_URL", "https://app.adscope.fr")
     enrolled(session)
     posed = posed_cookie(client)
     assert "adscope_session=" in posed
