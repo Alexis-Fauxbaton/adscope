@@ -39,6 +39,9 @@ const setup = () => {
       pending.pop()(undefined)
       globalThis.chrome.runtime.lastError = null
     },
+    // Un refus net de l'API — 401, 500 — répond bel et bien, sans que le port
+    // ne se ferme : `lastError` reste vide, seul `ok` dit l'échec.
+    refuse: () => pending.pop()({ ok: false }),
   }
 }
 
@@ -109,6 +112,25 @@ test('trois échecs de suite arrêtent les reprises : pas de quatrième demande'
 // base — est une réponse de l'API, pas une panne, et `lookup.js` le rend déjà
 // en `ok: true, stats: null`. Le retenter reviendrait à boucler sur un
 // vendeur que l'API ne connaîtra jamais.
+// Rouge sur `!res.ok` de `ask` dans src/market.js : affaibli, un refus net —
+// une réponse qui arrive, `ok: false`, sans `lastError` — passerait par
+// `take` au lieu de `fail`, et la reprise que le port fermé déclenche déjà ne
+// partirait jamais pour ce cas-là.
+test('un refus net de l’API, sans port fermé, se reprend aussi après la pause', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  try {
+    const { sent, refuse } = setup()
+    globalThis.ADS.market.want({ ...seller, siteId: 's4' })
+    assert.equal(sent.length, 1)
+    refuse()
+    assert.equal(sent.length, 1, 'aucune demande avant la pause')
+    mock.timers.tick(5000)
+    assert.equal(sent.length, 2, 'la reprise part après le refus')
+  } finally {
+    mock.timers.reset()
+  }
+})
+
 test('un vendeur inconnu de l’API (404) ne déclenche qu’une seule demande', () => {
   mock.timers.enable({ apis: ['setTimeout'] })
   try {
