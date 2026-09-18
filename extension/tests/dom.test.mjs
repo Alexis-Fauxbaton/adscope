@@ -39,6 +39,16 @@ test('la pastille pose un nœud par origine', () => {
   assert.ok(!page.textContent.includes('↓'))
 })
 
+// Ce site ne double aucune carte : `card` de src/sites/leboncoin.js rend
+// toujours un tableau depuis que La Centrale peut en rendre plusieurs, mais une
+// seule pastille reste due ici. Rouge si la déduplication par nœud manquait —
+// deux liens vers la même annonce reposeraient alors deux fois la pastille.
+test("sur leboncoin, une carte sans doublon ne porte qu'une pastille", () => {
+  const w = world('3254194817')
+  w.load('listing.js')
+  assert.equal(w.card.querySelectorAll('[data-adscope]').length, 1)
+})
+
 // La flèche descend, elle n'alarme pas : l'orangé est réservé à ce que le site
 // cache, et une baisse est au contraire ce qu'adscope a mesuré. Rouge sur le
 // `weight` de src/listing.js, dont le `|| tracked` peignait la carte en alerte

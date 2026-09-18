@@ -16,12 +16,14 @@ const refs = (w) => w.order().filter((r) => r !== 'promo')
 const daysOf = (w, ref) => Number(w.badge(ref).getAttribute('data-adscope-days'))
 const shown = (w) => refs(w).filter((r) => w.badge(r).parentElement.getAttribute('data-adscope-hidden') === null)
 
-const listing = (cards = CARDS) =>
+const listing = (cards = CARDS, boost = null) =>
   at(RELEVE, () => {
-    const w = page({ path: '/listing', scripts: results(cards), cards: cards.map((c) => c.reference) })
+    const w = page({ path: '/listing', scripts: results(cards), cards: cards.map((c) => c.reference), boost })
     w.load('listing.js')
     return w
   })
+
+const FRESH = 'W103546110' // 5 jours
 
 // Le compte affiché est celui de la page chargée, jamais celui de la recherche :
 // le site en annonce 9 541 au-dessus de ces vingt-trois cartes. Rouge sur `scope`
@@ -49,6 +51,19 @@ test("le tri range les plus anciennes d'abord, le second clic rétablit l'ordre 
   assert.deepEqual(w.order(), site)
 })
 
+// La mise en avant reparaît plus bas parmi les résultats ordinaires, à un rang
+// différent avant tri. Deux cartes de même âge finissent forcément côte à côte
+// une fois triées. Rouge sur `cardOf` de src/sites/lacentrale.js, qui ne
+// pastillait que la première carte trouvée — la seconde, sans pastille,
+// n'aurait porté aucune ancienneté et n'aurait donc pas suivi sa jumelle.
+test('le tri garde adjacentes les deux cartes de la même annonce', () => {
+  const w = listing(CARDS, FRESH)
+  press(w, 'Trier par ancienneté')
+  const order = refs(w)
+  assert.deepEqual(order.filter((r) => r === FRESH), [FRESH, FRESH])
+  assert.equal(order.lastIndexOf(FRESH) - order.indexOf(FRESH), 1)
+})
+
 // L'encart publicitaire de la page relevée n'est pas une annonce : il n'a pas
 // d'âge, et le site est payé pour le rang qu'il occupe. Rouge sur les repères de
 // `arrange` (src/order.js) — ranger les cartes à la suite le pousserait au bout.
@@ -73,6 +88,21 @@ test('le filtre masque ce qui est sous le seuil, et le second clic le rétablit'
   for (const r of all) assert.equal(shown(w).includes(r), daysOf(w, r) >= 90, r)
   press(w, '≥ 90 j')
   assert.deepEqual(shown(w), all)
+})
+
+// La bannière et la carte ordinaire d'une même annonce doivent disparaître
+// ensemble : une jumelle qui resterait affichée laisserait passer, par sa
+// seule copie, une annonce que le seuil devait masquer. Rouge sur `cardOf` de
+// src/sites/lacentrale.js, qui ne pastillait qu'une des deux cartes — l'autre,
+// sans pastille, échappait au tri comme au filtre.
+test('le filtre masque les deux cartes de la même annonce', () => {
+  const w = listing(CARDS, FRESH)
+  press(w, '≥ 30 j')
+  const badges = w.badgesOf(FRESH)
+  assert.equal(badges.length, 2)
+  for (const b of badges) assert.equal(b.parentElement.getAttribute('data-adscope-hidden'), '')
+  press(w, '≥ 30 j')
+  for (const b of w.badgesOf(FRESH)) assert.equal(b.parentElement.getAttribute('data-adscope-hidden'), null)
 })
 
 // Une carte sans date n'a pas d'ancienneté à faire valoir : ni la tête du tri,

@@ -115,11 +115,11 @@ ADS.leboncoin = ADS.sites.register((() => {
   // Ce que l'URL d'une fiche porte : une suite d'au moins six chiffres.
   const urlId = (path) => (path.match(/\d{6,}/) || [])[0] || null
 
-  // La carte des résultats qui porte cette annonce, et le bloc qui l'entoure.
-  const card = (doc, l) => {
-    const link = doc.querySelector(`a[href*="/ad/voitures/${l.siteId}"], a[href$="/${l.siteId}"]`)
-    return link && (link.closest('article') || link)
-  }
+  // Les cartes des résultats qui portent cette annonce, et le bloc qui entoure chacune —
+  // ce site n'en répète aucune, mais l'appelant ne distingue plus un site qui doublonne.
+  const card = (doc, l) => [...new Set(
+    [...doc.querySelectorAll(`a[href*="/ad/voitures/${l.siteId}"], a[href$="/${l.siteId}"]`)].map((a) => a.closest('article') || a),
+  )]
 
   // Le libellé que la fiche affiche sous le titre : « il y a 3 jours à 15:36 ».
   const DISPLAYED = /il y a .+ à \d{1,2}:\d{2}|(?:hier|aujourd'hui) à \d{1,2}:\d{2}/i

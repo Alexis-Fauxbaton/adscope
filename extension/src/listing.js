@@ -81,13 +81,15 @@
     const counts = { old: 0, alerts: 0 }
     let placed = 0
     for (const listing of listings) {
-      const card = site.card(document, listing)
-      if (!card) continue
+      // Une mise en avant reparaît parfois plus bas dans les mêmes résultats :
+      // toutes ses cartes portent la même annonce, donc la même pastille.
+      const cards = site.card(document, listing)
+      if (!cards.length) continue
       shown.push(listing)
       const s = site.signals(listing, now)
       if (s.old) counts.old++
       if (s.notable) counts.alerts++
-      if (paint(card, listing, s)) placed++
+      for (const card of cards) if (paint(card, listing, s)) placed++
     }
     ADS.sync.send(shown)
     // Le compte transmis entre dans l'estampille : il change après coup, quand

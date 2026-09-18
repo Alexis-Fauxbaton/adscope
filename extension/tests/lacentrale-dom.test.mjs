@@ -90,6 +90,24 @@ test('autant de pastilles en alerte que le résumé en annonce', () => {
   assert.equal(notable.length, 8)
 })
 
+// La mise en avant reparaît parmi les résultats ordinaires : sur la page
+// relevée le 2026-09-06, `W103496285` (`TOUCHED`) a une bannière `boostVo` et
+// une carte de résultat ordinaire. Rouge sur `cardOf` de
+// src/sites/lacentrale.js, qui ne rendait que la première carte trouvée : la
+// seconde restait sans pastille, sans âge, hors du tri et du filtre.
+test('la bannière et la carte ordinaire de la même annonce portent la même pastille', () => {
+  const w = at(RELEVE, () => {
+    const w = page({ path: '/listing', scripts: results(CARDS), cards: CARDS.map((c) => c.reference), boost: TOUCHED })
+    w.load('listing.js')
+    return w
+  })
+  const [banner, ordinary] = w.badgesOf(TOUCHED)
+  assert.ok(banner && ordinary && banner !== ordinary)
+  assert.equal(banner.textContent, ordinary.textContent)
+  assert.equal(banner.className, ordinary.className)
+  assert.equal(banner.getAttribute('data-adscope-days'), ordinary.getAttribute('data-adscope-days'))
+})
+
 // Le défaut le plus grave du lot, vu de la page : une carte dont la charge porte
 // la clé de date sans valeur. `null` compté en millisecondes rendait l'époque
 // Unix — cinquante-six ans en ligne, et la pastille au rouge.

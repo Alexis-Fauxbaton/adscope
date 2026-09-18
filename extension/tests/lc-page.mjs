@@ -85,7 +85,7 @@ export const results = (cards, similar = []) => [
 // La page telle que le navigateur la montre : le libellé plafonné sous le prix,
 // les cartes de résultats dans le bloc qui porte leurs métadonnées de suivi, et
 // les charges dans des scripts en ligne.
-export const page = ({ path, scripts, label = null, cards = [], cache = {}, price = false }) => {
+export const page = ({ path, scripts, label = null, cards = [], cache = {}, price = false, boost = null }) => {
   const body = new El('body')
   body.append(new El('h1'))
   // Le pavé du prix, en haut de la fiche ; le libellé plafonné, lui, ferme la
@@ -105,6 +105,9 @@ export const page = ({ path, scripts, label = null, cards = [], cache = {}, pric
   // déclare, et le seul dont le tri déplace les enfants.
   const list = new El('div')
   list.className = 'searchCardContainer'
+  // Une référence peut porter plusieurs cartes : la mise en avant `boostVo`
+  // reparaît plus bas parmi les résultats ordinaires. Un tableau par référence,
+  // jamais une seule carte.
   const holders = new Map()
   const named = new Map()
   const add = (ref) => {
@@ -119,10 +122,14 @@ export const page = ({ path, scripts, label = null, cards = [], cache = {}, pric
     link.setAttribute('href', href(ref))
     holder.append(link)
     list.append(holder)
-    holders.set(ref, holder)
+    holders.set(ref, [...(holders.get(ref) || []), holder])
     named.set(holder, ref)
     return holder
   }
+  // La bannière de mise en avant : une carte de plus pour `boost`, posée en
+  // tête — avant même la première carte ordinaire —, exactement comme la page
+  // relevée le fait pour `W103496285`.
+  if (boost) add(boost)
   for (const [i, ref] of cards.entries()) {
     // L'encart publicitaire de la page relevée : une `searchCard--propulse` sans
     // métadonnées de suivi et sans lien d'annonce, glissée entre deux cartes.
@@ -135,7 +142,7 @@ export const page = ({ path, scripts, label = null, cards = [], cache = {}, pric
     }
     add(ref)
   }
-  if (cards.length) body.append(list)
+  if (cards.length || boost) body.append(list)
   // Retenus : c'est en réécrivant l'un d'eux qu'un test fait changer la page de
   // charge, comme le ferait le site.
   const inline = scripts.map((text) => {
@@ -150,7 +157,11 @@ export const page = ({ path, scripts, label = null, cards = [], cache = {}, pric
     body,
     list,
     scripts: inline,
-    badge: (ref) => holders.get(ref).querySelector('[data-adscope]'),
+    badge: (ref) => holders.get(ref)[0].querySelector('[data-adscope]'),
+    // Une pastille par carte : de quoi comparer celle de la bannière à celle de
+    // la carte ordinaire, quand une référence en porte plusieurs. Nommé à part de
+    // `badges()`, qui rend déjà ce que l'icône a peint.
+    badgesOf: (ref) => holders.get(ref).map((h) => h.querySelector('[data-adscope]')),
     panel: () => body.querySelector('[data-adscope-detail]'),
     // Ce que le conteneur montre, de haut en bas : une référence par carte, et
     // `promo` pour l'encart. C'est là-dessus que se juge un tri.

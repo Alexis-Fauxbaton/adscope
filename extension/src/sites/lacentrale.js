@@ -88,12 +88,12 @@ ADS.lacentrale = ADS.sites.register((() => {
     const node = dateNode(doc)
     return node && (node.textContent || '').trim()
   }
-  // La carte de résultats, reconnue par l'adresse de l'annonce ; le bloc qui l'entoure
-  // porte les métadonnées de suivi du site, quand ses classes changent à chaque build.
-  const cardOf = (doc, l) => {
-    const link = doc.querySelector(`a[href*="${slug(l.siteId)}"]`)
-    return link && (link.closest('[data-tracking-meta]') || link)
-  }
+  // Les cartes de résultats qui portent cette annonce, reconnues par son adresse ; le bloc
+  // qui entoure chacune porte les métadonnées de suivi du site. Une mise en avant reparaît
+  // ailleurs sur la page — toutes ses cartes reviennent, pas la première trouvée.
+  const cardOf = (doc, l) => [...new Set(
+    [...doc.querySelectorAll(`a[href*="${slug(l.siteId)}"]`)].map((a) => a.closest('[data-tracking-meta]') || a),
+  )]
   // Le pavé du prix, sous lequel le panneau se pose : un identifiant que le site tient.
   const mount = (doc) => doc.querySelector('#pavePrix')
 
