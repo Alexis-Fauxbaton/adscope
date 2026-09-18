@@ -2,7 +2,7 @@ process.env.TZ = 'Europe/Paris'
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { crossedIn, feed, market } from '../js/fixtures.js'
+import { crossedIn, feed, market, revisits } from '../js/fixtures.js'
 import { factsOf } from '../js/facts.js'
 import { marketQuery } from '../js/query.js'
 
@@ -91,6 +91,18 @@ test('les filtres du mode démo mordent vraiment', () => {
   for (const item of baissees) assert.ok(item.price_delta_since_first < 0)
   const clios = market(marketQuery({ brand: 'renault', model: 'clio' }, { limit: 100 }))
   assert.equal(clios.total, 3)
+})
+
+// Rouge sur le `Math.min(limit, REVISIT_IDS.length)` de `revisits` dans
+// js/fixtures.js : la file factice doit respecter `limit` comme la vraie
+// route, sinon la capture d'écran ment sur ce que l'API rend.
+test('la file de revisite factice respecte la limite demandée', () => {
+  assert.equal(revisits({ limit: 2 }).length, 2)
+  assert.ok(revisits({ limit: 999 }).length <= 5)
+  for (const item of revisits({ limit: 40 })) {
+    assert.deepEqual(Object.keys(item).sort(), ['site', 'site_id', 'url'])
+    assert.equal(item.site, 'lbc')
+  }
 })
 
 // Rouge sur le `slice(offset, offset + limit)` de js/fixtures.js : « Voir

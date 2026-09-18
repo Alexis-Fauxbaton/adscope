@@ -48,3 +48,11 @@ export function factsOf(item) {
 export function hasMoved(item) {
   return factsOf(item).length > 0
 }
+
+// Une fiche disparue n'a plus de page à montrer : le lien « Voir l'annonce »
+// mènerait à une fiche morte, il ne se pose que si le fait principal n'est
+// pas la disparition.
+export function isGone(item) {
+  const [principal] = factsOf(item)
+  return Boolean(principal && principal.kind === 'disappeared')
+}

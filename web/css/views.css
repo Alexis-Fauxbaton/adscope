@@ -66,6 +66,15 @@
   color:var(--accent);
 }
 
+/* ── file de revisite : un outil, pas un écran de vente ── */
+#queue{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px;
+  line-height:1.9; padding-left:22px; word-break:break-all;
+}
+#queue a{color:var(--accent); text-decoration:none}
+#queue a:hover{text-decoration:underline}
+output{font-size:23px; font-weight:700; letter-spacing:-.02em}
+
 @media (max-width:640px){
   .filtres{gap:12px}
   .filtres .famille{flex:1 1 100%; min-width:0}

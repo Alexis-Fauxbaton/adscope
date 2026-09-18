@@ -65,3 +65,18 @@ export async function feed(sinceDays) {
   const params = new URLSearchParams({ since_days: String(sinceDays) })
   return get('/v1/follows/feed', params)
 }
+
+// La file de revisite. Un `POST`, jamais automatique : c'est l'appelant — le
+// clic sur « Demander la file » — qui décide de consommer des fiches pour
+// sept jours, cette fonction ne fait qu'exécuter la demande.
+export async function revisits({ site, limit }) {
+  if (isDemo()) return fixtures.revisits({ site, limit })
+  const res = await fetch('/v1/revisits', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${licenseKey()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ site, limit }),
+  })
+  if (res.status === 401 || res.status === 403) throw new AuthError('licence refusée')
+  if (!res.ok) throw new Error(`/v1/revisits a répondu ${res.status}`)
+  return res.json()
+}

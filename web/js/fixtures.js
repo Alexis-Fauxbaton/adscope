@@ -107,6 +107,19 @@ export function me() {
   return { label: 'Garage démo', expires_at: isoDaysBefore(-180) }
 }
 
+// Une file factice, pour dessiner et capturer `/app/revisites.html` sans
+// jamais consommer de vraies fiches. Les mêmes trois champs que l'API rend,
+// rien de plus — surtout pas de clé.
+const REVISIT_IDS = ['2963188104', '2963177230', '2963165592', '2963154881', '2963142016']
+
+export function revisits({ limit = 40 } = {}) {
+  return REVISIT_IDS.slice(0, Math.max(0, Math.min(limit, REVISIT_IDS.length))).map((id) => ({
+    site: 'lbc',
+    site_id: id,
+    url: `https://www.leboncoin.fr/ad/voitures/${id}`,
+  }))
+}
+
 export function families() {
   return [
     { brand: 'Peugeot', model: '208' },

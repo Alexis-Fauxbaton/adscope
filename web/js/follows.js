@@ -3,7 +3,7 @@
 
 import * as api from './api.js'
 import { clear, el, outLink } from './dom.js'
-import { factsOf } from './facts.js'
+import { factsOf, isGone } from './facts.js'
 import { kilometres, money, spellAge } from './format.js'
 
 const FENETRES = [[1, '24 heures'], [7, '7 jours']]
@@ -29,7 +29,9 @@ function carteSuivi(item) {
       }),
     ]),
     el('div', { class: 'suivi-pied' }, [
-      outLink(item.url, "Voir l'annonce"),
+      // Une fiche disparue n'a plus de page à montrer : le lien mènerait à
+      // une fiche morte.
+      !isGone(item) && outLink(item.url, "Voir l'annonce"),
       item.seller_name && el('span', { class: 'suivi-vendeur', text: item.seller_name }),
     ]),
   ])

@@ -2,7 +2,7 @@ process.env.TZ = 'Europe/Paris'
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { factsOf, hasMoved } from '../js/facts.js'
+import { factsOf, hasMoved, isGone } from '../js/facts.js'
 
 const NBSP = ' '
 const THIN = ' '
@@ -106,4 +106,16 @@ test('la disparition prime sur la baisse, la baisse sur le seuil', () => {
 test('une annonce sans fait n’a pas bougé', () => {
   assert.equal(hasMoved(item()), false)
   assert.equal(hasMoved(item({ flags: { crossed: 30 } })), true)
+})
+
+// Rouge sur le `principal.kind === 'disappeared'` de `isGone` dans
+// js/facts.js : c'est cette ligne qui retire « Voir l'annonce » d'une carte
+// disparue — sans elle, le lien mènerait à une fiche morte.
+test('isGone ne vaut vrai que si le fait principal est une disparition', () => {
+  assert.equal(isGone(item({ flags: { dropped: false, crossed: null, disappeared: true } })), true)
+  assert.equal(isGone(item({
+    changes: [{ at: '2026-09-16T10:00:00Z', from: 23900, to: 22700 }],
+    flags: { dropped: true, crossed: null, disappeared: false },
+  })), false)
+  assert.equal(isGone(item()), false)
 })
