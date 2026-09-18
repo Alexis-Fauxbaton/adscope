@@ -37,10 +37,10 @@ doublon multi-plateformes.
 
 | Lot | Contenu | Dépend de |
 |---|---|---|
-| A · Panneau V1 | retirer Ce prix / Avant d'y aller · liste des baisses avec cumul · ligne réactualisation · état « pas encore suivie » + bouton Suivre · Ce vendeur avec « actives » | — |
-| B · Périmètre | familles par licence · file de revisite priorisée dans le périmètre · doc du crawl par famille | familles des premiers marchands |
-| C · Listing | flèche de baisse · tri/filtre par ancienneté sur la page | — |
-| D · Mes opportunités | suivis serveur · changements depuis la dernière ouverture · vue | A (Suivre) |
+| A · Panneau V1 — **livré** | retirer Ce prix / Avant d'y aller · liste des baisses avec cumul · ligne réactualisation · état « pas encore suivie » + bouton Suivre · Ce vendeur avec « actives » | — |
+| B · Périmètre — **livré** | familles par licence · file de revisite priorisée dans le périmètre · doc du crawl par famille | familles des premiers marchands |
+| C · Listing | flèche de baisse sur la pastille — **livré**. La barre de tri/filtre a été retirée : elle ne triait que la page chargée et parasitait la page hôte | — |
+| D · Site adscope v0 | `web/`, servi par l'API sous `/app` : **Mes suivis** (baisses, seuils 30/60/90 j, disparitions, sur 24 h ou 7 j) et **Le marché** (toute la base : famille, ancienneté, baisse, pro/particulier) — **livré**, connexion par clé en attendant le lot Comptes | — |
 | E · Republication | empreinte rare **et** annonce disparue → « même véhicule » | `disappeared_at` alimenté, donc revisites qui tournent |
 | Store puis Render | inchangé, en dernier | — |
 
@@ -66,14 +66,13 @@ toute façon requis pour facturer.
 - Schéma : table `accounts`, licences rattachées. Les emails sont de la donnée personnelle :
   politique de confidentialité et déclaration du Store à écrire en conséquence.
 
-## Ce qui n'est pas dans le dépôt, et qui bloque
+## Ce qui n'est pas dans le dépôt, et qui bloque — état au 2026-09-18
 
-- **Le crawl est arrêté depuis le 8 septembre 20 h 13.** La tâche horaire côté Claude cowork
-  est à mettre en pause de toute façon : le périmètre par famille remplace les tranches de prix.
-- **La file de revisite n'a jamais été drainée** : deux runs le 8 septembre, « file vide »
-  les deux fois — rien n'avait alors trois jours de silence. Aujourd'hui tout en a quatre.
-  Sans revisites, pas de `disappeared_at`, donc pas de republication : **le lot E est bloqué
-  tant que `RUNBOOK-revisites.md` n'est pas programmé** côté Alexis, avec un seul Chrome
-  connecté au compte.
-- Aucune fiche leboncoin sauvegardée à la racine : le panneau est vérifié sur fixture, pas sur
-  le gabarit réel.
+- **Le balayage tourne** et reste le mode d'acquisition : 51 712 annonces, dernière vue le
+  18 septembre. Les familles de modèles ne restreignent pas l'acquisition ; elles priorisent les
+  revisites et alimentent le site. Un seul Chrome connecté au compte.
+- **Les revisites ne tournent pas régulièrement** : un seul run, le 12 septembre — 40 fiches
+  servies, dont 9 seulement lisibles (sortie tronquée, voir `crawler/RUNBOOK-revisites.md`), et
+  jamais la seconde constatation à six heures. Zéro absence, zéro `disappeared_at`. **Le lot E
+  (republication) reste bloqué tant que ce runbook n'est pas programmé** côté Alexis.
+- Le panneau est vérifié sur une vraie fiche leboncoin (capture d'Alexis du 18 septembre).
