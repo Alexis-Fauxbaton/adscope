@@ -142,7 +142,7 @@ ADS.leboncoin = ADS.sites.register((() => {
   return {
     id: 'lbc', name: 'leboncoin', origins: ['https://www.leboncoin.fr'],
     // Le prix est dans le bloc que ce libellé ferme : le panneau se pose là, sous les deux.
-    urlId, card, dateNode, mount: (doc, node) => node, words, claim,
+    urlId, card, cards: 'article', dateNode, mount: (doc, node) => node, words, claim,
     fromDocument, fromPayload, payload, normalize, signals, findAds,
   }
 })())

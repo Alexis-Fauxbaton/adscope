@@ -11,6 +11,15 @@ const src = (f) => join(here, '../src/', f)
 // distingue de celle d'une autre — c'est par là que passe le pastillage.
 const ATTR = /\[([\w-]+)(?:([*$]?=)"([^"]*)")?\]/g
 
+// Un nœud n'a qu'un parent : l'insérer ailleurs le retire d'abord d'où il est.
+// Sans cela, réordonner des cartes les dupliquerait au lieu de les déplacer, et
+// un test de tri ne dirait plus rien.
+const detach = (n) => {
+  const kin = n.parentElement && n.parentElement.children
+  const at = kin ? kin.indexOf(n) : -1
+  if (at >= 0) kin.splice(at, 1)
+}
+
 export class El {
   constructor(tag) {
     this.tag = tag
@@ -28,8 +37,10 @@ export class El {
   get descendants() { return this.children.flatMap((c) => [c, ...c.descendants]) }
   setAttribute(k, v) { this.attrs[k] = String(v) }
   getAttribute(k) { return k in this.attrs ? this.attrs[k] : null }
-  append(...nodes) { for (const n of nodes) { n.parentElement = this; this.children.push(n) } }
+  removeAttribute(k) { delete this.attrs[k] }
+  append(...nodes) { for (const n of nodes) { detach(n); n.parentElement = this; this.children.push(n) } }
   appendChild(n) { this.append(n) }
+  removeChild(n) { detach(n); n.parentElement = null; return n }
   replaceChildren(...nodes) { this.children = []; this.append(...nodes) }
   // Le rang compte : c'est lui qui dit si le panneau s'est posé sous le prix ou
   // au pied de la page.
@@ -38,6 +49,7 @@ export class El {
     return kin[kin.indexOf(this) + 1] || null
   }
   insertBefore(n, ref) {
+    detach(n)
     n.parentElement = this
     const at = ref ? this.children.indexOf(ref) : -1
     if (at < 0) this.children.push(n)
@@ -155,8 +167,9 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
   // L'ordre du manifeste : chaque module trouve ceux dont il se sert au chargement.
   const MODULES = [
     'context.js', 'sites.js', 'sites/read.js', 'format.js', 'curve.js', 'view.js', 'diag.js',
-    'sync.js', 'market.js', 'follow.js', 'feed.js', 'panel-node.js', 'panel-icons.js',
-    'panel-curve.js', 'panel-note.js', 'panel-sections.js', 'panel-cards.js', 'panel.js',
+    'sync.js', 'market.js', 'follow.js', 'feed.js', 'order.js', 'sort.js', 'panel-node.js',
+    'panel-icons.js', 'panel-curve.js', 'panel-note.js', 'panel-sections.js', 'panel-cards.js',
+    'panel.js',
   ]
   for (const f of ['context.js', 'sites.js', 'sites/read.js', site, ...MODULES.slice(3)]) load(f)
   // Le travail lourd, compté à travers le registre : le code partagé y accède

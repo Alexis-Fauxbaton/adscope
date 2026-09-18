@@ -100,16 +100,42 @@ export const page = ({ path, scripts, label = null, cards = [], cache = {}, pric
     p.textContent = label
     body.append(p)
   }
+  // Le conteneur des résultats, tel que la page sauvegardée le porte :
+  // `searchCardContainer` autour des `searchCard`. C'est le nœud que le registre
+  // déclare, et le seul dont le tri déplace les enfants.
+  const list = new El('div')
+  list.className = 'searchCardContainer'
   const holders = new Map()
-  for (const ref of cards) {
+  const named = new Map()
+  const add = (ref) => {
     const holder = new El('div')
+    holder.className = 'searchCard'
     holder.setAttribute('data-tracking-meta', `{"classified_ref":"${ref}"}`)
     const link = new El('a')
+    // La prise du registre sur une carte, relevée sur la page sauvegardée : le
+    // site l'écrit lui-même, quand la classe de l'ancre — `vehiclecardV2_…__dIhwe`
+    // — est régénérée à chaque build.
+    link.setAttribute('data-testid', 'vehicleCardV2')
     link.setAttribute('href', href(ref))
     holder.append(link)
-    body.append(holder)
+    list.append(holder)
     holders.set(ref, holder)
+    named.set(holder, ref)
+    return holder
   }
+  for (const [i, ref] of cards.entries()) {
+    // L'encart publicitaire de la page relevée : une `searchCard--propulse` sans
+    // métadonnées de suivi et sans lien d'annonce, glissée entre deux cartes.
+    // Le tri ne doit pas la déplacer — le site est payé pour ce rang-là.
+    if (i === 1) {
+      const promo = new El('div')
+      promo.className = 'searchCard searchCard--propulse'
+      list.append(promo)
+      named.set(promo, 'promo')
+    }
+    add(ref)
+  }
+  if (cards.length) body.append(list)
   // Retenus : c'est en réécrivant l'un d'eux qu'un test fait changer la page de
   // charge, comme le ferait le site.
   const inline = scripts.map((text) => {
@@ -122,8 +148,18 @@ export const page = ({ path, scripts, label = null, cards = [], cache = {}, pric
   return {
     ...staged,
     body,
+    list,
     scripts: inline,
     badge: (ref) => holders.get(ref).querySelector('[data-adscope]'),
     panel: () => body.querySelector('[data-adscope-detail]'),
+    // Ce que le conteneur montre, de haut en bas : une référence par carte, et
+    // `promo` pour l'encart. C'est là-dessus que se juge un tri.
+    order: () => list.children.map((n) => named.get(n) || n.className),
+    // Le lazy-load du site : une carte de plus au bout du conteneur, et la
+    // charge réécrite pour la porter — ce qu'un défilement produit réellement.
+    lazy: (card) => {
+      add(card.reference)
+      inline[0].textContent = results([...CARDS, card])[0]
+    },
   }
 }

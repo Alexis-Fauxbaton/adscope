@@ -142,8 +142,8 @@ ADS.lacentrale = ADS.sites.register((() => {
 
   return {
     id: SITE, name: 'La Centrale', origins: ['https://www.lacentrale.fr'],
-    urlId, card: cardOf, dateNode, mount, words, claim, displayed,
-    fromDocument, fromScripts, payload, signals,
+    urlId, card: cardOf, cards: 'a[data-testid="vehicleCardV2"]', wrap: '[data-tracking-meta]',
+    dateNode, mount, words, claim, displayed, fromDocument, fromScripts, payload, signals,
   }
 })())
 
