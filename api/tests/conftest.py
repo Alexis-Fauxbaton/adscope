@@ -1,5 +1,7 @@
 import os
 import threading
+from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,6 +13,7 @@ from adscope_api.auth import hash_key, new_key
 from adscope_api.db import create_all, get_session
 from adscope_api.main import app
 from adscope_api.models import Base, License
+from adscope_api.sessions import now_utc
 
 TEST_URL = os.environ.get(
     "ADSCOPE_TEST_DATABASE_URL", "postgresql+psycopg://localhost/adscope_test"
@@ -50,6 +53,20 @@ def client(session):
 
 def auth(key):
     return {"Authorization": f"Bearer {key}"}
+
+
+NOW = datetime(2026, 9, 18, 12, 0, tzinfo=timezone.utc)
+
+
+# L'horloge des routes, posée à la main. Un jeton qui périme en un quart d'heure
+# et une session qui dure quatre-vingt-dix jours ne s'éprouvent pas en attendant
+# : l'instant s'injecte, et `clock.now = ...` avance le temps d'un test.
+@pytest.fixture
+def clock():
+    box = SimpleNamespace(now=NOW)
+    app.dependency_overrides[now_utc] = lambda: box.now
+    yield box
+    app.dependency_overrides.pop(now_utc, None)
 
 
 # La fermeture des journées passées n'a lieu qu'une fois par jour et par

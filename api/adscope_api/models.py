@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 # Réexportées : `Base.metadata` doit les porter, et `from .models import ...`
 # continue de les trouver là où on les a toujours prises.
+from .auth_models import Account, LoginToken, SessionToken  # noqa: F401
 from .follow_models import Follow, TrackedFamily  # noqa: F401
 from .usage_models import UsageDay, UsageSummary  # noqa: F401
 
@@ -110,9 +111,17 @@ class PricePoint(Base):
 
 class License(Base):
     __tablename__ = "licenses"
+    __table_args__ = (Index("ix_licenses_account", "account_id"),)
 
     key_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     label: Mapped[str] = mapped_column(String(64))
+    # À qui elle appartient. Nulle pour une clé de machine — le crawler n'est
+    # pas un humain et n'a pas d'adresse. `SET NULL` plutôt que cascade : un
+    # compte supprimé ne doit pas emporter l'historique de marché que sa licence
+    # a produit, dont `price_points` porte l'empreinte.
+    account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("accounts.id", ondelete="SET NULL"), default=None
+    )
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     # Un émetteur automatique — le crawler local — poste avec une licence comme
     # l'extension. Sans cette marque ses observations passent pour l'usage d'un
@@ -124,3 +133,5 @@ class License(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+    account: Mapped[Account | None] = relationship()

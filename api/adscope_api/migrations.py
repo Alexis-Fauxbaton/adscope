@@ -100,6 +100,32 @@ MIGRATIONS = (
         " model varchar(128) NOT NULL,"
         " PRIMARY KEY (license_key_hash, brand, model))",
     )),
+    # Le compte, et de quoi s'y connecter sans jamais voir de clé. Trois tables
+    # neuves et une colonne vide sur les quatre licences : les clés continuent
+    # de passer, une licence sans compte reste une licence — c'est ce que porte
+    # une machine. La migration ne rattache rien, un libellé n'est pas une
+    # adresse : `scripts/attach_account.py` le fait. `SET NULL` sur la licence
+    # parce que fermer un compte ne doit pas emporter l'historique de marché
+    # qu'elle a produit. Les deux index portent une colonne qui référence, que
+    # Postgres n'indexe pas seul : le plafond des liens, la cascade d'un compte.
+    ("009_accounts", (
+        "CREATE TABLE IF NOT EXISTS accounts (id serial PRIMARY KEY,"
+        " email varchar(254) NOT NULL UNIQUE,"
+        " created_at timestamptz NOT NULL DEFAULT now())",
+        "ALTER TABLE licenses ADD COLUMN IF NOT EXISTS account_id integer"
+        " REFERENCES accounts (id) ON DELETE SET NULL",
+        "CREATE INDEX IF NOT EXISTS ix_licenses_account ON licenses (account_id)",
+        "CREATE TABLE IF NOT EXISTS login_tokens (token_hash varchar(64) PRIMARY KEY,"
+        " account_id integer NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,"
+        " expires_at timestamptz NOT NULL, used_at timestamptz)",
+        "CREATE INDEX IF NOT EXISTS ix_login_tokens_account"
+        " ON login_tokens (account_id, expires_at)",
+        "CREATE TABLE IF NOT EXISTS sessions (token_hash varchar(64) PRIMARY KEY,"
+        " account_id integer NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,"
+        " created_at timestamptz NOT NULL, last_seen_at timestamptz NOT NULL,"
+        " expires_at timestamptz NOT NULL)",
+        "CREATE INDEX IF NOT EXISTS ix_sessions_account ON sessions (account_id)",
+    )),
 )
 
 

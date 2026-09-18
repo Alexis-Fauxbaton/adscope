@@ -18,6 +18,12 @@
   <key>EnvironmentVariables</key>
   <dict>
     <key>DATABASE_URL</key><string>postgresql+psycopg://localhost/adscope</string>
+    <!-- Mode local : /v1/auth/login rend le lien de connexion dans sa réponse.
+         Tant qu'aucun fournisseur d'envoi n'est branché, c'est le seul moyen de
+         se connecter. À retirer au go-live : qui peut appeler l'API entre dans
+         n'importe quel compte. Le service l'annonce au démarrage dans
+         ~/Library/Logs/adscope-api.log. -->
+    <key>ADSCOPE_DEV_LOGIN</key><string>1</string>
   </dict>
 
   <key>RunAtLoad</key><true/>

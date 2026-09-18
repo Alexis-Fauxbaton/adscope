@@ -9,6 +9,10 @@ from adscope_api.migrations import MIGRATIONS, apply_migrations
 
 
 def to_old_shape(session):
+    session.execute(text("DROP TABLE IF EXISTS login_tokens"))
+    session.execute(text("DROP TABLE IF EXISTS sessions"))
+    session.execute(text("ALTER TABLE licenses DROP COLUMN IF EXISTS account_id"))
+    session.execute(text("DROP TABLE IF EXISTS accounts"))
     session.execute(text("DROP TABLE IF EXISTS follows"))
     session.execute(text("DROP TABLE IF EXISTS tracked_families"))
     session.execute(text("DROP INDEX IF EXISTS ix_listings_brand_model_year"))
@@ -239,9 +243,51 @@ def test_the_index_on_the_referencing_column_exists(session):
 # développement passe par l'une, la base de test par l'autre, et un écart entre
 # les deux ne se verrait qu'en production.
 def test_the_migration_produces_the_columns_that_create_all_produces(session):
+    from adscope_api.auth_models import Account, LoginToken, SessionToken
     from adscope_api.follow_models import Follow, TrackedFamily
+    from adscope_api.models import License
 
     to_old_shape(session)
     apply_migrations(session.connection())
-    for model in (Follow, TrackedFamily):
+    for model in (Follow, TrackedFamily, Account, LoginToken, SessionToken, License):
         assert columns(session, model.__tablename__) == set(model.__table__.c.keys())
+
+
+# Les trois tables du compte arrivent sur une base qui porte 51 712 annonces et
+# quatre licences : elles sont neuves et vides, et les licences gardent leur
+# colonne de compte vide — la migration ne rattache rien.
+def test_migration_adds_the_account_tables(session):
+    to_old_shape(session)
+    assert not {"accounts", "login_tokens", "sessions"} & tables(session)
+    apply_migrations(session.connection())
+    assert {"accounts", "login_tokens", "sessions"} <= tables(session)
+
+
+def test_the_licenses_already_recorded_carry_no_account(session):
+    to_old_shape(session)
+    with_licenses(session)
+    apply_migrations(session.connection())
+    rows = session.execute(
+        text("SELECT label, account_id FROM licenses ORDER BY label")
+    ).all()
+    assert rows == [("alexis", None), ("crawler", None)]
+
+
+# Sans cet index, le plafond des cinq liens par quart d'heure balaie tous les
+# jetons frappés pour honorer le compte d'une seule adresse.
+def test_the_index_serving_the_login_cap_exists(session):
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    indexes = session.execute(text(
+        "SELECT indexname FROM pg_indexes WHERE tablename = 'login_tokens'"
+    ))
+    assert "ix_login_tokens_account" in {row[0] for row in indexes}
+
+
+def test_the_index_on_the_sessions_account_exists(session):
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    indexes = session.execute(text(
+        "SELECT indexname FROM pg_indexes WHERE tablename = 'sessions'"
+    ))
+    assert "ix_sessions_account" in {row[0] for row in indexes}

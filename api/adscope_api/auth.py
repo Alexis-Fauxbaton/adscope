@@ -2,8 +2,10 @@ import hashlib
 import secrets
 from datetime import datetime, timezone
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request
+from sqlalchemy import select
 
+from . import sessions
 from .db import get_session
 from .models import License
 
@@ -51,12 +53,45 @@ def mark_automated(session, key_or_hash: str, automated=True) -> License | None:
     return license_
 
 
+def of_account(session, account_id: int, now: datetime) -> License | None:
+    """La licence d'un compte : la plus ancienne qui vaille encore.
+
+    Un compte n'en porte qu'une aujourd'hui — `attach_account` fusionne ce qui
+    traînait ailleurs sur celle-là. Rien n'empêche qu'il en porte deux demain
+    (une machine rattachée au même humain) : l'ordre par date de création rend
+    alors toujours la même, plutôt qu'une au hasard de l'index.
+    """
+    for license_ in session.scalars(
+        select(License).where(License.account_id == account_id)
+        .order_by(License.created_at, License.key_hash)
+    ):
+        if license_.active and (license_.expires_at is None or license_.expires_at > now):
+            return license_
+    return None
+
+
 # La porte, ici plutôt que dans `main` : les suivis ouvrent leurs routes dans
 # leur propre module, et `main` qui les monte ne peut pas leur prêter sa
 # dépendance sans que les deux s'importent l'un l'autre.
-def require_license(authorization: str = Header(default=""), session=Depends(get_session)):
+#
+# Deux façons d'entrer, une seule valeur rendue — la licence. Les machines
+# portent la clé, un humain porte le cookie de sa session et ne voit jamais de
+# clé. Aucune route n'a à savoir laquelle des deux l'a ouverte.
+def require_license(request: Request, authorization: str = Header(default=""),
+                    session=Depends(get_session), now=Depends(sessions.now_utc)):
     scheme, _, key = authorization.partition(" ")
-    license_ = resolve(session, key) if scheme.lower() == "bearer" and key else None
+    if scheme.lower() == "bearer" and key:
+        license_ = resolve(session, key, now)
+        if license_ is None:
+            raise HTTPException(status_code=401, detail="licence invalide")
+        return license_
+    row = sessions.resolve(session, request.cookies.get(sessions.COOKIE, ""), now)
+    if row is None:
+        raise HTTPException(status_code=401, detail="licence invalide")
+    sessions.check_csrf(request)
+    license_ = of_account(session, row.account_id, now)
     if license_ is None:
         raise HTTPException(status_code=401, detail="licence invalide")
+    if sessions.touch(row, now):
+        session.commit()
     return license_
