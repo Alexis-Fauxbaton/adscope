@@ -100,6 +100,8 @@ export const open = async ({
   }
   const asked = []
   const messages = []
+  const opened = []
+  globalThis.window = { open: (url, target) => opened.push({ url, target }) }
   globalThis.document = {
     getElementById: (id) => (nodes[id] = nodes[id] || new El()),
     createElement: (t) => new El(t),
@@ -125,5 +127,5 @@ export const open = async ({
     require(path)
   }
   await new Promise((r) => setTimeout(r, 0))
-  return { nodes, asked, messages, popup, src }
+  return { nodes, asked, messages, opened, popup, src }
 }

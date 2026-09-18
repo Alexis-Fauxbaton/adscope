@@ -70,3 +70,19 @@ test('sans clé de licence, aucune demande ne part', async () => {
   const { asked } = await open({ status: detail(), licenseKey: '' })
   assert.equal(asked.length, 0)
 })
+
+// Rouge sur `window.open` dans le handler `el('open-app').onclick` de
+// popup/popup.js : sans lui, le bouton ne fait rien.
+test('le bouton « Ouvrir adscope » ouvre l’app du site dans un nouvel onglet', async () => {
+  const { nodes, opened } = await open({ status: detail(), apiBase: 'http://api' })
+  nodes['open-app'].onclick()
+  assert.deepEqual(opened, [{ url: 'http://api/app', target: '_blank' }])
+})
+
+// Rouge sur `isBase(apiBase)` du même handler : sans lui, une adresse mal
+// formée ouvrirait quand même un onglet vers une URL invalide.
+test('une adresse d’API mal formée ne déclenche aucune ouverture', async () => {
+  const { nodes, opened } = await open({ status: detail(), apiBase: 'pas une adresse' })
+  nodes['open-app'].onclick()
+  assert.deepEqual(opened, [])
+})

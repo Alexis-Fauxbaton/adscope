@@ -48,6 +48,14 @@ el('api-save').onclick = async () => {
   else note('api-note', 'warn', `Adresse enregistrée, mais le navigateur en refuse l’accès : l’extension ne pourra pas joindre ${value}.`)
 }
 
+// Ouvrir l'application sur le site, dans un nouvel onglet : `window.open` reste
+// dans les gestes qu'une popup fait déjà sans permission propre, à la
+// différence de `chrome.tabs.create`.
+el('open-app').onclick = () => {
+  const apiBase = base(el('api').value)
+  if (isBase(apiBase)) window.open(`${apiBase}/app`, '_blank')
+}
+
 el('test').onclick = async () => {
   const apiBase = base(el('api').value)
   const licenseKey = key || el('key').value.trim()
