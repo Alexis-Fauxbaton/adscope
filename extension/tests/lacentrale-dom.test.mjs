@@ -25,8 +25,11 @@ const listing = () =>
 // Ce que le site n'écrit nulle part sur ses cartes : depuis quand l'annonce est
 // en ligne. La page de résultats n'affiche aucune ancienneté, la charge la porte.
 test('sur une page de résultats, chaque carte porte son ancienneté réelle', () => {
-  const w = listing()
-  w.load('listing.js')
+  const w = at(RELEVE, () => {
+    const w = listing()
+    w.load('listing.js')
+    return w
+  })
   assert.equal(w.status().kind, 'listing')
   assert.equal(w.status().listings, 23)
   assert.equal(w.status().badges, 23)
@@ -126,8 +129,11 @@ test("sur une fiche sans date, le panneau et la fenêtre refusent d'épeler un �
 // L'alerte de La Centrale est le plafond de son compteur, mesuré sur sa fiche ;
 // celle de leboncoin — ancienne et encore poussée — n'y est pas transposée.
 test('la carte qui dépasse le plafond du site est mise en alerte, pas les autres', () => {
-  const w = listing()
-  w.load('listing.js')
+  const w = at(RELEVE, () => {
+    const w = listing()
+    w.load('listing.js')
+    return w
+  })
   assert.match(w.badge(OLDEST).className, /adscope-badge--notable/)
   assert.match(w.badge(FRESH).className, /adscope-badge--quiet/)
 })
@@ -201,12 +207,15 @@ test("la fiche est reconnue par la référence que porte son adresse", () => {
 })
 
 test("sous le plafond, aucune contradiction n'est inventée", () => {
-  const w = page({
-    path: '/auto-occasion-annonce-87103538172.html',
-    scripts: fiche(FICHES.uncapped, { sellerName: 'CW AUTOMOBILES' }),
-    label: 'Publiée il y a 23 jours',
+  const w = at(RELEVE, () => {
+    const w = page({
+      path: '/auto-occasion-annonce-87103538172.html',
+      scripts: fiche(FICHES.uncapped, { sellerName: 'CW AUTOMOBILES' }),
+      label: 'Publiée il y a 23 jours',
+    })
+    w.load('detail.js')
+    return w
   })
-  w.load('detail.js')
   assert.equal(w.panel().querySelector('.adscope-pill'), null)
   assert.match(w.panel().textContent, /professionnel/)
   assert.equal(w.panel().className, 'adscope-panel')

@@ -3,6 +3,10 @@ import assert from 'node:assert/strict'
 import { ad, world } from './world.mjs'
 import { at } from './stage.mjs'
 
+// Le jour du relevé des annonces de la fabrique : deux dates à comparer, il faut
+// une horloge arrêtée.
+const RELEVE = '2026-09-06T18:00:00Z'
+
 test('la fiche ne refait pas le travail lourd à chaque lot de mutations', () => {
   const w = world('0')
   w.load('detail.js')
@@ -40,9 +44,12 @@ test('la pastille pose un nœud par origine', () => {
 // `weight` de src/listing.js, dont le `|| tracked` peignait la carte en alerte
 // pour une annonce dont la page ne dit rien d'anormal.
 test("la flèche de baisse ne met pas la carte en alerte", () => {
-  const w = world('3254194817')
-  w.load('listing.js')
-  w.arrive({ 3254194817: { price: 29190, price_delta_since_first: -1200, price_delta_days_since_first: 9 } })
+  const w = at(RELEVE, () => {
+    const w = world('3254194817')
+    w.load('listing.js')
+    w.arrive({ 3254194817: { price: 29190, price_delta_since_first: -1200, price_delta_days_since_first: 9 } })
+    return w
+  })
   assert.match(w.badge().children[1].textContent, /^↓ 1/)
   assert.doesNotMatch(w.badge().className, /adscope-badge--notable/)
 })
@@ -50,9 +57,12 @@ test("la flèche de baisse ne met pas la carte en alerte", () => {
 // Un prix qui monte, ou qui n'a jamais bougé, n'a pas de flèche : la pastille
 // reste au seul fragment de la page. Rouge sur `fall` de src/view.js.
 test("sans baisse, la carte ne porte que ce que la page dit", () => {
-  const w = world('3254194817')
-  w.load('listing.js')
-  w.arrive({ 3254194817: { price: 29990, price_delta_since_first: 800, price_delta_days_since_first: 12 } })
+  const w = at(RELEVE, () => {
+    const w = world('3254194817')
+    w.load('listing.js')
+    w.arrive({ 3254194817: { price: 29990, price_delta_since_first: 800, price_delta_days_since_first: 12 } })
+    return w
+  })
   assert.deepEqual(w.badge().children.map((c) => c.className), ['adscope-badge-page'])
   assert.ok(!w.badge().textContent.includes('↓'))
 })
@@ -73,9 +83,6 @@ test('la fiche suivante chasse la précédente en navigation monopage', () => {
   assert.doesNotMatch(w.panel().textContent, /professionnel/)
 })
 
-// Le jour du relevé des annonces de la fabrique : deux dates à comparer, il faut
-// une horloge arrêtée.
-const RELEVE = '2026-09-06T18:00:00Z'
 const alone = (id) =>
   at(RELEVE, () => {
     const w = world(id)
