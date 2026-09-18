@@ -1,6 +1,7 @@
 // /app/revisites.html — pilotée par un marchand ou par la session cowork qui
-// suit `crawler/RUNBOOK-revisites.md`. Le navigateur détient la licence,
-// cette page ne fait que la porter jusqu'à l'API ; elle ne l'affiche jamais.
+// suit `crawler/RUNBOOK-revisites.md`. La session vit dans un cookie que le
+// navigateur porte tout seul ; cette page ne fait jamais que demander
+// `/v1/me` pour savoir si elle est là.
 
 import * as api from './api.js'
 import { clear, el } from './dom.js'
@@ -38,10 +39,10 @@ async function demanderFile(bouton, erreur) {
     writeQueue(sessionStorage, items)
     peindre('queue', items)
   } catch (err) {
-    // Une licence refusée et une API muette ne se disent pas pareil : dans un
+    // Une session refusée et une API muette ne se disent pas pareil : dans un
     // cas le marchand se reconnecte, dans l'autre il n'y peut rien.
     erreur.textContent = err instanceof api.AuthError
-      ? 'Licence refusée — reconnectez-vous sur /app'
+      ? 'Session refusée — reconnectez-vous sur /app'
       : "L'API n'a pas répondu. Réessayez dans un instant."
     erreur.hidden = false
     bouton.disabled = false
@@ -82,8 +83,12 @@ function demarrer() {
     })
     return
   }
-  const cached = readQueue(sessionStorage)
-  peindre(initialView(Boolean(api.licenseKey()), cached), cached || [])
+  api.me()
+    .then(() => {
+      const cached = readQueue(sessionStorage)
+      peindre(initialView(true, cached), cached || [])
+    })
+    .catch(() => peindre('no-license'))
 }
 
 demarrer()

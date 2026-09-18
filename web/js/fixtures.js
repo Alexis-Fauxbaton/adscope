@@ -104,7 +104,7 @@ export function market(params) {
 }
 
 export function me() {
-  return { label: 'Garage démo', expires_at: isoDaysBefore(-180) }
+  return { email: 'demo@adscope.fr', label: 'Garage démo' }
 }
 
 // Une file factice, pour dessiner et capturer `/app/revisites.html` sans

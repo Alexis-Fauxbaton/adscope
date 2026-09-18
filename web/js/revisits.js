@@ -19,11 +19,11 @@ export function parseLimit(search) {
   return Math.min(Math.round(raw), MAX_LIMIT)
 }
 
-// Ce que la page doit montrer avant tout appel réseau. Sans licence, rien ne
+// Ce que la page doit montrer avant tout appel réseau. Sans session, rien ne
 // se demande. Avec une file déjà obtenue ce run, on la réaffiche — un
 // rechargement ne redemande jamais, il consommerait des fiches pour rien.
-export function initialView(hasLicense, cachedQueue) {
-  if (!hasLicense) return 'no-license'
+export function initialView(hasSession, cachedQueue) {
+  if (!hasSession) return 'no-license'
   if (cachedQueue) return 'queue'
   return 'idle'
 }

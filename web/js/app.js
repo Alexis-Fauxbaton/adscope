@@ -1,4 +1,4 @@
-// L'assemblage : deux entrées en haut, une vue dessous, la licence en garde.
+// L'assemblage : deux entrées en haut, une vue dessous, la session en garde.
 
 import * as api from './api.js'
 import { clear, el } from './dom.js'
@@ -17,11 +17,22 @@ const state = {
   items: [],
   total: 0,
   families: null,
-  onAuthError: () => { api.forgetLicense(); demarrer() },
+  email: null,
+  onAuthError: () => { montrerConnexion() },
 }
 
 function route() {
   return ROUTES.some(([href]) => href === location.hash) ? location.hash : ROUTES[0][0]
+}
+
+async function deconnecter() {
+  // `?demo=1` n'a jamais de session à couper : le bouton reste sans effet,
+  // comme le reste du mode démo qui ne fait aucun appel.
+  if (api.isDemo()) return
+  // Le cookie tombe côté serveur ; qu'il réponde ou non, il n'y a plus rien à
+  // montrer ici qu'un écran de connexion.
+  try { await api.logout() } catch { /* déjà tombée, ou API muette */ }
+  montrerConnexion()
 }
 
 function entete() {
@@ -34,11 +45,10 @@ function entete() {
       'aria-current': href === courant ? 'page' : null,
       text: label,
     }))),
-    el('button', {
-      class: 'deco',
-      text: 'Se déconnecter',
-      onclick: () => { api.forgetLicense(); demarrer() },
-    }),
+    el('div', { class: 'tete-compte' }, [
+      state.email && el('span', { class: 'moi', text: state.email }),
+      el('button', { class: 'deco', text: 'Se déconnecter', onclick: deconnecter }),
+    ]),
   ]))
 }
 
@@ -52,12 +62,24 @@ function vue() {
   else renderFollows(zone, state)
 }
 
-function demarrer() {
-  if (!api.isDemo() && !api.licenseKey()) {
-    renderLogin(racine, demarrer)
-    return
+function montrerConnexion() {
+  state.email = null
+  renderLogin(racine)
+}
+
+// Connecté ou non se sait par ce que rend `/v1/me` — jamais par un secret
+// gardé côté navigateur. Une panne d'API se traite pareil qu'une session
+// absente : sans identité confirmée, il n'y a que l'écran de connexion à
+// montrer.
+async function demarrer() {
+  if (api.isDemo()) { vue(); return }
+  try {
+    const moi = await api.me()
+    state.email = moi.email
+    vue()
+  } catch {
+    montrerConnexion()
   }
-  vue()
 }
 
 addEventListener('hashchange', vue)

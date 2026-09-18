@@ -39,10 +39,9 @@ a{color:inherit}
   padding:9px 16px; border-radius:999px; white-space:nowrap;
 }
 .nav-a.on{background:var(--carte); color:var(--encre); box-shadow:var(--ombre)}
-.deco{
-  margin-left:auto; font-size:13.5px; font-weight:600; color:var(--faible);
-  white-space:nowrap;
-}
+.tete-compte{margin-left:auto; display:flex; align-items:center; gap:14px}
+.moi{font-size:13.5px; color:var(--grise); white-space:nowrap}
+.deco{font-size:13.5px; font-weight:600; color:var(--faible); white-space:nowrap}
 .deco:hover{color:var(--douce)}
 
 /* ── page ── */
