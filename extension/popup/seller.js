@@ -98,37 +98,14 @@ ADS.seller = (() => {
   // ouverte et laquelle, sans un seul événement de télémétrie. Un vendeur
   // inconnu ou une API muette ne rendent rien — la popup n'en parle pas.
   //
-  // Les deux segments viennent de la charge d'une page tierce — c'est le site
-  // ouvert qui les écrit, jamais nous : interpolés tels quels, un `?`, un `#`
-  // ou un `/` déplacerait le chemin appelé ou greffe une chaîne de requête.
-  // Encodés, ils restent un segment chacun.
-  //
-  // L'encodage ne suffit pourtant pas : le point n'est pas un caractère réservé,
-  // `encodeURIComponent('..')` rend `..`, et l'analyseur d'URL résout ce segment
-  // avant l'appel — `sellerId` à `..` appelait `/v1/sellers/`. Un segment réduit
-  // à des points ne peut pas s'écrire comme un segment : aucun vendeur ne porte
-  // ce nom, la demande n'est pas faite.
-  const DOTS = /^\.+$/
+  // La demande elle-même — le segment de l'annonce tierce à encoder, la clé
+  // ou le cookie de session à poser — est celle du service worker : c'est
+  // `ADS.lookup.seller`, relayée comme `/v1/me` et le cache le sont déjà
+  // depuis `popup.js`, jamais un `fetch` propre à la popup. Un seul endroit
+  // construit l'authentification d'un appel à l'API — `src/auth.js` — et ce
+  // fichier n'en était pas moins un second avant ce lot.
 
-  const segment = (s) => {
-    const encoded = encodeURIComponent(String(s))
-    return DOTS.test(encoded) ? null : encoded
-  }
-
-  const ask = async (apiBase, licenseKey, site, sellerId, f = fetch) => {
-    const path = [segment(site), segment(sellerId)]
-    if (path.some((p) => p === null)) return null
-    try {
-      const res = await f(`${apiBase}/v1/sellers/${path.join('/')}`, {
-        headers: { Authorization: `Bearer ${licenseKey}` },
-      })
-      return res.ok ? await res.json() : null
-    } catch {
-      return null
-    }
-  }
-
-  return { block, fetch: ask, MIN_SAMPLE }
+  return { block, MIN_SAMPLE }
 })()
 
 if (typeof module !== 'undefined') module.exports = ADS.seller

@@ -18,13 +18,17 @@ ADS.lookup = (() => {
     return DOTS.test(encoded) ? null : encoded
   }
 
-  const get = async (parts, { apiBase, licenseKey }) => {
-    if (!licenseKey) return null
+  // Clé configurée → Bearer, machines inchangées ; sinon cookie de session —
+  // le même chemin que `sw.js` construit pour `sync`, `follow` et `absent`,
+  // par `ADS.auth`, jamais recomposé ici.
+  const get = async (parts, cfg) => {
     const path = parts.map(segment)
     if (path.some((p) => p === null)) return null
-    const res = await fetch(`${apiBase}/v1/${path.join('/')}`, {
-      headers: { Authorization: `Bearer ${licenseKey}` },
+    const res = await fetch(`${cfg.apiBase}/v1/${path.join('/')}`, {
+      headers: ADS.auth.headers(cfg),
+      credentials: ADS.auth.credentials(cfg),
     })
+    await ADS.auth.mark(cfg, res.status)
     // Une annonce inconnue de la base rend 404 : ce n'est pas une panne, c'est
     // une réponse — le panneau se passe de la section, il ne l'invente pas.
     return res.ok ? res.json() : null

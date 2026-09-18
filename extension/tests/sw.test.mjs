@@ -189,6 +189,20 @@ test('en mode clé, un 401 ne pose aucun badge', async () => {
   assert.deepEqual(badge, [])
 })
 
+// Fait rougir `if (cfg.licenseKey) return false` dans `ADS.auth.mark` : sorti
+// avant toute mise à jour de `down`, le badge posé en mode session restait
+// affiché pour toujours une fois une clé configurée, même l'appel réussi.
+test("le badge « ! » s'efface en passant en mode clé", async () => {
+  const { badge, ask, setStatus, store } = boot({ licenseKey: '', status: 401 })
+  await ask({ type: 'sync', site: 'lbc', listings: [listing('1')] })
+  assert.deepEqual(badge.at(-1), { text: '!' })
+
+  await store.local.set({ licenseKey: KEY })
+  setStatus(200)
+  await ask({ type: 'sync', site: 'lbc', listings: [listing('2')] })
+  assert.deepEqual(badge.at(-1), { text: '' })
+})
+
 test('la purge opportuniste a lieu au chargement, une fois par jour', async () => {
   const old = { ...seed('vieille', NOW - 31 * 24 * HOUR) }
   const { store, ask } = boot({ entries: old })

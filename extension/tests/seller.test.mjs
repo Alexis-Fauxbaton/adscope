@@ -107,72 +107,7 @@ test("sans relevé, il n'y a pas de bloc", () => {
   assert.equal(seller.block(null), null)
 })
 
-// L'appel est le signal : la popup demande, l'API répond ou ne connaît pas ce
-// vendeur. Aucune des deux issues ne doit casser la fenêtre.
-test('un vendeur inconnu de la base ne rend rien', async () => {
-  const fetch404 = async () => ({ ok: false, status: 404 })
-  assert.equal(await seller.fetch('http://api', 'adsc_x', 'lbc', '1', fetch404), null)
-})
-
-test('une API injoignable ne rend rien non plus', async () => {
-  const dead = async () => { throw new TypeError('Failed to fetch') }
-  assert.equal(await seller.fetch('http://api', 'adsc_x', 'lbc', '1', dead), null)
-})
-
-test('la demande porte la licence et le vendeur', async () => {
-  const seen = []
-  const ok = async (url, init) => (seen.push([url, init]), { ok: true, json: async () => stats() })
-  const s = await seller.fetch('http://api', 'adsc_x', 'lbc', '73911', ok)
-  assert.equal(seen[0][0], 'http://api/v1/sellers/lbc/73911')
-  assert.equal(seen[0][1].headers.Authorization, 'Bearer adsc_x')
-  assert.equal(s.seller_name, 'ENTREPOT 222')
-})
-
-// `sellerId` sort de la charge leboncoin : une page tierce le choisit. Sans
-// encodage, un `?`, un `#` ou un `/` change le chemin appelé ou greffe une
-// chaîne de requête sur la demande.
-//
-// L'encodage ne suffit pas : le point n'est pas un caractère réservé, donc
-// `encodeURIComponent('..')` rend `..` — et l'analyseur d'URL le résout. C'est
-// le chemin réellement appelé qu'on vérifie ici, jamais la chaîne construite.
-const called = async (site, sellerId) => {
-  const seen = []
-  const ok = async (url) => (seen.push(url), { ok: true, json: async () => stats() })
-  const out = await seller.fetch('http://api', 'adsc_x', site, sellerId, ok)
-  return { path: seen.length ? new URL(seen[0]).pathname : null, out }
-}
-
-test("un identifiant venu de la page ne peut pas détourner le chemin appelé", async () => {
-  const { path } = await called('lbc', '../../v1/me?x=1#f')
-  assert.equal(path, '/v1/sellers/lbc/..%2F..%2Fv1%2Fme%3Fx%3D1%23f')
-  assert.equal(path.split('/').length, 5)
-})
-
-test('le site aussi est encodé, il vient du même relevé', async () => {
-  const { path } = await called('lbc/../..', '73911')
-  assert.equal(path, '/v1/sellers/lbc%2F..%2F../73911')
-})
-
-// Mesuré avant correction : `sellerId` à `..` appelait `/v1/sellers/`, `site` à
-// `..` appelait `/v1/me`, les deux à `..` appelaient `/`. Un segment qu'on ne
-// peut pas exprimer comme un segment n'est pas un vendeur : on n'appelle pas.
-for (const dots of ['.', '..', '...']) {
-  test(`un identifiant réduit à « ${dots} » ne déclenche aucun appel`, async () => {
-    assert.deepEqual(await called('lbc', dots), { path: null, out: null })
-  })
-
-  test(`un site réduit à « ${dots} » ne déclenche aucun appel`, async () => {
-    assert.deepEqual(await called(dots, 'me'), { path: null, out: null })
-  })
-}
-
-test('les deux segments à « .. » n’appellent pas la racine', async () => {
-  assert.deepEqual(await called('..', '..'), { path: null, out: null })
-})
-
-// `%2e` est un point pour l'analyseur d'URL, mais celui-là vient de la page
-// telle quelle : encodé, son pourcent devient `%25` et il reste un segment.
-test('un identifiant qui écrit ses points en pourcent reste un segment', async () => {
-  const { path } = await called('lbc', '%2e%2e')
-  assert.equal(path, '/v1/sellers/lbc/%252e%252e')
-})
+// La demande réseau (segment, encodage, authentification) n'est plus ici :
+// `popup/seller.js` ne fait plus qu'un formatage pur depuis que `popup.js`
+// relaie « Ce vendeur » au service worker, sur la même route que le panneau
+// — `ADS.lookup.seller`, dans src/lookup.js, éprouvée par tests/lookup.test.mjs.

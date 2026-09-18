@@ -52,23 +52,15 @@ test('la note du petit échantillon arrive jusqu’à la fenêtre', async () => 
   assert.match(nodes.seller.text, /3 annonces/)
 })
 
-// Le bloc vendeur part au chargement, sans geste de l'utilisateur, et sa
-// demande porte la clé de licence : c'est le seul appel qui l'envoyait sans
-// avoir validé sa destination, contrairement au test et à l'enregistrement.
-test("une adresse d'API mal formée ne reçoit pas la clé", async () => {
-  const { asked } = await open({ status: detail(), apiBase: 'pas une adresse' })
-  assert.equal(asked.length, 0)
-})
-
-test("une adresse dont l'accès n'est pas accordé ne reçoit pas la clé", async () => {
-  const { asked, nodes } = await open({ status: detail(), granted: false })
-  assert.equal(asked.length, 0)
-  assert.equal(nodes['seller-box'].hidden, true)
-})
-
-test('sans clé de licence, aucune demande ne part', async () => {
-  const { asked } = await open({ status: detail(), licenseKey: '' })
-  assert.equal(asked.length, 0)
+// Fait rougir le passage de `showSeller` par le relais du service worker
+// (`ask({ type: 'seller', ... })`, dans popup/popup.js) plutôt qu'un `fetch`
+// propre à la popup : sans licence configurée, la demande doit partir quand
+// même — en cookie de session, comme `src/lookup.js` que `sw.js` appelle pour
+// elle — et non plus se taire faute de clé.
+test('sans clé de licence, la section « Ce vendeur » part quand même', async () => {
+  const { asked, nodes } = await open({ status: detail(), licenseKey: '' })
+  assert.equal(asked[0], 'http://api/v1/sellers/lbc/73911')
+  assert.equal(nodes['seller-box'].hidden, false)
 })
 
 // Rouge sur `window.open` dans le handler `el('open-app').onclick` de

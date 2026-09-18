@@ -22,8 +22,19 @@ ADS.auth = (() => {
   // machines n'en ouvrent pas. Le badge est global, pas par onglet : une
   // session tombée l'est partout. Il ne bouge qu'au changement d'état, pour
   // ne pas repeindre l'icône à chaque appel réussi.
+  //
+  // Un « ! » posé en mode session ne s'efface pas tout seul en changeant de
+  // mode : passer à une clé sort désormais par cette branche à chaque appel,
+  // et rien n'y redescendait `down`. Le badge restait posé pour toujours,
+  // même une fois la clé configurée et l'appel réussi.
   const mark = async (cfg, status) => {
-    if (cfg.licenseKey) return false
+    if (cfg.licenseKey) {
+      if (down) {
+        down = false
+        await chrome.action.setBadgeText({ text: '' })
+      }
+      return false
+    }
     const authRequired = status === 401
     if (authRequired === down) return authRequired
     down = authRequired

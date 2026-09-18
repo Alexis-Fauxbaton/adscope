@@ -25,6 +25,15 @@ ADS.dom = (() => {
 
   const hint = (text, bad) => tag('div', 'hint' + (bad ? ' bad' : ''), text)
 
+  // La note d'un geste — clé enregistrée, adresse refusée, test terminé —
+  // partagée par les quelques boutons qui en affichent une sous eux.
+  const note = (id, tone, text) => {
+    const n = el(id)
+    n.className = `note ${tone}`
+    n.textContent = text
+    n.hidden = false
+  }
+
   // Montrer ou cacher une section, et la remplir d'un coup : une section vide
   // laissée visible ferait croire à une panne.
   const fill = (id, nodes) => {
@@ -34,7 +43,7 @@ ADS.dom = (() => {
     return box
   }
 
-  return { el, tag, row, hint, fill }
+  return { el, tag, row, hint, fill, note }
 })()
 
 if (typeof module !== 'undefined') module.exports = ADS.dom

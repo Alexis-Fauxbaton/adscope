@@ -89,3 +89,120 @@ ci-dessus — hors du périmètre écrit, un marchand sans clé ne le verra pas.
 avec `Date` décalée d'un an (`--import` sur un module qui remplace
 `globalThis.Date`). `node -c` sur chaque fichier `.js` modifié. Pas de
 `git add -A` : tout est ajouté par chemin.
+
+---
+
+# Revue fermée : les trois défauts corrigés
+
+HEAD de départ 89eda88. Les trois points restés ouverts au lot précédent — le
+badge qui ne s'efface pas en repassant en mode clé, `src/lookup.js` et
+`popup/seller.js` non migrés, `popup/popup.js` à 159 lignes — sont corrigés.
+369 tests verts (373 avant, voir le compte plus bas), y compris avec `Date`
+décalée d'un an.
+
+## Le badge ne s'effaçait pas en passant en mode clé
+
+`src/auth.js:26` sortait de `mark()` par `if (cfg.licenseKey) return false`
+avant toute mise à jour de `down` : un « ! » posé en mode session restait posé
+à vie une fois une clé configurée, même l'appel suivant réussi. La branche clé
+efface maintenant le badge si `down` l'exigeait, avant de continuer à ne
+jamais le reposer elle-même (une clé de machine reste son propre défaut) :
+
+```js
+if (cfg.licenseKey) {
+  if (down) {
+    down = false
+    await chrome.action.setBadgeText({ text: '' })
+  }
+  return false
+}
+```
+
+Test : `tests/sw.test.mjs`, « le badge « ! » s'efface en passant en mode clé »
+— 401 hors mode clé pose le badge, puis une clé est écrite dans le stockage et
+un appel réussi suit ; cassé en revenant à l'ancienne ligne pour le vérifier.
+
+## `src/lookup.js` et `popup/seller.js` migrés à leur tour
+
+Les deux appels que le lot précédent avait signalés sans les corriger
+(§ « Ce qui reste hors de ce lot » ci-dessus) construisaient encore leur propre
+`Authorization: Bearer` et sortaient tôt sans clé — un marchand sans clé ne
+voyait donc plus « Ce vendeur », ni sur le panneau ni sur la popup : le défaut
+qu'on venait de corriger une fois pour les autres routes.
+
+- **`src/lookup.js`** : `get()` passe par `ADS.auth.headers`/`credentials`
+  (comme `sw.js` le fait déjà pour `sync`, `follow`, `absent`) et par
+  `ADS.auth.mark()` pour le badge, au lieu d'un en-tête construit sur place
+  derrière `if (!licenseKey) return null`.
+- **`popup/seller.js`** : la partie réseau (segment, encodage, fetch, clé) est
+  retirée — ce fichier ne fait plus que du formatage pur (`block`). La demande
+  passe désormais par le service worker, comme `/v1/me` (la raison donnée plus
+  haut pour ce choix s'applique enfin ici aussi) : `popup/popup.js` envoie
+  `{ type: 'seller', site, sellerId }` par `chrome.runtime.sendMessage`, et
+  `sw.js` la relaie à `ADS.lookup.seller` — la popup n'a plus de clé à porter
+  ni de destination à valider avant d'envoyer, ce qui rend `isBase`/`granted`
+  sans objet pour cet appel.
+
+`grep -rn "fetch(" extension/src extension/popup` ne rend plus que trois
+endroits qui *appellent* fetch (`src/lookup.js`, `src/sw.js`,
+`popup/config.js`) et un seul qui *construit* l'authentification :
+`ADS.auth.headers`/`credentials` dans `src/auth.js`. `popup/config.js` n'est
+pas touché — sa fonction `probe()` teste une clé que l'utilisateur vient de
+taper, pas encore enregistrée (le bouton « Tester »), un outil de diagnostic
+pour une clé de machine explicite, sans rapport avec le mode session ; la
+tâche ne le nommait pas.
+
+Tests : `tests/lookup.test.mjs` gagne un test « sans clé de licence, les deux
+lectures partent quand même — en cookie de session » et reprend les tests de
+garde de segment (points, barres, encodage) qui vivaient en double dans
+`tests/seller.test.mjs` — la même garde `DOTS`/`segment` de `src/lookup.js` est
+maintenant le seul endroit qui la construit, pour les deux appelants (panneau
+et popup). `tests/seller.test.mjs` ne garde que les tests de `block()` (pur,
+sans réseau). `tests/popup.test.mjs` : le test « sans clé de licence, aucune
+demande ne part » devient « … la section « Ce vendeur » part quand même » ; les
+deux tests qui gardaient la demande derrière une adresse valide et un accès
+accordé sont retirés — cette vérification n'a plus de sens ici, elle n'existe
+pas non plus pour `/v1/me` ou le cache, relayés de la même façon.
+
+## `popup/popup.js` découpé
+
+Il était à 159 lignes. La configuration de compte (clé de machine, adresse de
+l'API, bouton « Tester », état connecté/déconnecté) part dans
+`popup/account.js` (nouveau, `ADS.account`, 90 lignes) — un module au même
+gabarit que les autres modules de la popup (`ADS.config`, `ADS.report`…),
+chargé après `dom.js`/`config.js` dans `popup.html`. `popup/popup.js` retombe
+à 76 lignes : le diagnostic de page, le résumé, « Ce vendeur », le cache.
+
+`popup/dom.js` gagne `note()` (la note sous un bouton — clé, adresse, test,
+cache), partagée par `account.js` et `popup.js`, plutôt que dupliquée.
+
+`tests/popup-dom.mjs` charge `account.js` avant `popup.js` dans son harnais,
+comme `popup.html` le fait.
+
+## Fichiers touchés dans cette passe
+
+| Fichier | Lignes | Ce qui a changé |
+|---|---|---|
+| `src/auth.js` | 49 | le badge s'efface en passant en mode clé |
+| `src/lookup.js` | 47 | passe par `ADS.auth`, plus de garde `!licenseKey` |
+| `popup/seller.js` | 111 | formatage seul, plus de réseau |
+| `popup/account.js` | 90 | nouveau — clé, adresse, compte (extrait de popup.js) |
+| `popup/popup.js` | 76 | diagnostic, résumé, vendeur, cache |
+| `popup/dom.js` | 49 | `note()` partagé |
+| `popup/popup.html` | — | `<script src="account.js">` avant `popup.js` |
+
+Aucun fichier source de ce lot ne dépasse 150 lignes.
+
+## Vérifié
+
+`cd extension && node --test tests/*.test.mjs` → 369 pass, 0 fail (373 avant
+cette passe ; -13 tests de réseau dupliqués dans `seller.test.mjs` retirés, +10
+portés dans `lookup.test.mjs`, +1 sur le badge, -2 nets dans `popup.test.mjs`
+sur des vérifications devenues sans objet — détail ci-dessus). Rejoué avec
+l'horloge système décalée d'un an (`--import` sur un petit module qui remplace
+`globalThis.Date`, gardé hors dépôt) : 369 pass, identique. `node -c` sur
+chaque fichier `.js` modifié. `node --test web/tests/*.test.mjs` : 52 pass,
+inchangé (aucun fichier de `web/` touché). Pas de `git add -A` : chaque
+fichier est ajouté par chemin. Les tests d'API (`api/tests`) n'ont pas été
+rejoués depuis cette session — hors périmètre (`extension/` seul), et un autre
+agent y travaillait en parallèle sur `feat/api`.

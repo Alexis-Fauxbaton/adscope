@@ -79,7 +79,7 @@ const FILES = [
   ['../src/', 'format.js'],
   ['../popup/', 'dom.js'], ['../popup/', 'config.js'], ['../popup/', 'report.js'], ['../popup/', 'seller.js'],
   ['../src/', 'curve.js'], ['../popup/', 'labels.js'], ['../popup/', 'chart.js'], ['../popup/', 'fiche.js'],
-  ['../popup/', 'popup.js'],
+  ['../popup/', 'account.js'], ['../popup/', 'popup.js'],
 ]
 
 // La fenêtre telle qu'elle s'ouvre : le stockage rend le dernier diagnostic, le
@@ -117,6 +117,15 @@ export const open = async ({
         messages.push(msg)
         if (msg.type === 'cached') return { ok: true, signals: cached ? { [status.pickedId]: cached } : {} }
         if (msg.type === 'me') return me
+        // Ce que `sw.js` rend pour `{ type: 'seller' }` : relayé à `ADS.lookup.seller`,
+        // par `ADS.auth` — c'est cette route réseau, pas un `fetch` de la popup, que
+        // `answer` simule ici, comme le fait le service worker réel.
+        if (msg.type === 'seller') {
+          const url = `${apiBase}/v1/sellers/${msg.site}/${msg.sellerId}`
+          asked.push(url)
+          const res = await answer(url, {})
+          return { ok: true, stats: res.ok ? await res.json() : null }
+        }
         return { entries: 0, bytes: 0, quota: 1000 }
       },
     },
