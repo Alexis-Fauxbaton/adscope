@@ -51,6 +51,7 @@ from sqlalchemy import case, or_, select
 
 from .follow_models import Follow, TrackedFamily
 from .models import Listing
+from .urls import _lbc
 
 log = logging.getLogger("adscope.revisit")
 
@@ -67,12 +68,6 @@ SPACING = timedelta(days=7)
 # fait la règle sur les horodatages ; ici, c'est le rendez-vous.
 CONFIRM_DELAY = timedelta(hours=6)
 OLD = timedelta(days=31)
-
-
-def _lbc(site_id: str) -> str | None:
-    if site_id.isdigit() and len(site_id) >= 6:
-        return f"https://www.leboncoin.fr/ad/voitures/{site_id}"
-    return None
 
 
 ADDRESS = {"lbc": _lbc}
