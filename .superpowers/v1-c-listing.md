@@ -5,7 +5,7 @@ n'a été poussé. `crawler/`, `scripts/`, `docs/` et les `.html` de la racine n
 touchés — les pages sauvegardées ont seulement été **lues**, et c'est d'elles que sortent les
 prises du registre.
 
-Tests : **359 verts** côté extension (347 avant le lot, +12), **250 verts** côté API,
+Tests : **359 verts** côté extension (346 avant le lot, +13), **250 verts** côté API,
 inchangés. Chaque test ajouté nomme la ligne de production qui le fait rougir, et chacune a
 été cassée pour le vérifier — la liste est à la fin.
 
@@ -101,20 +101,43 @@ commun et accepte plusieurs cartes.
 | sur la fixture leboncoin | `cards: 'article'` (leboncoin.js) · `list` (sites.js) |
 | aucune barre sur une fiche | le garde `ADS.diag.urlId` (sort.js) |
 | la flèche de baisse ne met pas la carte en alerte | `weight` (listing.js) |
-| sans baisse, aucune flèche | la condition `< 0` de `fall` (view.js) |
+| sans baisse, la carte ne porte que ce que la page dit | la condition `< 0` de `fall` (view.js) |
+| sans baisse, la carte ne porte aucune flèche | la condition `< 0` de `fall` (view.js) |
 
-Aucun de ces tests ne lit l'horloge : l'instant est injecté par `at(RELEVE, …)`, et les âges
-triés sont ceux du 6 septembre 2026, jour du relevé des deux pages.
+**Correction du 18/09, refusée en revue.** Deux des treize tests ci-dessus — « la flèche de
+baisse ne met pas la carte en alerte » et « sans baisse, la carte ne porte que ce que la page
+dit », tous deux dans `dom.test.mjs` — n'étaient **pas** injectés par `at(RELEVE, …)`, malgré
+ce que ce paragraphe affirmait : ils appelaient `world()` puis `listing.js` en lisant
+l'horloge réelle. Au jour où ce lot a été fermé, l'annonce qu'ils utilisent affichait 28 jours
+en ligne — à trois jours du seuil de 31 qui bascule `old`, et avec lui `notable` : l'horloge
+réelle avançant d'elle-même, ces trois jours se seraient refermés sans qu'aucune ligne de
+production ne change. Les deux tests sont maintenant enveloppés dans `at(RELEVE, …)` comme
+leurs voisins.
+
+La casse a aussi trouvé trois tests que ce lot n'avait pas touchés, dans
+`tests/lacentrale-dom.test.mjs` : « sur une page de résultats, chaque carte porte son
+ancienneté réelle », « la carte qui dépasse le plafond du site est mise en alerte, pas les
+autres » et « sous le plafond, aucune contradiction n'est inventée » lisaient aussi l'horloge
+réelle. Mêmes symptômes, même remède : gelés sur `RELEVE`. Les cinq corrections sont vérifiées
+en faisant tourner la suite entière avec l'horloge système décalée d'un an — 359 verts, comme
+à l'horloge réelle.
+
+Sur les treize tests ajoutés par ce lot, les dix de `sort.test.mjs` et celui de
+`view.test.mjs` lisaient bien l'instant par `at(RELEVE, …)` ou une constante figée dès leur
+écriture ; les âges triés sont ceux du 6 septembre 2026, jour du relevé des deux pages.
 
 ## Réserves
 
-- **La mise en avant fait doublon.** Sur la page relevée, `W103496285` a deux cartes : celle
-  du bandeau `boostVo` et une carte de résultat ordinaire. `site.card()` ne rend que la
-  première ; la seconde n'a pas de pastille, n'est donc ni triée ni filtrée, et resterait
-  visible sous un seuil qui masque sa jumelle. Ni le tri ni la flèche n'en souffrent — le
-  doublon garde son rang —, mais un filtre peut laisser passer une annonce par sa copie.
-  Le corriger demande que `card()` rende **toutes** les cartes d'une annonce, ce qui touche
-  aussi le pastillage : hors du périmètre de ce lot.
+- ~~**La mise en avant fait doublon.**~~ **Corrigé le 18/09.** `site.card()` (`cardOf` dans
+  `src/sites/lacentrale.js`, `card` dans `src/sites/leboncoin.js`) rend désormais **toutes**
+  les cartes d'une annonce, dédoublonnées par nœud, jamais la seule première trouvée ;
+  `src/listing.js` pastille chacune. Sur `W103496285`, le bandeau `boostVo` et sa carte
+  ordinaire portent maintenant la même pastille, le même âge, et le filtre les masque
+  ensemble. Preuve par la casse : `tests/lacentrale-dom.test.mjs` (« la bannière et la carte
+  ordinaire de la même annonce portent la même pastille »), `tests/sort.test.mjs` (« le tri
+  garde adjacentes… », « le filtre masque les deux cartes… ») et `tests/dom.test.mjs` (« sur
+  leboncoin, une carte sans doublon ne porte qu'une pastille », qui vérifie que ce site, sans
+  doublon, n'y perd rien).
 - **Le gabarit leboncoin n'est toujours pas vérifié sur pièce.** `cards: 'article'` vient de
   ce que `card()` savait déjà de ce site, pas d'une page sauvegardée — il n'y en a aucune à la
   racine. La fixture le couvre, le vrai gabarit reste à voir.
