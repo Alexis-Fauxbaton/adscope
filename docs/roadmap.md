@@ -44,6 +44,30 @@ doublon multi-plateformes.
 | E · Republication | empreinte rare **et** annonce disparue → « même véhicule » | `disappeared_at` alimenté, donc revisites qui tournent |
 | Store puis Render | inchangé, en dernier | — |
 
+## Programme « recherche filtrée » — décidé le 2026-09-18, un lot à la fois, revue d'Alexis entre chaque
+
+Le site doit découper proprement par famille, puis trier sur ce que les sites ne montrent pas.
+Constats : 89 % des versions répètent le modèle ; la même voiture existe sous deux marques
+(« Chevrolet / Corvette » et « Corvette / Autres ») ; 4 671 annonces (9 %) ont « Autres » pour
+modèle ; la recherche est exacte et sensible à la casse (`ferrari` → 0, `Ferrari` → 390) ;
+carburant, boîte et département ne sont pas stockés.
+
+| Lot | Contenu |
+|---|---|
+| 1 · Taxonomie | mesurer le désordre · liste propre marque → modèle bâtie sur les annonces saines · table d'alias · libellés sans répétition, composés à un seul endroit (API) · recherche texte tolérante (casse, accents, mots dans le désordre) |
+| 2 · Champs manquants | carburant, boîte, département — des faits ; le balayage remplit l'existant en un cycle |
+| 3 · Les « Autres » | modèle **déduit du titre au passage**, comparé à la liste des modèles connus de la marque ; **on stocke le modèle déduit, jamais le titre**. Déterministe et prudent : une seule correspondance sans ambiguïté, sinon « modèle non précisé ». Ne remplace jamais un modèle donné par le site. **Reste hors de l'empreinte véhicule.** Précision mesurée d'abord sur les annonces dont le modèle est connu |
+| 4 · Recherche filtrée | cascade marque → modèle avec compteurs, fourchettes prix / année / km, carburant, boîte, département, puis nos filtres (ancienneté, baisse, pro / particulier) |
+
+**Alerte « la date a disparu »** (décidée le même jour) : le produit repose sur la date de
+première publication que les sites laissent dans leur page (`first_publication_date`,
+`creationDate`, `firstOnlineDate`). C'est le point fragile, bien plus que les identifiants. Une
+alerte doit se lever le jour où la part d'observations portant cette date s'effondre, par site.
+
+**À faire avant le go-live, hors dépôt** : quelques heures d'avocat (propriété intellectuelle et
+numérique) — droit des bases de données et balayage complet contre périmètre par familles,
+CGU, politique de confidentialité, conduite à tenir sur mise en demeure.
+
 ## Lot « Comptes » — au go-live, avec la facturation
 
 Décidé le 2026-09-18. La clé collée à la main ne tient pas pour un marchand ; l'email est de
