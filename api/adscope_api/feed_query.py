@@ -14,9 +14,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from .follow_models import Follow
-from .market_query import ItemOut
+from .market_items import ItemOut
 from .models import Listing
 from .sellers import age_days
+from .taxonomy import label
 from .urls import build as build_url
 
 # Les seuils d'ancienneté qui valent la peine d'être signalés. Le plus haut
@@ -71,6 +72,7 @@ def _feed_item(listing, followed_at, since_days, since, now) -> dict:
         "site": listing.site, "site_id": listing.site_id,
         "url": build_url(listing.site, listing.site_id),
         "brand": listing.brand, "model": listing.model, "version": listing.version,
+        "label": label(listing.brand, listing.model, listing.version),
         "year": listing.year, "mileage": listing.mileage,
         "price": listing.prices[-1].price if listing.prices else None,
         "seller_type": listing.seller_type, "seller_name": listing.seller_name,

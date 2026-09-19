@@ -119,4 +119,19 @@ MIGRATIONS = (
         " expires_at timestamptz NOT NULL)",
         "CREATE INDEX IF NOT EXISTS ix_sessions_account ON sessions (account_id)",
     )),
+    # La couche canonique, à côté des formes observées qui ne bougent pas :
+    # trois colonnes vides sur les 52 925 annonces enregistrées, et l'index qui
+    # sert le découpage par famille du site. La migration ne remplit rien — un
+    # `UPDATE` de 52 925 lignes n'a pas sa place dans une transaction de
+    # démarrage, et la table d'alias évoluera plus souvent que le schéma :
+    # `scripts/recanonize.py` les remplit, par lots et autant de fois qu'on
+    # veut. `search_text` est du `text` et non du `varchar` : marque + modèle +
+    # version, observées et canoniques, n'ont pas de longueur utile à borner.
+    ("010_listings_canonical", (
+        "ALTER TABLE listings ADD COLUMN IF NOT EXISTS canon_brand varchar(64)",
+        "ALTER TABLE listings ADD COLUMN IF NOT EXISTS canon_model varchar(128)",
+        "ALTER TABLE listings ADD COLUMN IF NOT EXISTS search_text text",
+        "CREATE INDEX IF NOT EXISTS ix_listings_canon"
+        " ON listings (canon_brand, canon_model)",
+    )),
 )

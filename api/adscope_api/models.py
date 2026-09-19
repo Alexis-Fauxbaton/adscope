@@ -1,7 +1,7 @@
 from datetime import date, datetime
 
 from sqlalchemy import (
-    Boolean, Date, DateTime, ForeignKey, Index, String, UniqueConstraint, func,
+    Boolean, Date, DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -22,6 +22,8 @@ class Listing(Base):
         Index("ix_listings_seller", "site", "seller_id"),
         # Ce que le garde-fou de flotte balaie : les fiches servies récemment.
         Index("ix_listings_revisit", "last_revisit_at"),
+        # Le découpage par famille du site, sur la forme canonique.
+        Index("ix_listings_canon", "canon_brand", "canon_model"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -32,6 +34,14 @@ class Listing(Base):
     brand: Mapped[str | None] = mapped_column(String(64), default=None)
     model: Mapped[str | None] = mapped_column(String(128), default=None)
     version: Mapped[str | None] = mapped_column(String(128), default=None)
+    # La couche canonique, dérivée des trois colonnes ci-dessus par
+    # `taxonomy.canonical` et `taxonomy.search_text`. Elles ne font jamais
+    # autorité : l'empreinte véhicule et les comparables lisent les formes
+    # observées. `scripts/recanonize.py` les recalcule à chaque évolution de
+    # `shared/vehicle-aliases.json`.
+    canon_brand: Mapped[str | None] = mapped_column(String(64), default=None)
+    canon_model: Mapped[str | None] = mapped_column(String(128), default=None)
+    search_text: Mapped[str | None] = mapped_column(Text, default=None)
     year: Mapped[int | None] = mapped_column(default=None)
     mileage: Mapped[int | None] = mapped_column(default=None)
     postal_code: Mapped[str | None] = mapped_column(String(8), default=None)

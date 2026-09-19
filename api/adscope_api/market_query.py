@@ -3,44 +3,16 @@ et le premier et le dernier prix *changé* (`price_points.confirmation = false`
 — une confirmation dit que le prix n'a pas bougé, voir `observations.record`),
 un par annonce dans Postgres — la base en porte 47 000, jamais chargées en
 Python. `price_delta_since_first` exige deux prix changés : un seul ne dit
-rien contre quoi le comparer. `ItemOut` est repris par `feed_query.py`, qui
-recalcule l'ancienneté en Python (`sellers.age_days`, `age_expr` en SQL ici)."""
+rien contre quoi le comparer. `feed_query.py` recalcule l'ancienneté en Python
+(`sellers.age_days`, `age_expr` en SQL ici) et rend le même item.
+Les filtres de famille et la recherche `q` sont dans `search.py`, sur la couche
+canonique ; le contrat d'un item et son `label` sont dans `market_items.py`."""
 
-from datetime import datetime
-
-from pydantic import BaseModel
 from sqlalchemy import Date, DateTime, Integer, case, cast, extract, func, literal, select
 
+from . import search
 from .follow_models import Follow
 from .models import Listing, PricePoint
-from .schemas import SellerType
-from .urls import build as build_url
-
-
-# `seller_name` est nul pour un particulier — déjà en base ainsi.
-class ItemOut(BaseModel):
-    site: str
-    site_id: str
-    url: str | None
-    brand: str | None
-    model: str | None
-    version: str | None
-    year: int | None
-    mileage: int | None
-    price: int | None
-    seller_type: SellerType | None
-    seller_name: str | None
-    published_at: datetime | None
-    age_days: int | None
-    price_delta_since_first: int | None
-    last_change_at: datetime | None
-    followed: bool
-    disappeared_at: datetime | None
-
-
-class MarketOut(BaseModel):
-    total: int
-    items: list[ItemOut]
 
 
 CHANGED = PricePoint.confirmation.is_(False)
@@ -69,7 +41,7 @@ def age_expr(now):
     )
 
 
-def _core(license_, now, *, brand, model, seller_type, min_age_days, dropped):
+def _core(license_, now, *, brand, model, q, seller_type, min_age_days, dropped):
     last_price = _distinct_price(PricePoint.price.label("price"), desc=True)
     first_change = _distinct_price(PricePoint.price.label("price"), where=CHANGED)
     last_change = _distinct_price(
@@ -104,10 +76,8 @@ def _core(license_, now, *, brand, model, seller_type, min_age_days, dropped):
         .outerjoin(change_count, change_count.c.listing_id == Listing.id)
         .where(Listing.disappeared_at.is_(None))
     )
-    if brand:
-        query = query.where(Listing.brand == brand)
-    if model:
-        query = query.where(Listing.model == model)
+    query = search.family(query, Listing.canon_brand, Listing.canon_model, brand, model)
+    query = search.text(query, Listing.search_text, q)
     if seller_type:
         query = query.where(Listing.seller_type == seller_type)
     if min_age_days is not None:
@@ -125,25 +95,14 @@ def _order(sort, age, delta):
     return (primary, Listing.site, Listing.site_id)
 
 
-def market_page(session, license_, now, *, brand=None, model=None, seller_type=None,
-                min_age_days=None, dropped=None, sort="age_desc", limit=50, offset=0):
+def market_page(session, license_, now, *, brand=None, model=None, q=None,
+                seller_type=None, min_age_days=None, dropped=None,
+                sort="age_desc", limit=50, offset=0):
     """`(total, lignes)` : le total porte sur le filtre, jamais sur la page."""
     query, age, delta = _core(
-        license_, now, brand=brand, model=model, seller_type=seller_type,
+        license_, now, brand=brand, model=model, q=q, seller_type=seller_type,
         min_age_days=min_age_days, dropped=dropped,
     )
     total = session.scalar(select(func.count()).select_from(query.subquery()))
     query = query.order_by(*_order(sort, age, delta)).limit(limit).offset(offset)
     return total, session.execute(query).all()
-
-
-def item_of(row) -> dict:
-    return {
-        "site": row.site, "site_id": row.site_id, "url": build_url(row.site, row.site_id),
-        "brand": row.brand, "model": row.model, "version": row.version, "year": row.year,
-        "mileage": row.mileage, "price": row.price, "seller_type": row.seller_type,
-        "seller_name": row.seller_name, "published_at": row.published_at,
-        "age_days": row.age_days, "price_delta_since_first": row.price_delta_since_first,
-        "last_change_at": row.last_change_at, "followed": row.followed,
-        "disappeared_at": row.disappeared_at,
-    }

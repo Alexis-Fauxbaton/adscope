@@ -16,7 +16,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from .auth import require_license
 from .db import get_session
 from .feed_query import FeedOut, feed_for
-from .market_query import MarketOut, item_of, market_page
+from .market_items import MarketOut, item_of
+from .market_query import market_page
 from .schemas import SellerType
 
 router = APIRouter()
@@ -25,6 +26,7 @@ router = APIRouter()
 @router.get("/v1/market", response_model=MarketOut)
 def get_market(
     brand: str | None = None, model: str | None = None,
+    q: str | None = Query(default=None, max_length=120),
     seller_type: SellerType | None = None,
     min_age_days: int | None = Query(default=None, ge=0),
     dropped: bool | None = None,
@@ -34,7 +36,7 @@ def get_market(
 ):
     now = datetime.now(timezone.utc)
     total, rows = market_page(
-        session, license_, now, brand=brand, model=model, seller_type=seller_type,
+        session, license_, now, brand=brand, model=model, q=q, seller_type=seller_type,
         min_age_days=min_age_days, dropped=dropped, sort=sort, limit=limit, offset=offset,
     )
     return {"total": total, "items": [item_of(row) for row in rows]}

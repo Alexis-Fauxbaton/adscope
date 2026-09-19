@@ -156,8 +156,20 @@ def test_the_feed_route_serves_the_contract_shape(client, key, session):
     body = client.get("/v1/follows/feed", headers=auth(key)).json()
     assert set(body.keys()) == {"items"}
     assert set(body["items"][0].keys()) == {
-        "site", "site_id", "url", "brand", "model", "version", "year", "mileage",
+        "site", "site_id", "url", "brand", "model", "version", "label",
+        "year", "mileage",
         "price", "seller_type", "seller_name", "published_at", "age_days",
         "price_delta_since_first", "last_change_at", "followed", "disappeared_at",
         "followed_at", "changes", "flags",
     }
+
+
+# Fait rougir `label(...)` dans `feed_query._feed_item` : le contrat veut le
+# même nom propre des deux côtés, composé par l'API et par elle seule.
+def test_the_feed_serves_the_same_label_as_the_market(session, key):
+    listing = car(session, "lbl", brand="Chevrolet", model="Corvette")
+    listing.version = "Corvette 6.2 V8 659ch 3LZ Z06 AT8"
+    session.commit()
+    follow_it(session, key, listing)
+    items = feed_for(session, resolve(session, key), 7, NOW)
+    assert items[0]["label"] == "Chevrolet Corvette 6.2 V8 659ch 3LZ Z06 AT8"

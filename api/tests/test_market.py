@@ -2,7 +2,9 @@ from datetime import datetime, timedelta, timezone
 
 from adscope_api.auth import hash_key, new_key, resolve
 from adscope_api.follow_models import Follow
-from adscope_api.market_query import item_of, market_page
+from adscope_api.market_items import item_of
+from adscope_api.market_query import market_page
+from adscope_api.taxonomy import derive
 from adscope_api.models import License, Listing, PricePoint
 
 from conftest import auth
@@ -21,6 +23,9 @@ def car(session, site_id, *, brand="Renault", model="Clio", year=2015, version=N
         PricePoint(observed_at=at, price=price, source="user", confirmation=confirmation)
         for at, price, confirmation in prices
     ]
+    # Ce que `observations.record` fait à l'écriture : sans ça les colonnes
+    # canoniques resteraient vides et aucun filtre du marché ne trouverait rien.
+    derive(row)
     session.add(row)
     session.commit()
     return row
@@ -194,7 +199,8 @@ def test_the_market_route_serves_the_contract_shape(client, key, session):
     body = client.get("/v1/market", headers=auth(key)).json()
     assert set(body.keys()) == {"total", "items"}
     assert set(body["items"][0].keys()) == {
-        "site", "site_id", "url", "brand", "model", "version", "year", "mileage",
+        "site", "site_id", "url", "brand", "model", "version", "label",
+        "year", "mileage",
         "price", "seller_type", "seller_name", "published_at", "age_days",
         "price_delta_since_first", "last_change_at", "followed", "disappeared_at",
     }

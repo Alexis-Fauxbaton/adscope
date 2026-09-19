@@ -9,6 +9,10 @@ from adscope_api.migrations import MIGRATIONS, apply_migrations
 
 
 def to_old_shape(session):
+    session.execute(text("DROP INDEX IF EXISTS ix_listings_canon"))
+    session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS canon_brand"))
+    session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS canon_model"))
+    session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS search_text"))
     session.execute(text("DROP TABLE IF EXISTS login_tokens"))
     session.execute(text("DROP TABLE IF EXISTS sessions"))
     session.execute(text("ALTER TABLE licenses DROP COLUMN IF EXISTS account_id"))
@@ -291,3 +295,42 @@ def test_the_index_on_the_sessions_account_exists(session):
         "SELECT indexname FROM pg_indexes WHERE tablename = 'sessions'"
     ))
     assert "ix_sessions_account" in {row[0] for row in indexes}
+
+
+# La couche canonique arrive sur une base qui porte 52 925 annonces. Elle
+# s'ajoute vide : la migration ne remplit rien, `scripts/recanonize.py` le fait.
+def test_migration_adds_the_canonical_columns(session):
+    to_old_shape(session)
+    assert not {"canon_brand", "canon_model", "search_text"} & columns(session, "listings")
+    apply_migrations(session.connection())
+    assert {"canon_brand", "canon_model", "search_text"} <= columns(session, "listings")
+
+
+def test_the_listings_already_recorded_keep_an_empty_canonical_layer(session):
+    to_old_shape(session)
+    with_history(session)
+    apply_migrations(session.connection())
+    rows = session.execute(text(
+        "SELECT site_id, canon_brand, canon_model, search_text FROM listings"
+    )).all()
+    assert rows == [("87103336930", None, None, None)]
+
+
+# Sans cet index, le découpage par famille du site balaie les 52 925 annonces.
+def test_the_index_serving_the_canonical_family_filter_exists(session):
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    indexes = session.execute(text(
+        "SELECT indexname FROM pg_indexes WHERE tablename = 'listings'"
+    ))
+    assert "ix_listings_canon" in {row[0] for row in indexes}
+
+
+# `create_all` et le registre doivent produire le même `listings` : la base de
+# développement passe par l'un, celle de test par l'autre.
+def test_the_migration_produces_the_listing_columns_that_create_all_produces(session):
+    from adscope_api.models import Listing
+
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    assert columns(session, "listings") == set(Listing.__table__.c.keys())

@@ -203,3 +203,45 @@ def test_a_confirmation_marks_the_day_seen_not_the_days_missed(session):
     assert [p.observed_at.date() for p in listing.prices] == [
         (NOW + timedelta(days=day)).date() for day in (0, 1, 2, 10)
     ]
+
+
+# Fait rougir `derive(listing)` dans `record` : sans cette ligne les colonnes
+# canoniques resteraient vides sur toute annonce arrivée après la migration,
+# et le marché ne la trouverait plus ni par famille ni par `q`.
+def test_an_observation_lays_the_canonical_columns(session):
+    listing = record(session, obs(), source="user", now=NOW)
+    session.commit()
+    assert (listing.canon_brand, listing.canon_model) == ("Peugeot", "308 II phase 2")
+    assert "peugeot" in listing.search_text.split()
+    assert "puretech" in listing.search_text.split()
+
+
+# Fait rougir la place de `derive(listing)`, *après* la boucle sur
+# `VEHICLE_FIELDS` : posée avant, la couche canonique porterait toujours ce que
+# l'annonce valait au tour précédent.
+def test_the_canonical_layer_follows_what_the_observation_changes(session):
+    record(session, obs(), source="user", now=NOW)
+    listing = record(session, obs(model="3008"), source="user", now=NOW)
+    session.commit()
+    assert listing.canon_model == "3008"
+
+
+# Fait rougir `derive(listing)`, l'annonce et non l'observation : muette sur le
+# modèle, une observation laisse en place celui qu'on savait — la forme
+# canonique doit le suivre, pas retomber à vide.
+def test_the_canonical_layer_survives_an_observation_that_says_nothing(session):
+    record(session, obs(), source="user", now=NOW)
+    listing = record(session, obs(model=None, version=None), source="user", now=NOW)
+    session.commit()
+    assert listing.canon_model == "308 II phase 2"
+    assert "puretech" in listing.search_text.split()
+
+
+# Fait rougir la règle cardinale : les champs observés ne bougent pas. Sans
+# elle, `fingerprint` changerait de valeur et l'empreinte véhicule — parité
+# JS/Python, `shared/fingerprint-vectors.json` — se romprait en silence.
+def test_the_canonical_layer_leaves_the_observed_fields_alone(session):
+    listing = record(session, obs(), source="user", now=NOW)
+    session.commit()
+    assert (listing.brand, listing.model) == ("PEUGEOT", "308 II phase 2")
+    assert listing.fingerprint == "54b22edbd39c"
