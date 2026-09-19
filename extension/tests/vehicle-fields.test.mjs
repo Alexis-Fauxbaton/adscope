@@ -61,14 +61,31 @@ test('leboncoin — fiches : la même lecture qu\'une carte', () => {
 
 // leboncoin — les neuf codes fuel et les deux codes gearbox, tels que relevés
 // le 2026-09-19 (fixture `leboncoin-champs-codes.json`, complétude confirmée
-// par `aggregations.fuel`/`.gearbox`). GNV (7) et Hydrogène (9) tombent sur
-// « autre », faute de case dédiée dans le vocabulaire proposé.
+// par `aggregations.fuel`/`.gearbox`). GNV (7) et Hydrogène (9) ont leur
+// propre case depuis le 2026-09-19 ; « autre » ne garde plus que le code 5.
 test('leboncoin — chaque code fuel connu se traduit dans le vocabulaire fermé', () => {
-  const EXPECTED = { 1: 'essence', 2: 'diesel', 3: 'gpl', 4: 'electrique', 5: 'autre', 6: 'hybride', 7: 'autre', 8: 'hybride_rechargeable', 9: 'autre' }
+  const EXPECTED = { 1: 'essence', 2: 'diesel', 3: 'gpl', 4: 'electrique', 5: 'autre', 6: 'hybride', 7: 'gnv', 8: 'hybride_rechargeable', 9: 'hydrogene' }
   for (const [code, label] of Object.entries(load('leboncoin-champs-codes.json').fuel)) {
     const ad = { list_id: code, attributes: [{ key: 'fuel', value: code, value_label: label }] }
     assert.equal(leboncoin.normalize(ad).fuel, EXPECTED[code], `code ${code} (${label})`)
   }
+})
+
+// Miroir de `FUEL_VALUES`/`GEARBOX_VALUES` côté API (api/adscope_api/vocab.py) :
+// les deux vocabulaires sont tenus à la main en l'absence d'un fichier
+// `shared/` commun pour ce genre de liste aujourd'hui (il en existe un pour
+// l'empreinte véhicule, `shared/fingerprint-vectors.json` — rien d'équivalent
+// ici). Ce test fige la liste traduite ici pour qu'un écart avec l'API
+// (`test_the_fuel_vocabulary_matches_what_the_extension_sends`) se voie au
+// diff plutôt qu'en silence.
+test('leboncoin — le vocabulaire fuel traduit correspond à celui que l\'API accepte', () => {
+  const EXPECTED = { 1: 'essence', 2: 'diesel', 3: 'gpl', 4: 'electrique', 5: 'autre', 6: 'hybride', 7: 'gnv', 8: 'hybride_rechargeable', 9: 'hydrogene' }
+  const translated = new Set(Object.keys(EXPECTED).map((code) => leboncoin.normalize(
+    { list_id: code, attributes: [{ key: 'fuel', value: code }] },
+  ).fuel))
+  assert.deepEqual([...translated].sort(), [
+    'autre', 'diesel', 'electrique', 'essence', 'gnv', 'gpl', 'hybride', 'hybride_rechargeable', 'hydrogene',
+  ])
 })
 
 test('leboncoin — chaque code boîte connu se traduit dans le vocabulaire fermé', () => {

@@ -32,8 +32,8 @@ ADS.leboncoin = ADS.sites.register((() => {
     return out
   }
 
-  // Vocabulaire fermé, relevé le 2026-09-19 (.superpowers/recherche-lot2-ext.md) ; GNV/Hydrogène → « autre ».
-  const FUEL = { 1: 'essence', 2: 'diesel', 3: 'gpl', 4: 'electrique', 5: 'autre', 6: 'hybride', 7: 'autre', 8: 'hybride_rechargeable', 9: 'autre' }
+  // Vocabulaire fermé, relevé le 2026-09-19 (.superpowers/recherche-lot2-ext.md) ; GNV (7) et Hydrogène (9) ont leur propre case depuis le 2026-09-19, « autre » ne garde plus que le code 5.
+  const FUEL = { 1: 'essence', 2: 'diesel', 3: 'gpl', 4: 'electrique', 5: 'autre', 6: 'hybride', 7: 'gnv', 8: 'hybride_rechargeable', 9: 'hydrogene' }
   const GEARBOX = { 1: 'manuelle', 2: 'automatique' }
   // Relevé le 2026-09-06 sur une page réelle : `owner` porte `store_id`, `name`,
   // `user_id` et `siren`, **quel que soit le type de vendeur** — un particulier
