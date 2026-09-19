@@ -64,6 +64,24 @@ def render(report: Report) -> str:
     else:
         lines.append("  - aucune nouvelle annonce sur les deux fenêtres")
 
+    rate = report.field_fill_rate
+    lines += [
+        "", "Remplissage de carburant / boîte / département :",
+        f"  - toute la base ({rate['overall']['total']} annonces) : "
+        f"{_pct(rate['overall']['fuel_rate'])} / {_pct(rate['overall']['gearbox_rate'])} / "
+        f"{_pct(rate['overall']['department_rate'])}",
+        f"  - fenêtre ({rate['window']['total']} annonces) : "
+        f"{_pct(rate['window']['fuel_rate'])} / {_pct(rate['window']['gearbox_rate'])} / "
+        f"{_pct(rate['window']['department_rate'])}",
+    ]
+
+    named = report.model_named_by_version
+    lines += [
+        "", "Version qui nomme un autre modèle connu de la marque (information, "
+        "jamais une alerte) :",
+        f"  - {named['count']} sur {named['population']} ({_pct(named['rate'])})",
+    ]
+
     if report.alerts:
         lines += ["", *(f"ALERTE : {a}" for a in report.alerts)]
     lines += ["", f"Code de sortie : {1 if report.alerts else 0}"]

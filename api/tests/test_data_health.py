@@ -7,6 +7,7 @@ de son appelant.
 from datetime import datetime, timedelta, timezone
 
 from adscope_api.data_health import Report, compute, head_line
+from adscope_api.data_health_fields import field_fill_rate, version_names_another_model
 from adscope_api.data_health_queries import (
     MIN_WINDOW_LISTINGS, emerging_models, publication_freshness, unknown_brands,
     unknown_share,
@@ -19,10 +20,12 @@ WEEK = timedelta(days=7)
 
 
 def add(session, site, site_id, first_seen, *, brand="Renault", model="Clio",
-        published_at=None):
+        version=None, published_at=None, last_seen=None, fuel=None, gearbox=None,
+        department=None):
     row = Listing(site=site, site_id=site_id, first_seen=first_seen,
-                  last_seen=first_seen, observations=1, brand=brand, model=model,
-                  published_at=published_at)
+                  last_seen=last_seen or first_seen, observations=1, brand=brand,
+                  model=model, version=version, published_at=published_at,
+                  fuel=fuel, gearbox=gearbox, department=department)
     derive(row)
     session.add(row)
     return row
@@ -204,6 +207,102 @@ def test_report_alerts_lists_only_the_rows_that_alert(session):
     ]
 
 
+# Fait rougir `fuel / total` (et les deux voisines) dans `_rate` : le taux ne
+# compte que ce qui est effectivement posé.
+def test_field_fill_rate_counts_what_is_actually_set(session):
+    add(session, "lbc", "1", NOW, fuel="diesel", gearbox="automatique", department="75")
+    add(session, "lbc", "2", NOW)
+    session.commit()
+    rate = field_fill_rate(session, NOW - WEEK, NOW)
+    assert rate["overall"] == {
+        "total": 2, "fuel_rate": 0.5, "gearbox_rate": 0.5, "department_rate": 0.5,
+    }
+
+
+# Fait rougir `query.where(Listing.last_seen >= since, Listing.last_seen <
+# now)` : la fenêtre porte sur ce qui a été *revu*, pas sur ce qui est apparu —
+# une annonce ancienne que le balayage vient de compléter doit compter.
+def test_field_fill_rate_window_counts_what_was_seen_not_what_is_new(session):
+    add(session, "lbc", "1", NOW - 2 * WEEK, last_seen=NOW - timedelta(hours=1),
+        fuel="diesel")
+    session.commit()
+    rate = field_fill_rate(session, NOW - WEEK, NOW)
+    assert rate["window"] == {
+        "total": 1, "fuel_rate": 1.0, "gearbox_rate": 0.0, "department_rate": 0.0,
+    }
+
+
+# Fait rougir `if not total: ... None` : une base vide ne rend pas une
+# division par zéro, elle ne rend rien à lire.
+def test_field_fill_rate_is_none_on_an_empty_window(session):
+    rate = field_fill_rate(session, NOW - WEEK, NOW)
+    assert rate["window"] == {
+        "total": 0, "fuel_rate": None, "gearbox_rate": None, "department_rate": None,
+    }
+
+
+# Fait rougir `having(func.count(Listing.id) >= min_listings)` dans
+# `_known_models_by_brand` : sous le seuil, « Scénic » n'est pas un modèle
+# connu, une version qui le nomme ne compte donc pas comme contredite.
+def test_version_naming_a_model_below_the_threshold_does_not_count(session):
+    add(session, "lbc", "megane", NOW, brand="Renault", model="Mégane", version="Scénic 1.5")
+    add(session, "lbc", "scenic0", NOW, brand="Renault", model="Scénic")
+    session.commit()
+    result = version_names_another_model(session, min_listings=2)
+    assert result == {"count": 0, "population": 1, "rate": 0.0}
+
+
+# Fait rougir `if any(version_names_model(version, other) for other in
+# known.get(brand, set()) - {model})` : au-dessus du seuil, la version qui
+# nomme un autre modèle connu de la marque compte.
+def test_version_naming_a_known_model_of_the_same_brand_counts(session):
+    add(session, "lbc", "megane", NOW, brand="Renault", model="Mégane", version="Scénic 1.5")
+    for n in range(5):
+        add(session, "lbc", f"scenic{n}", NOW, brand="Renault", model="Scénic")
+    session.commit()
+    result = version_names_another_model(session, min_listings=5)
+    assert result == {"count": 1, "population": 1, "rate": 1.0}
+
+
+# Fait rougir `known.get(brand, set()) - {model}` : le modèle déclaré est
+# retiré de la comparaison, une version qui ne fait que le répéter n'est pas
+# une contradiction.
+def test_a_version_that_only_repeats_the_declared_model_does_not_count(session):
+    for n in range(5):
+        add(session, "lbc", f"clio{n}", NOW, brand="Renault", model="Clio", version="Clio V")
+    session.commit()
+    result = version_names_another_model(session, min_listings=5)
+    assert result == {"count": 0, "population": 5, "rate": 0.0}
+
+
+# Fait rougir `if not _is_sub_model(other, model)` : « C3 Aircross » est un
+# C3 dit plus précisément, sa version commence par « C3 » sans contredire
+# personne — mesuré sur la base réelle (Citroën C3 / C3 Aircross).
+def test_a_sub_model_is_not_a_contradiction(session):
+    for n in range(5):
+        add(session, "lbc", f"c3-{n}", NOW, brand="Citroen", model="C3")
+    for n in range(5):
+        add(session, "lbc", f"aircross{n}", NOW, brand="Citroen", model="C3 Aircross",
+            version="C3 Aircross PureTech 110ch")
+    session.commit()
+    result = version_names_another_model(session, min_listings=5)
+    assert result["count"] == 0
+
+
+# Fait rougir `_is_bare_number` : un modèle réduit à un seul nombre (« 200 »
+# chez Mercedes) est un code de finition mal extrait, pas un modèle — mesuré
+# sur la base réelle, où il multipliait le compte par sept.
+def test_a_bare_numeric_model_is_never_considered_known(session):
+    for n in range(5):
+        add(session, "lbc", f"n{n}", NOW, brand="Mercedes", model="200")
+    for n in range(5):
+        add(session, "lbc", f"a{n}", NOW, brand="Mercedes", model="Classe A",
+            version="Classe A 200 CDI Fascination")
+    session.commit()
+    result = version_names_another_model(session, min_listings=5)
+    assert result["count"] == 0
+
+
 # Fait rougir l'assemblage de `compute` : chaque section vient bien de la
 # fonction qui la calcule, sur la même session et la même fenêtre.
 def test_compute_wires_every_section(session):
@@ -213,3 +312,23 @@ def test_compute_wires_every_section(session):
     assert report.total_listings == 1
     assert report.last_seen == NOW
     assert report.unknown_brands == [{"brand": "Zorglub", "count": 1}]
+
+
+# Fait rougir `field_fill_rate=field_fill_rate(session, since, now)` dans
+# `compute` : la section est bien câblée, pas seulement calculable seule.
+def test_compute_wires_the_field_fill_rate(session):
+    add(session, "lbc", "1", NOW, fuel="diesel")
+    session.commit()
+    report = compute(session, now=NOW, window=WEEK)
+    assert report.field_fill_rate["overall"]["fuel_rate"] == 1.0
+
+
+# Fait rougir `model_named_by_version=version_names_another_model(session)`
+# dans `compute`.
+def test_compute_wires_the_model_named_by_version(session):
+    for n in range(5):
+        add(session, "lbc", f"scenic{n}", NOW, brand="Renault", model="Scénic")
+    add(session, "lbc", "megane", NOW, brand="Renault", model="Mégane", version="Scénic 1.5")
+    session.commit()
+    report = compute(session, now=NOW, window=WEEK)
+    assert report.model_named_by_version["count"] == 1

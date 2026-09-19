@@ -8,7 +8,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
-from . import gauge
+from . import department, gauge
+from .vocab import FUEL_VALUES, GEARBOX_VALUES, Fuel, Gearbox
+from .vocab import canonical as vocab_canonical
 
 Precision = Literal["day", "month", "year"]
 SellerType = Literal["pro", "private"]
@@ -36,6 +38,10 @@ class ObservationIn(BaseModel):
     year: int | None = None
     mileage: int | None = None
     postal_code: str | None = None
+    fuel: Fuel | None = None
+    gearbox: Gearbox | None = None
+    # Reçu directement, sinon dérivé du code postal (`_derive_department`).
+    department: str | None = None
     seller_type: SellerType | None = None
     # Transmis pour les professionnels seuls ; l'API le vérifie plutôt que
     # de faire confiance à l'émetteur.
@@ -51,10 +57,37 @@ class ObservationIn(BaseModel):
     def _prose(cls, value, info):
         return gauge.prose(value, info.field_name)
 
-    @field_validator("postal_code", "seller_id", mode="before")
+    @field_validator("seller_id", mode="before")
     @classmethod
     def _code(cls, value, info):
         return gauge.code(value, info.field_name)
+
+    # Complet seulement (cinq chiffres) : un fragment désignerait une commune.
+    @field_validator("postal_code", mode="before")
+    @classmethod
+    def _postal_code(cls, value, info):
+        code = gauge.code(value, info.field_name)
+        return code if department.is_complete(code) else None
+
+    @field_validator("fuel", "gearbox", mode="before")
+    @classmethod
+    def _vocab(cls, value, info):
+        values = FUEL_VALUES if info.field_name == "fuel" else GEARBOX_VALUES
+        return vocab_canonical(value, values, info.field_name)
+
+    # Validé, jamais tronqué. Sinon dérivé du code postal, plus bas.
+    @field_validator("department", mode="before")
+    @classmethod
+    def _department_code(cls, value):
+        return department.normalize(value)
+
+    @model_validator(mode="after")
+    def _derive_department(self):
+        if self.department is None and self.postal_code is not None:
+            derived = department.of_postal_code(self.postal_code)
+            if derived is not None:
+                self.department = derived
+        return self
 
     @field_validator("price", "year", "mileage", "published_days_ago", mode="before")
     @classmethod

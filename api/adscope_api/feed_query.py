@@ -75,6 +75,7 @@ def _feed_item(listing, followed_at, since_days, since, now) -> dict:
         "label": label(listing.brand, listing.model, listing.version),
         "year": listing.year, "mileage": listing.mileage,
         "price": listing.prices[-1].price if listing.prices else None,
+        "fuel": listing.fuel, "gearbox": listing.gearbox, "department": listing.department,
         "seller_type": listing.seller_type, "seller_name": listing.seller_name,
         "published_at": listing.published_at, "age_days": age,
         "price_delta_since_first": delta,

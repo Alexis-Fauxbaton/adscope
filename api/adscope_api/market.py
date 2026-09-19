@@ -15,12 +15,27 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from .auth import require_license
 from .db import get_session
+from .department import normalize as normalize_department
 from .feed_query import FeedOut, feed_for
 from .market_items import MarketOut, item_of
 from .market_query import market_page
 from .schemas import SellerType
+from .vocab import Fuel, Gearbox
 
 router = APIRouter()
+
+
+# `department` n'est pas un vocabulaire fermé (une centaine de codes, plus les
+# DOM et la Corse) : validé au format, comme à l'entrée (`intake._department_code`)
+# — pas tronqué, jamais deviné. Une valeur qui n'y ressemble pas est un 422 :
+# un filtre muet qui ne rend jamais rien serait pire qu'une erreur.
+def _departments(values: list[str] | None) -> list[str] | None:
+    if values is None:
+        return None
+    normalized = [normalize_department(v) for v in values]
+    if None in normalized:
+        raise HTTPException(status_code=422, detail="department inconnu")
+    return normalized
 
 
 @router.get("/v1/market", response_model=MarketOut)
@@ -28,6 +43,9 @@ def get_market(
     brand: str | None = None, model: str | None = None,
     q: str | None = Query(default=None, max_length=120),
     seller_type: SellerType | None = None,
+    fuel: list[Fuel] | None = Query(default=None),
+    gearbox: list[Gearbox] | None = Query(default=None),
+    department: list[str] | None = Query(default=None),
     min_age_days: int | None = Query(default=None, ge=0),
     dropped: bool | None = None,
     sort: Literal["age_desc", "drop_desc", "recent"] = "age_desc",
@@ -37,6 +55,7 @@ def get_market(
     now = datetime.now(timezone.utc)
     total, rows = market_page(
         session, license_, now, brand=brand, model=model, q=q, seller_type=seller_type,
+        fuel=fuel, gearbox=gearbox, department=_departments(department),
         min_age_days=min_age_days, dropped=dropped, sort=sort, limit=limit, offset=offset,
     )
     return {"total": total, "items": [item_of(row) for row in rows]}

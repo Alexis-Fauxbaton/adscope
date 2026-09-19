@@ -14,11 +14,12 @@ NOW = datetime(2026, 9, 18, 9, 0, tzinfo=timezone.utc)
 
 def car(session, site_id, *, brand="Renault", model="Clio", year=2015, version=None,
         site="lbc", seller_type=None, seller_name=None, published=None,
-        disappeared_at=None, prices=()):
+        disappeared_at=None, fuel=None, gearbox=None, department=None, prices=()):
     row = Listing(site=site, site_id=site_id, first_seen=NOW, last_seen=NOW,
                   observations=1, brand=brand, model=model, year=year, version=version,
                   seller_type=seller_type, seller_name=seller_name, published_at=published,
-                  disappeared_at=disappeared_at)
+                  disappeared_at=disappeared_at, fuel=fuel, gearbox=gearbox,
+                  department=department)
     row.prices = [
         PricePoint(observed_at=at, price=price, source="user", confirmation=confirmation)
         for at, price, confirmation in prices
@@ -58,6 +59,50 @@ def test_filters_by_seller_type(session, key):
     car(session, "2", seller_type="private")
     _, items = page(session, key, seller_type="pro")
     assert [i["site_id"] for i in items] == ["1"]
+
+
+# Fait rougir `if fuel: query = query.where(Listing.fuel.in_(fuel))`.
+def test_filters_by_fuel(session, key):
+    car(session, "1", fuel="diesel")
+    car(session, "2", fuel="essence")
+    _, items = page(session, key, fuel=["diesel"])
+    assert [i["site_id"] for i in items] == ["1"]
+
+
+# Fait rougir `Listing.fuel.in_(fuel)` sur sa forme répétable : plusieurs
+# valeurs se combinent en « ou », jamais en « et ».
+def test_fuel_filter_accepts_several_values(session, key):
+    car(session, "1", fuel="diesel")
+    car(session, "2", fuel="essence")
+    car(session, "3", fuel="hybride")
+    _, items = page(session, key, fuel=["diesel", "essence"])
+    assert {i["site_id"] for i in items} == {"1", "2"}
+
+
+# Fait rougir `if gearbox: query = query.where(Listing.gearbox.in_(gearbox))`.
+def test_filters_by_gearbox(session, key):
+    car(session, "1", gearbox="automatique")
+    car(session, "2", gearbox="manuelle")
+    _, items = page(session, key, gearbox=["automatique"])
+    assert [i["site_id"] for i in items] == ["1"]
+
+
+# Fait rougir `if department: query = query.where(Listing.department.in_(department))`.
+def test_filters_by_department(session, key):
+    car(session, "1", department="75")
+    car(session, "2", department="92")
+    _, items = page(session, key, department=["75"])
+    assert [i["site_id"] for i in items] == ["1"]
+
+
+# Fait rougir `"fuel": row.fuel, "gearbox": row.gearbox, "department":
+# row.department` dans `market_items.item_of`.
+def test_the_item_carries_fuel_gearbox_and_department(session, key):
+    car(session, "1", fuel="diesel", gearbox="automatique", department="75")
+    _, items = page(session, key)
+    assert (items[0]["fuel"], items[0]["gearbox"], items[0]["department"]) == (
+        "diesel", "automatique", "75",
+    )
 
 
 # Fait rougir `age >= min_age_days` : une annonce exactement à la borne reste
@@ -192,6 +237,34 @@ def test_limit_is_capped_at_100(client, key):
     ).status_code == 422
 
 
+# Fait rougir `fuel: list[Fuel] | None` : le typage fermé rejette une valeur
+# hors vocabulaire avant même d'atteindre `market_page`.
+def test_an_unknown_fuel_filter_value_is_a_422(client, key):
+    assert client.get(
+        "/v1/market", params={"fuel": "gnv"}, headers=auth(key)
+    ).status_code == 422
+
+
+# Fait rougir `if None in normalized: raise HTTPException(422, ...)` dans
+# `market._departments` : un département qui ne ressemble à rien est rejeté,
+# jamais un filtre muet qui ne rend jamais rien.
+def test_an_unrecognizable_department_filter_value_is_a_422(client, key):
+    assert client.get(
+        "/v1/market", params={"department": "Île-de-France"}, headers=auth(key)
+    ).status_code == 422
+
+
+# Passe par le vrai routeur : un filtre valide traverse `_departments` puis
+# `market_page` sans erreur et ne rend que ce qu'il filtre.
+def test_the_department_filter_works_through_the_route(client, key, session):
+    car(session, "1", department="75")
+    car(session, "2", department="92")
+    body = client.get(
+        "/v1/market", params={"department": "75"}, headers=auth(key)
+    ).json()
+    assert [i["site_id"] for i in body["items"]] == ["1"]
+
+
 # Passe par le vrai routeur, pas par `market_page` : prouve que le montage,
 # le nom des paramètres et le gabarit de sortie tiennent ensemble.
 def test_the_market_route_serves_the_contract_shape(client, key, session):
@@ -201,6 +274,7 @@ def test_the_market_route_serves_the_contract_shape(client, key, session):
     assert set(body["items"][0].keys()) == {
         "site", "site_id", "url", "brand", "model", "version", "label",
         "year", "mileage",
-        "price", "seller_type", "seller_name", "published_at", "age_days",
+        "price", "fuel", "gearbox", "department",
+        "seller_type", "seller_name", "published_at", "age_days",
         "price_delta_since_first", "last_change_at", "followed", "disappeared_at",
     }

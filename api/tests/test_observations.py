@@ -245,3 +245,44 @@ def test_the_canonical_layer_leaves_the_observed_fields_alone(session):
     session.commit()
     assert (listing.brand, listing.model) == ("PEUGEOT", "308 II phase 2")
     assert listing.fingerprint == "54b22edbd39c"
+
+
+# Fait rougir `"postal_code", "seller_type", "fuel", "gearbox", "department"`
+# dans `VEHICLE_FIELDS` : les trois champs du lot s'écrivent comme les autres
+# détails véhicule.
+def test_fuel_gearbox_and_department_are_recorded(session):
+    listing = record(session, obs(fuel="diesel", gearbox="automatique", department="75"),
+                     source="user", now=NOW)
+    session.commit()
+    assert (listing.fuel, listing.gearbox, listing.department) == ("diesel", "automatique", "75")
+
+
+# Fait rougir la même ligne dans le sens qui protège : une observation muette
+# sur ces champs n'efface rien de ce qu'on savait déjà.
+def test_a_later_observation_without_these_fields_erases_nothing(session):
+    record(session, obs(fuel="diesel", gearbox="automatique", department="75"),
+           source="user", now=NOW)
+    listing = record(session, obs(), source="user", now=NOW + timedelta(days=1))
+    session.commit()
+    assert (listing.fuel, listing.gearbox, listing.department) == ("diesel", "automatique", "75")
+
+
+# Fait rougir `setattr(listing, field, value)` : une valeur qui change (le
+# vendeur corrige son annonce) remplace celle qu'on savait.
+def test_a_changed_value_overwrites_the_previous_one(session):
+    record(session, obs(fuel="essence"), source="user", now=NOW)
+    listing = record(session, obs(fuel="electrique"), source="user",
+                     now=NOW + timedelta(days=1))
+    session.commit()
+    assert listing.fuel == "electrique"
+
+
+# Fait rougir `VEHICLE_FIELDS` : ces trois champs n'entrent pas dans
+# `FINGERPRINT_FIELDS`, donc pas dans l'empreinte véhicule.
+def test_fuel_gearbox_and_department_are_outside_the_fingerprint(session):
+    without = record(session, obs(), source="user", now=NOW).fingerprint
+    with_fields = record(
+        session, obs(site_id="2", fuel="diesel", gearbox="automatique", department="75"),
+        source="user", now=NOW,
+    ).fingerprint
+    assert without == with_fields == "54b22edbd39c"

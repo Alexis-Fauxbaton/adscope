@@ -23,6 +23,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 
+from .data_health_fields import field_fill_rate, version_names_another_model
 from .data_health_queries import emerging_models, publication_freshness, unknown_brands, unknown_share
 from .models import Listing
 
@@ -44,6 +45,8 @@ class Report:
     emerging_models: list = field(default_factory=list)
     unknown_share: dict = field(default_factory=dict)
     freshness: list = field(default_factory=list)
+    field_fill_rate: dict = field(default_factory=dict)
+    model_named_by_version: dict = field(default_factory=dict)
 
     @property
     def alerts(self) -> list[str]:
@@ -66,4 +69,6 @@ def compute(session, now=None, window=DEFAULT_WINDOW) -> Report:
         emerging_models=emerging_models(session, since, now),
         unknown_share=unknown_share(session, since, now),
         freshness=publication_freshness(session, now, window),
+        field_fill_rate=field_fill_rate(session, since, now),
+        model_named_by_version=version_names_another_model(session),
     )

@@ -12,11 +12,12 @@ NOW = datetime(2026, 9, 18, 9, 0, tzinfo=timezone.utc)
 
 def car(session, site_id, *, brand="Renault", model="Clio", site="lbc",
         seller_type=None, seller_name=None, published=None, disappeared_at=None,
-        prices=()):
+        fuel=None, gearbox=None, department=None, prices=()):
     row = Listing(site=site, site_id=site_id, first_seen=NOW, last_seen=NOW,
                   observations=1, brand=brand, model=model, seller_type=seller_type,
                   seller_name=seller_name, published_at=published,
-                  disappeared_at=disappeared_at)
+                  disappeared_at=disappeared_at, fuel=fuel, gearbox=gearbox,
+                  department=department)
     row.prices = [
         PricePoint(observed_at=at, price=price, source="user", confirmation=confirmation)
         for at, price, confirmation in prices
@@ -44,6 +45,15 @@ def test_the_feed_only_carries_what_the_license_follows(session, key):
     items = feed(session, key)
     assert [i["site_id"] for i in items] == ["watched"]
     assert (items[0]["followed"], items[0]["followed_at"]) == (True, NOW)
+
+
+# Fait rougir `"fuel": listing.fuel, "gearbox": listing.gearbox, "department":
+# listing.department` dans `feed_query._feed_item`.
+def test_the_feed_item_carries_fuel_gearbox_and_department(session, key):
+    watched = car(session, "watched", fuel="diesel", gearbox="automatique", department="75")
+    follow_it(session, key, watched)
+    item = feed(session, key)[0]
+    assert (item["fuel"], item["gearbox"], item["department"]) == ("diesel", "automatique", "75")
 
 
 # Fait rougir `if cur.observed_at >= since` dans `feed_query._feed_item` :
@@ -158,7 +168,8 @@ def test_the_feed_route_serves_the_contract_shape(client, key, session):
     assert set(body["items"][0].keys()) == {
         "site", "site_id", "url", "brand", "model", "version", "label",
         "year", "mileage",
-        "price", "seller_type", "seller_name", "published_at", "age_days",
+        "price", "fuel", "gearbox", "department",
+        "seller_type", "seller_name", "published_at", "age_days",
         "price_delta_since_first", "last_change_at", "followed", "disappeared_at",
         "followed_at", "changes", "flags",
     }

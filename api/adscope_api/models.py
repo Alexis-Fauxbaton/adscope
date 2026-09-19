@@ -45,6 +45,11 @@ class Listing(Base):
     year: Mapped[int | None] = mapped_column(default=None)
     mileage: Mapped[int | None] = mapped_column(default=None)
     postal_code: Mapped[str | None] = mapped_column(String(8), default=None)
+    # Des faits, hors empreinte véhicule (`shared/fingerprint.md`) : vocabulaire
+    # fermé (`vocab.py`), département posé ou dérivé du CP (`department.py`).
+    fuel: Mapped[str | None] = mapped_column(String(24), default=None)
+    gearbox: Mapped[str | None] = mapped_column(String(16), default=None)
+    department: Mapped[str | None] = mapped_column(String(3), default=None)
 
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -73,9 +78,7 @@ class Listing(Base):
     next_detail_crawl: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), index=True, default=None
     )
-    absent_since: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), default=None
-    )
+    absent_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     last_revisit_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None
     )

@@ -134,4 +134,16 @@ MIGRATIONS = (
         "CREATE INDEX IF NOT EXISTS ix_listings_canon"
         " ON listings (canon_brand, canon_model)",
     )),
+    # Trois faits, hors empreinte véhicule (`vocab.py`, `department.py`).
+    # Colonnes vides sur les 52 965 annonces enregistrées : le balayage les
+    # remplit au fil du cycle, comme la couche canonique avant elles. Pas
+    # d'index posé : mesuré sur la base réelle (EXPLAIN ANALYZE), un `Seq
+    # Scan` sans index coûte 15 ms à ce volume (`postal_code = '75015'`),
+    # comparable à un index existant du même ordre (13 ms sur `seller_type`) —
+    # et les filtres attendus se combinent à marque/modèle, déjà indexés.
+    ("011_listings_fuel_gearbox_department", (
+        "ALTER TABLE listings ADD COLUMN IF NOT EXISTS fuel varchar(24)",
+        "ALTER TABLE listings ADD COLUMN IF NOT EXISTS gearbox varchar(16)",
+        "ALTER TABLE listings ADD COLUMN IF NOT EXISTS department varchar(3)",
+    )),
 )

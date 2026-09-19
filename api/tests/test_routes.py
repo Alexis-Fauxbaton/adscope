@@ -22,6 +22,24 @@ def test_observations_are_recorded(client, key):
     assert r.json() == {"accepted": 1, "refused": 0}
 
 
+# Bout en bout, licence Bearer et vraie route HTTP (sur adscope_test, jamais
+# la base réelle) : l'observation qui porte les trois champs du lot se
+# retrouve servie par `/v1/market`, filtrable par eux.
+def test_fuel_gearbox_department_travel_from_post_to_market(client, key):
+    client.post(
+        "/v1/observations",
+        json={"items": [observation(fuel="diesel", gearbox="automatique",
+                                    postal_code="75015")]},
+        headers=auth(key),
+    )
+    body = client.get(
+        "/v1/market", params={"fuel": "diesel", "gearbox": "automatique", "department": "75"},
+        headers=auth(key),
+    ).json()
+    assert body["total"] == 1
+    assert body["items"][0]["department"] == "75"
+
+
 def test_single_listing_returns_signals(client, key):
     client.post("/v1/observations", json={"items": [observation()]}, headers=auth(key))
     r = client.get("/v1/listings/lc/1", headers=auth(key))

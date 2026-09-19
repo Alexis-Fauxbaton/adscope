@@ -30,21 +30,37 @@ NO_VEHICLE = "Véhicule non précisé"
 _ALIAS_WORDS = re.compile(r"[\s_]+")
 
 
+def _words(text) -> list[str]:
+    return [fold(w) for w in _ALIAS_WORDS.split(text or "") if w]
+
+
+def _mentions(version, model) -> bool:
+    """`version` nomme-t-elle `model`, en mots entiers (replié, souligné =
+    espace), jamais une sous-chaîne — sinon « Corvette C6 » mordrait dans un
+    modèle qui ne serait que « C6 »."""
+    words, target = _words(version), _words(model)
+    span = len(target)
+    return any(words[i:i + span] == target for i in range(len(words) - span + 1))
+
+
 def _version_confirms(version, posed_model) -> bool:
     """La condition de `vers_modele_sous_reserve_de_version` : vide, ou
-    `posed_model` présent en mots entiers (replié, souligné = espace).
+    `posed_model` présent en mots entiers.
 
     Une version qui ne dit rien ne contredit personne. Une version qui dit
     autre chose (« Camaro » pour l'alias qui pose « Corvette ») ne le confirme
-    pas — mots entiers, jamais une sous-chaîne, sinon « Corvette C6 » mordrait
-    dans un modèle qui ne serait que « C6 ».
+    pas.
     """
-    words = [fold(w) for w in _ALIAS_WORDS.split(version or "") if w]
-    if not words:
-        return True
-    target = [fold(w) for w in _ALIAS_WORDS.split(posed_model) if w]
-    span = len(target)
-    return any(words[i:i + span] == target for i in range(len(words) - span + 1))
+    return not _words(version) or _mentions(version, posed_model)
+
+
+def version_names_model(version, model) -> bool:
+    """`version` nomme-t-elle `model`, en mots entiers. Vide, elle ne nomme
+    rien — à la différence de `_version_confirms`, qui sert l'alias et laisse
+    passer une version silencieuse. Sert
+    `data_health_queries.version_names_another_model` : la version qui nomme
+    un autre modèle connu de la marque que celui déclaré."""
+    return bool(_words(version)) and _mentions(version, model)
 
 
 def canonical(brand, model, version=None):

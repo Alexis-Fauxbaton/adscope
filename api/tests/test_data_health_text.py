@@ -22,6 +22,13 @@ def bare_report(**kw):
             "window": {"total": 2, "model_rate": 0.0, "brand_and_model_rate": 0.0},
         },
         freshness=[],
+        field_fill_rate={
+            "overall": {"total": 10, "fuel_rate": 0.5, "gearbox_rate": 0.5,
+                        "department_rate": 0.5},
+            "window": {"total": 2, "fuel_rate": 1.0, "gearbox_rate": 1.0,
+                       "department_rate": 1.0},
+        },
+        model_named_by_version={"count": 0, "population": 0, "rate": None},
     )
     base.update(kw)
     return Report(**base)
@@ -68,6 +75,29 @@ def test_freshness_below_volume_says_too_little_to_conclude():
     }]))
     assert "lc : 4 nouvelles annonces (fenêtre précédente : 3) — trop peu pour conclure" in text
     assert "25.0%" not in text
+
+
+# Fait rougir les lignes de `rate = report.field_fill_rate` : les trois taux
+# de remplissage se lisent, base entière et fenêtre.
+def test_the_field_fill_rate_line_shows_the_three_rates():
+    text = render(bare_report(field_fill_rate={
+        "overall": {"total": 100, "fuel_rate": 0.3, "gearbox_rate": 0.4,
+                    "department_rate": 0.5},
+        "window": {"total": 20, "fuel_rate": 1.0, "gearbox_rate": 1.0,
+                   "department_rate": 1.0},
+    }))
+    assert "toute la base (100 annonces) : 30.0% / 40.0% / 50.0%" in text
+    assert "fenêtre (20 annonces) : 100.0% / 100.0% / 100.0%" in text
+
+
+# Fait rougir `named = report.model_named_by_version` : l'information promise
+# à Alexis se lit, jamais préfixée « ALERTE ».
+def test_the_model_named_by_version_line_is_informational_not_an_alert():
+    text = render(bare_report(model_named_by_version={
+        "count": 74, "population": 16167, "rate": 74 / 16167,
+    }))
+    assert "74 sur 16167" in text
+    assert "ALERTE" not in text
 
 
 # Fait rougir `if report.alerts: lines += ["", *(f"ALERTE : {a}" ...)]` :

@@ -32,6 +32,9 @@ class ItemOut(BaseModel):
     year: int | None
     mileage: int | None
     price: int | None
+    fuel: str | None
+    gearbox: str | None
+    department: str | None
     seller_type: SellerType | None
     seller_name: str | None
     published_at: datetime | None
@@ -52,7 +55,9 @@ def item_of(row) -> dict:
         "site": row.site, "site_id": row.site_id, "url": build_url(row.site, row.site_id),
         "brand": row.brand, "model": row.model, "version": row.version,
         "label": label(row.brand, row.model, row.version), "year": row.year,
-        "mileage": row.mileage, "price": row.price, "seller_type": row.seller_type,
+        "mileage": row.mileage, "price": row.price,
+        "fuel": row.fuel, "gearbox": row.gearbox, "department": row.department,
+        "seller_type": row.seller_type,
         "seller_name": row.seller_name, "published_at": row.published_at,
         "age_days": row.age_days, "price_delta_since_first": row.price_delta_since_first,
         "last_change_at": row.last_change_at, "followed": row.followed,

@@ -15,6 +15,11 @@ MIN_WINDOW_LISTINGS = 50
 NEW_MODEL_MIN_LISTINGS = 5
 FRESHNESS_ALERT_BELOW = 0.90
 FRESHNESS_BASELINE_ABOVE = 0.98
+# Un modèle ne compte comme « connu de la marque » qu'avec assez d'annonces :
+# en dessous, une orthographe rare ou une faute de saisie créerait un faux
+# modèle, et une version qui le nommerait par hasard compterait comme
+# contredite. Même seuil que `NEW_MODEL_MIN_LISTINGS`, même raison.
+KNOWN_MODEL_MIN_LISTINGS = NEW_MODEL_MIN_LISTINGS
 
 _UNKNOWN_KEY = fold(UNKNOWN)
 

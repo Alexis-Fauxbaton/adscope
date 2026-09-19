@@ -12,7 +12,7 @@ détection de republication en dépend tout entière ; `site_published_last` et
 changement réel, un par jour sans changement. Les colonnes canoniques
 (`taxonomy.derive`) suivent, dérivées, ne faisant jamais foi."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -20,11 +20,17 @@ from sqlalchemy.dialects.postgresql import insert
 from .fingerprint import fingerprint
 from .models import Listing, PricePoint
 from .intake import ObservationIn
+from . import publication
 from .taxonomy import derive
 from .usage import bump
 
 FINGERPRINT_FIELDS = ("brand", "model", "version", "year", "mileage")
-VEHICLE_FIELDS = FINGERPRINT_FIELDS + ("postal_code", "seller_type")
+# `fuel`, `gearbox`, `department` suivent la même règle que `postal_code` :
+# écrits quand l'observation les porte, jamais effacés par une observation
+# muette sur eux. Hors empreinte véhicule (`shared/fingerprint.md`).
+VEHICLE_FIELDS = FINGERPRINT_FIELDS + (
+    "postal_code", "seller_type", "fuel", "gearbox", "department",
+)
 
 # Un point au changement seulement laissait entre deux points un intervalle
 # qu'aucune relecture ne peut combler : entre le 1er juillet à 10 900 € et le
@@ -120,27 +126,7 @@ def record(session, observation: ObservationIn, source: str, license_=None,
     listing.observations += 1
     listing.disappeared_at = listing.absent_since = None
 
-    # Un horodatage exact fait autorité ; les bornes inférées ne servent
-    # qu'aux sites qui ne donnent qu'un libellé relatif.
-    if observation.published_at is not None:
-        listing.published_at = (
-            observation.published_at
-            if listing.published_at is None
-            else min(listing.published_at, observation.published_at)
-        )
-    if observation.bumped_at is not None:
-        listing.bumped_at = (
-            observation.bumped_at
-            if listing.bumped_at is None
-            else max(listing.bumped_at, observation.bumped_at)
-        )
-
-    if observation.published_days_ago is not None:
-        published = (now - timedelta(days=observation.published_days_ago)).date()
-        first, last = listing.site_published_first, listing.site_published_last
-        listing.site_published_first = published if first is None else min(first, published)
-        if observation.published_precision == "day":
-            listing.site_published_last = published if last is None else max(last, published)
+    publication.apply(listing, observation, now)
 
     # L'usage se compte sur l'observation reçue, non sur le point de prix : un
     # marchand qui reparcourt des annonces confirmées du jour n'en produit aucun.

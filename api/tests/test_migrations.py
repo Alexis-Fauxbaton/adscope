@@ -32,6 +32,9 @@ def to_old_shape(session):
     session.execute(
         text("ALTER TABLE price_points DROP COLUMN IF EXISTS license_key_hash")
     )
+    session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS fuel"))
+    session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS gearbox"))
+    session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS department"))
     session.execute(text("DROP TABLE IF EXISTS schema_migrations"))
 
 
@@ -334,3 +337,23 @@ def test_the_migration_produces_the_listing_columns_that_create_all_produces(ses
     to_old_shape(session)
     apply_migrations(session.connection())
     assert columns(session, "listings") == set(Listing.__table__.c.keys())
+
+
+# Carburant, boîte et département arrivent sur une base qui porte 52 965
+# annonces : les colonnes s'ajoutent vides, `fuel`/`gearbox` ne se devinent
+# pas après coup.
+def test_migration_adds_the_fuel_gearbox_department_columns(session):
+    to_old_shape(session)
+    assert not {"fuel", "gearbox", "department"} & columns(session, "listings")
+    apply_migrations(session.connection())
+    assert {"fuel", "gearbox", "department"} <= columns(session, "listings")
+
+
+def test_the_listings_already_recorded_keep_an_empty_fuel_gearbox_department(session):
+    to_old_shape(session)
+    with_history(session)
+    apply_migrations(session.connection())
+    rows = session.execute(text(
+        "SELECT site_id, fuel, gearbox, department FROM listings"
+    )).all()
+    assert rows == [("87103336930", None, None, None)]

@@ -7,7 +7,7 @@ de deux façons, et le « Mercedes-Benz » que La Centrale écrit seule.
 """
 
 from adscope_api import spelling
-from adscope_api.taxonomy import canonical, derive, key, search_text
+from adscope_api.taxonomy import canonical, derive, key, search_text, version_names_model
 
 
 class Row:
@@ -173,3 +173,24 @@ def test_derive_says_when_it_changed_nothing():
     row = Row("Renault", "Clio", None)
     assert derive(row) is True
     assert derive(row) is False
+
+
+# Fait rougir `return bool(_words(version)) and _mentions(version, model)` sur
+# la branche vide : au contraire de `_version_confirms`, une version muette ne
+# nomme rien — la ligne de santé des données ne doit pas compter un modèle
+# absent comme un modèle contredit.
+def test_an_empty_version_names_no_model():
+    assert version_names_model("", "scenic") is False
+    assert version_names_model(None, "scenic") is False
+
+
+# Fait rougir `_mentions(version, model)` dans le sens qui nomme : une version
+# qui porte le modèle en mots entiers le nomme.
+def test_a_version_that_spells_a_model_names_it():
+    assert version_names_model("Grande Punto Evo 1.3 Multijet", "punto evo") is True
+
+
+# Fait rougir la même ligne dans le sens qui ne nomme pas : un mot qui n'est
+# qu'une sous-chaîne du modèle ne le nomme pas.
+def test_a_version_that_only_shares_a_substring_does_not_name_the_model():
+    assert version_names_model("Corvettiste 6.0 V8", "corvette") is False

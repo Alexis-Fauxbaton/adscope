@@ -41,7 +41,8 @@ def age_expr(now):
     )
 
 
-def _core(license_, now, *, brand, model, q, seller_type, min_age_days, dropped):
+def _core(license_, now, *, brand, model, q, seller_type, min_age_days, dropped,
+         fuel=None, gearbox=None, department=None):
     last_price = _distinct_price(PricePoint.price.label("price"), desc=True)
     first_change = _distinct_price(PricePoint.price.label("price"), where=CHANGED)
     last_change = _distinct_price(
@@ -64,7 +65,8 @@ def _core(license_, now, *, brand, model, q, seller_type, min_age_days, dropped)
     query = (
         select(
             Listing.site, Listing.site_id, Listing.brand, Listing.model, Listing.version,
-            Listing.year, Listing.mileage, last_price.c.price, Listing.seller_type,
+            Listing.year, Listing.mileage, last_price.c.price,
+            Listing.fuel, Listing.gearbox, Listing.department, Listing.seller_type,
             Listing.seller_name, Listing.published_at, age.label("age_days"),
             delta.label("price_delta_since_first"), last_change.c.at.label("last_change_at"),
             followed.label("followed"), Listing.disappeared_at,
@@ -80,6 +82,12 @@ def _core(license_, now, *, brand, model, q, seller_type, min_age_days, dropped)
     query = search.text(query, Listing.search_text, q)
     if seller_type:
         query = query.where(Listing.seller_type == seller_type)
+    if fuel:
+        query = query.where(Listing.fuel.in_(fuel))
+    if gearbox:
+        query = query.where(Listing.gearbox.in_(gearbox))
+    if department:
+        query = query.where(Listing.department.in_(department))
     if min_age_days is not None:
         query = query.where(age >= min_age_days)
     if dropped is not None:
@@ -97,11 +105,13 @@ def _order(sort, age, delta):
 
 def market_page(session, license_, now, *, brand=None, model=None, q=None,
                 seller_type=None, min_age_days=None, dropped=None,
+                fuel=None, gearbox=None, department=None,
                 sort="age_desc", limit=50, offset=0):
     """`(total, lignes)` : le total porte sur le filtre, jamais sur la page."""
     query, age, delta = _core(
         license_, now, brand=brand, model=model, q=q, seller_type=seller_type,
         min_age_days=min_age_days, dropped=dropped,
+        fuel=fuel, gearbox=gearbox, department=department,
     )
     total = session.scalar(select(func.count()).select_from(query.subquery()))
     query = query.order_by(*_order(sort, age, delta)).limit(limit).offset(offset)
