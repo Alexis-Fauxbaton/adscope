@@ -147,3 +147,27 @@ button.wide { width: 100%; margin-top: 10px; }
 .note.ok { color: var(--ok); }
 .note.warn { color: var(--warn); }
 .note.bad { color: var(--bad); }
+
+/* Les problèmes en cours, en tête de la fenêtre. Même papier que le reste, le
+   filet du tampon en plus : c'est la seule chose de la fenêtre qui réclame un
+   geste. Rien ici quand tout va bien — la section est cachée. */
+#alerts { margin-bottom: 12px; }
+
+.alert {
+  margin-bottom: 8px;
+  padding: 8px 9px;
+  background: var(--card);
+  border: 1px solid var(--stamp);
+}
+
+.alert:last-child { margin-bottom: 0; }
+
+.alert p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+/* Un bouton par problème, jamais deux : le geste est unique, il prend la largeur. */
+.alert button.wide { margin-top: 8px; }

@@ -1,6 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ad, block, world } from './world.mjs'
+import { CARDS, FICHES, fiche, href, page, results } from './lc-page.mjs'
+import { at } from './stage.mjs'
+
+// L'adresse d'une fiche, telle que le site l'écrit : le chemin seul, sans l'origine.
+const SLUG = (ref) => href(ref).split('/').pop()
 
 const ID = '3254194817'
 
@@ -87,4 +92,76 @@ test('le panneau revient après un appel réussi', () => {
   assert.equal(w.panel().className, '')
   recover(w)
   assert.equal(w.panel().className, 'adscope-panel')
+})
+
+// ── Le pendant sur l'autre site ─────────────────────────────────────────────
+//
+// Trou de couverture relevé le 2026-09-19 : tout ce qui précède ne tourne que
+// sur le DOM leboncoin (`world.mjs`). La session tombe pourtant partout, et le
+// remplacement de la pastille passe par le site — ses cartes, son conteneur,
+// sa façon de nommer une annonce. Ce qui suit rejoue les mêmes constats sur la
+// page La Centrale sauvegardée (`lc-page.mjs`), y compris sur une annonce que
+// la page montre deux fois.
+
+// Le jour du relevé des pages sauvegardées.
+const RELEVE = '2026-09-06T18:00:00Z'
+// `W103496285` porte une bannière `boostVo` et reparaît parmi les résultats
+// ordinaires : une annonce, deux cartes.
+const TWICE = 'W103496285'
+const FICHE = FICHES.uncapped
+
+const lcListing = () =>
+  at(RELEVE, () => {
+    const w = page({
+      path: '/listing',
+      scripts: results(CARDS),
+      cards: CARDS.map((c) => c.reference),
+      boost: TWICE,
+    })
+    w.load('listing.js')
+    return w
+  })
+
+// La même branche `if (down)` de `paint` dans src/listing.js, sur l'autre site :
+// c'est le module de site qui rend les cartes, et rien ne garantissait que le
+// remplacement les atteigne toutes.
+test('La Centrale : une session tombée efface la pastille de chacune des cartes', () => {
+  const w = lcListing()
+  assert.equal(w.badgesOf(TWICE).length, 2, 'une annonce, deux cartes')
+  w.denySession()
+  for (const badge of w.badgesOf(TWICE)) {
+    assert.equal(badge.className, '')
+    assert.equal(badge.children.length, 1)
+    assert.equal(badge.children[0].className, 'ads-auth-msg')
+    assert.match(badge.children[0].textContent, /adscope — reconnectez-vous/)
+  }
+})
+
+test('La Centrale : la mention ne satisfait pas [class*="adscope-"]', () => {
+  const w = lcListing()
+  assert.ok(w.doc.querySelectorAll('[class*="adscope-"]').length, 'il y en avait avant')
+  w.denySession()
+  assert.equal(w.doc.querySelectorAll('[class*="adscope-"]').length, 0)
+})
+
+test("La Centrale : un appel réussi rend les deux pastilles", () => {
+  const w = lcListing()
+  w.denySession()
+  recover(w)
+  for (const badge of w.badgesOf(TWICE)) {
+    assert.ok(badge.className.includes('adscope-badge'))
+    assert.equal(badge.children[0].className, 'adscope-badge-page')
+  }
+})
+
+test('La Centrale : le panneau de la fiche se remplace lui aussi par la mention', () => {
+  const w = at(RELEVE, () => {
+    const w = page({ path: `/${SLUG(FICHE.reference)}`, scripts: fiche(FICHE), price: true })
+    w.load('detail.js')
+    return w
+  })
+  assert.equal(w.panel().className, 'adscope-panel')
+  w.denySession()
+  assert.equal(w.panel().className, '')
+  assert.match(w.panel().textContent, /adscope — reconnectez-vous/)
 })

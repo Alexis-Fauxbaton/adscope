@@ -49,10 +49,13 @@ ADS.account = (() => {
   // reste dans les gestes qu'une popup fait déjà sans permission propre, à la
   // différence de `chrome.tabs.create`. Même bouton, connecté ou non : c'est
   // le seul geste qu'un humain fait ici — se connecter, ou revoir son compte.
-  el('open-app').onclick = () => {
+  const openApp = () => {
     const apiBase = base(el('api').value)
     if (isBase(apiBase)) window.open(`${apiBase}/app`, '_blank')
+    return isBase(apiBase)
   }
+
+  el('open-app').onclick = openApp
 
   // Ce que la popup montre à la place d'une clé : qui est connecté. Passe par
   // le service worker — lui seul sait Bearer ou cookie de session — jamais une
@@ -84,7 +87,7 @@ ADS.account = (() => {
     showKey()
   }
 
-  return { init, showAccount }
+  return { init, showAccount, openApp }
 })()
 
 if (typeof module !== 'undefined') module.exports = ADS.account

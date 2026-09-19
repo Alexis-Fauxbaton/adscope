@@ -24,10 +24,19 @@ ADS.lookup = (() => {
   const get = async (parts, cfg) => {
     const path = parts.map(segment)
     if (path.some((p) => p === null)) return null
-    const res = await fetch(`${cfg.apiBase}/v1/${path.join('/')}`, {
-      headers: ADS.auth.headers(cfg),
-      credentials: ADS.auth.credentials(cfg),
-    })
+    let res
+    try {
+      res = await fetch(`${cfg.apiBase}/v1/${path.join('/')}`, {
+        headers: ADS.auth.headers(cfg),
+        credentials: ADS.auth.credentials(cfg),
+      })
+    } catch {
+      // Ces deux lectures comptent dans l'état de santé comme les autres : un
+      // serveur arrêté l'est pour tout le monde, et la fenêtre doit le dire.
+      await ADS.reach.broke()
+      return null
+    }
+    await ADS.reach.answered(res.status)
     await ADS.auth.mark(cfg, res.status)
     // Une annonce inconnue de la base rend 404 : ce n'est pas une panne, c'est
     // une réponse — le panneau se passe de la section, il ne l'invente pas.

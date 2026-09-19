@@ -21,8 +21,13 @@ ADS.context = (() => {
   const observers = []
 
   // Sans retour possible : rien ne redonne son contexte à un script orphelin.
+  // Le silence, lui, n'est plus de mise : ce qui est affiché reste sous les
+  // yeux du lecteur, figé, et il doit savoir qu'un rechargement le ranime. La
+  // mention est posée par src/stale-notice.js, qui n'existe pas dans tous les
+  // mondes où context.js est chargé seul — d'où le garde.
   const stop = () => {
     for (const o of observers.splice(0)) o.disconnect()
+    if (globalThis.ADS && ADS.staleNotice) ADS.staleNotice.show()
   }
 
   // L'appel peut lever avant que l'identifiant ait disparu : c'est la même

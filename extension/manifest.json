@@ -7,7 +7,9 @@
     "storage"
   ],
   "host_permissions": [
-    "http://localhost:8000/*"
+    "http://localhost:8000/*",
+    "https://www.leboncoin.fr/*",
+    "https://www.lacentrale.fr/*"
   ],
   "optional_host_permissions": [
     "https://*/*"
@@ -26,6 +28,7 @@
       ],
       "js": [
         "src/context.js",
+        "src/stale-notice.js",
         "src/sites.js",
         "src/sites/read.js",
         "src/sites/vehicle-fields.js",
@@ -73,6 +76,7 @@
       ],
       "js": [
         "src/context.js",
+        "src/stale-notice.js",
         "src/sites.js",
         "src/sites/read.js",
         "src/sites/vehicle-fields.js",

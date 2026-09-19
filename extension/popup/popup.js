@@ -64,6 +64,9 @@ el('cache-clear').onclick = async () => {
 
 chrome.storage.local.get(['licenseKey', 'apiBase', 'status']).then(async (stored) => {
   ADS.account.init(stored)
+  // Avant tout le reste : ce qui empêche l'extension de travailler, et le geste
+  // qui le répare. Le reste de la fenêtre ne l'attend pas.
+  ADS.alerts.show()
   showCache()
   ADS.account.showAccount(await ask({ type: 'me' }))
   const status = stored.status

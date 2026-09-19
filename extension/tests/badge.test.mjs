@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -13,59 +14,77 @@ const src = (f) => join(dirname(fileURLToPath(import.meta.url)), '../src/', f)
 
 // Le service worker seul sait à quel onglet une page appartient : le content
 // script lui dit ce qu'il a trouvé, l'expéditeur dit où le poser.
-const boot = () => {
+const boot = ({ granted = true } = {}) => {
   const painted = []
   let listener = null
   globalThis.ADS = undefined
   globalThis.chrome = {
     storage: { local: storage({ entries: { apiBase: 'http://api' } }).local },
-    runtime: { onMessage: { addListener: (fn) => (listener = fn) } },
+    // Le manifeste réel : c'est lui qui dit au service worker quels modules de
+    // site charger, et le test ne doit pas en tenir une copie.
+    runtime: {
+      onMessage: { addListener: (fn) => (listener = fn) },
+      getManifest: () => JSON.parse(readFileSync(src('../manifest.json'), 'utf8')),
+    },
     action: {
       setBadgeText: async (o) => painted.push(o),
       setBadgeBackgroundColor: async () => {},
     },
+    permissions: {
+      contains: async () => granted,
+      onAdded: { addListener: () => {} },
+      onRemoved: { addListener: () => {} },
+    },
   }
-  globalThis.importScripts = () => {
-    delete require.cache[require.resolve(src('cache.js'))]
-    require(src('cache.js'))
+  globalThis.importScripts = (...files) => {
+    for (const f of files) {
+      const at = src(f.replace('/src/', ''))
+      delete require.cache[require.resolve(at)]
+      require(at)
+    }
   }
   delete require.cache[require.resolve(src('sw.js'))]
   require(src('sw.js'))
   return {
+    // Le badge posé sur l'onglet, à part de celui de l'icône entière : le
+    // service worker peint le second au démarrage, et ce test-ci parle du premier.
     painted,
-    tell: (alerts, tabId = 7) =>
-      new Promise((r) => listener({ type: 'badge', alerts }, tabId == null ? {} : { tab: { id: tabId } }, r)),
+    tab: () => painted.filter((p) => 'tabId' in p),
+    tell: async (alerts, tabId = 7) => {
+      await ADS.access.ready()
+      return new Promise((r) => listener({ type: 'badge', alerts }, tabId == null ? {} : { tab: { id: tabId } }, r))
+    },
   }
 }
 
 // L'erreur déjà corrigée deux fois sur les pastilles : un badge toujours
 // porteur d'un nombre devient du papier peint en deux jours.
 test("le badge ne porte rien quand il n'y a rien à dire", async () => {
-  const { painted, tell } = boot()
+  const { tab, tell } = boot()
   await tell(0)
-  assert.deepEqual(painted, [{ tabId: 7, text: '' }])
+  assert.deepEqual(tab(), [{ tabId: 7, text: null }])
 })
 
 test("le badge porte le nombre d'annonces en alerte", async () => {
-  const { painted, tell } = boot()
+  const { tab, tell } = boot()
   await tell(4)
-  assert.deepEqual(painted, [{ tabId: 7, text: '4' }])
+  assert.deepEqual(tab(), [{ tabId: 7, text: '4' }])
 })
 
 // Une navigation monopage ne recharge pas le document : sans effacement
 // explicite, le badge de la fiche précédente resterait sur la suivante.
 test("passer sur une page sans alerte efface le badge de la précédente", async () => {
-  const { painted, tell } = boot()
+  const { tab, tell } = boot()
   await tell(3)
   await tell(0)
-  assert.deepEqual(painted.map((p) => p.text), ['3', ''])
+  assert.deepEqual(tab().map((p) => p.text), ['3', null])
 })
 
 // Hors onglet — un message venu d'ailleurs — il n'y a pas d'icône à peindre.
 test("sans onglet identifié, aucun badge n'est posé", async () => {
-  const { painted, tell } = boot()
+  const { tab, tell } = boot()
   await tell(3, null)
-  assert.equal(painted.length, 0)
+  assert.equal(tab().length, 0)
 })
 
 // Ce que le content script a trouvé : c'est lui qui alimente le badge. Le nombre

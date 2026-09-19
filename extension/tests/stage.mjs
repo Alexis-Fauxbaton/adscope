@@ -36,7 +36,15 @@ export class El {
   get textContent() { return this.children.length ? this.children.map((c) => c.textContent).join('') : this.own }
   get descendants() { return this.children.flatMap((c) => [c, ...c.descendants]) }
   setAttribute(k, v) { this.attrs[k] = String(v) }
-  getAttribute(k) { return k in this.attrs ? this.attrs[k] : null }
+  // `className` et l'attribut `class` sont la même chose dans un navigateur :
+  // un sélecteur `[class*="adscope-"]` voit ce que le code a posé par la
+  // propriété. Sans cela, le garde-fou qui compte les classes de l'extension —
+  // celui dont dépend le contrôle de santé du crawl — ne trouvait jamais rien
+  // et passait au vert quoi qu'on écrive.
+  getAttribute(k) {
+    if (k === 'class' && !(k in this.attrs)) return this.className || null
+    return k in this.attrs ? this.attrs[k] : null
+  }
   removeAttribute(k) { delete this.attrs[k] }
   append(...nodes) { for (const n of nodes) { detach(n); n.parentElement = this; this.children.push(n) } }
   appendChild(n) { this.append(n) }
@@ -128,6 +136,10 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
   let relayed = []
   // Ce que la mention de reconnexion ouvre : le seul geste qu'elle fait.
   const opened = []
+  // Ce que le script orphelin écrit dans la console de la page. Retenu plutôt
+  // qu'affiché : une suite de tests qui parle à la console ne se lit plus.
+  const said = []
+  console.info = (...parts) => said.push(parts.join(' '))
   globalThis.window = { open: (url, target) => opened.push({ url, target }) }
   globalThis.chrome = {
     storage: {
@@ -178,12 +190,12 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
   const load = (f) => { delete require.cache[require.resolve(src(f))]; require(src(f)) }
   // L'ordre du manifeste : chaque module trouve ceux dont il se sert au chargement.
   const MODULES = [
-    'context.js', 'sites.js', 'sites/read.js', 'format.js', 'curve.js', 'view.js', 'diag.js',
+    'context.js', 'stale-notice.js', 'sites.js', 'sites/read.js', 'format.js', 'curve.js', 'view.js', 'diag.js',
     'sync.js', 'market.js', 'follow.js', 'feed.js', 'auth-notice.js', 'panel-node.js',
     'panel-icons.js', 'panel-curve.js', 'panel-note.js', 'panel-sections.js', 'panel-cards.js',
     'panel.js',
   ]
-  for (const f of ['context.js', 'sites.js', 'sites/read.js', 'sites/vehicle-fields.js', site, ...MODULES.slice(3)]) load(f)
+  for (const f of ['context.js', 'stale-notice.js', 'sites.js', 'sites/read.js', 'sites/vehicle-fields.js', site, ...MODULES.slice(4)]) load(f)
   // Le travail lourd, compté à travers le registre : le code partagé y accède
   // de la même façon, par le site que l'origine désigne.
   const current = ADS.sites.current()
@@ -250,5 +262,8 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
       bus.dispatchEvent(new CustomEvent(`adscope:${name}`, { detail: JSON.stringify(payload) })),
     // Où la mention de reconnexion ouvre l'application.
     opened: () => opened,
+    // Ce que la console de la page a reçu — une ligne, une seule, quand
+    // l'extension a été remplacée sous l'onglet.
+    said: () => said,
   }
 }

@@ -9,6 +9,12 @@
   <span id="site" class="stamp"></span>
 </header>
 
+<!--
+  Ce que l'extension ne peut pas faire, et le geste qui le répare : une phrase
+  et un bouton par problème, au-dessus de tout le reste. Rien quand tout va bien.
+-->
+<section id="alerts" hidden></section>
+
 <p id="account" class="stamp" hidden></p>
 <button id="open-app" class="wide ghost">Se connecter</button>
 
@@ -104,6 +110,8 @@
 <script src="../src/sites/leboncoin.js"></script>
 <script src="../src/sites/lacentrale.js"></script>
 <script src="../src/format.js"></script>
+<!-- Le vocabulaire des problèmes, partagé avec le service worker qui les tient. -->
+<script src="../src/health.js"></script>
 
 <script src="dom.js"></script>
 <script src="config.js"></script>
@@ -114,4 +122,5 @@
 <script src="chart.js"></script>
 <script src="fiche.js"></script>
 <script src="account.js"></script>
+<script src="alerts.js"></script>
 <script src="popup.js"></script>

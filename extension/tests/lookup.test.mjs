@@ -13,6 +13,8 @@ globalThis.ADS = undefined
 globalThis.chrome = {
   action: { setBadgeText: async () => {}, setBadgeBackgroundColor: async () => {} },
 }
+require(join(here, '../src/health.js'))
+require(join(here, '../src/reach.js'))
 require(join(here, '../src/auth.js'))
 const lookup = require(join(here, '../src/lookup.js'))
 

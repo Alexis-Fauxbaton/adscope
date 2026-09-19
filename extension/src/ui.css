@@ -130,3 +130,16 @@
 }
 
 .ads-auth-msg:hover { text-decoration: underline; }
+
+/* L'onglet périmé : ce qui reste affiché ne bouge plus, et le lecteur doit le
+   savoir. Même discrétion que la mention de reconnexion, sans le bouton — il
+   n'y a rien à cliquer, seulement la page à recharger. */
+.ads-stale-msg {
+  display: inline-block;
+  margin: 6px 0 2px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px dashed #a1a1aa;
+  color: #52525b;
+  font: 500 11px/1.4 system-ui, -apple-system, sans-serif;
+}

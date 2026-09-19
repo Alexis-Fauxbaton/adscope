@@ -19,9 +19,13 @@ export class El {
     this.textContent = ''
     this.value = ''
     this.hidden = false
+    this.handlers = {}
   }
   focus() {}
-  addEventListener() {}
+  addEventListener(type, fn) { (this.handlers[type] = this.handlers[type] || []).push(fn) }
+  // Le clic tel que le lecteur le donne, et ce qu'il déclenche : les boutons
+  // des alertes demandent au navigateur, puis rejouent leur rendu.
+  click() { return Promise.all((this.handlers.click || []).map((fn) => fn())) }
   setAttribute(k, v) { this.attrs[k] = String(v) }
   getAttribute(k) { return k in this.attrs ? this.attrs[k] : null }
   append(...nodes) { this.children.push(...nodes) }
@@ -76,10 +80,10 @@ export const detail = (over = {}) => ({
 const FILES = [
   ['../src/', 'sites.js'], ['../src/', 'sites/read.js'],
   ['../src/', 'sites/leboncoin.js'], ['../src/', 'sites/lacentrale.js'],
-  ['../src/', 'format.js'],
+  ['../src/', 'format.js'], ['../src/', 'health.js'],
   ['../popup/', 'dom.js'], ['../popup/', 'config.js'], ['../popup/', 'report.js'], ['../popup/', 'seller.js'],
   ['../src/', 'curve.js'], ['../popup/', 'labels.js'], ['../popup/', 'chart.js'], ['../popup/', 'fiche.js'],
-  ['../popup/', 'account.js'], ['../popup/', 'popup.js'],
+  ['../popup/', 'account.js'], ['../popup/', 'alerts.js'], ['../popup/', 'popup.js'],
 ]
 
 // La fenêtre telle qu'elle s'ouvre : le stockage rend le dernier diagnostic, le
@@ -94,16 +98,20 @@ export const open = async ({
   // Ce que le service worker répond à `{ type: 'me' }` — déconnecté par
   // défaut, comme la popup doit l'être tant qu'elle n'a rien appris.
   me = { ok: false },
+  // Les problèmes que le service worker rapporte à `{ type: 'health' }` —
+  // aucun par défaut, comme une extension en bon état.
+  problems = [],
 } = {}) => {
   const nodes = {}
   // Les sections écrites masquées dans popup.html : c'est l'état de départ.
-  for (const id of ['seller-box', 'fiche', 'summary', 'claim', 'hatch', 'empty', 'points']) {
+  for (const id of ['seller-box', 'fiche', 'summary', 'claim', 'hatch', 'empty', 'points', 'alerts']) {
     nodes[id] = new El()
     nodes[id].hidden = true
   }
   const asked = []
   const messages = []
   const opened = []
+  const requested = []
   globalThis.window = { open: (url, target) => opened.push({ url, target }) }
   globalThis.document = {
     getElementById: (id) => (nodes[id] = nodes[id] || new El()),
@@ -117,6 +125,7 @@ export const open = async ({
         messages.push(msg)
         if (msg.type === 'cached') return { ok: true, signals: cached ? { [status.pickedId]: cached } : {} }
         if (msg.type === 'me') return me
+        if (msg.type === 'health') return { ok: true, problems }
         // Ce que `sw.js` rend pour `{ type: 'seller' }` : relayé à `ADS.lookup.seller`,
         // par `ADS.auth` — c'est cette route réseau, pas un `fetch` de la popup, que
         // `answer` simule ici, comme le fait le service worker réel.
@@ -129,7 +138,12 @@ export const open = async ({
         return { entries: 0, bytes: 0, quota: 1000 }
       },
     },
-    permissions: { contains: async () => granted, request: async () => granted },
+    // Ce que la fenêtre demande au navigateur : `asked` retient les origines
+    // pour lesquelles elle a réclamé l'accès, et dans quel ordre.
+    permissions: {
+      contains: async () => granted,
+      request: async (o) => (requested.push(o), granted),
+    },
   }
   globalThis.fetch = (url, init) => (asked.push(url), answer(url, init))
   globalThis.location = { origin: 'chrome-extension://adscope' }
@@ -140,5 +154,5 @@ export const open = async ({
     require(path)
   }
   await new Promise((r) => setTimeout(r, 0))
-  return { nodes, asked, messages, opened, popup, src }
+  return { nodes, asked, messages, opened, requested, popup, src }
 }

@@ -1,58 +1,30 @@
-importScripts('/src/cache.js', '/src/auth.js', '/src/lookup.js')
-
-const DEFAULTS = { apiBase: 'http://localhost:8000', licenseKey: '' }
-
-// Six heures. Ce que l'encart affiche se compte en jours pleins — « suivie
-// depuis 12 j », « stable depuis 3 j » — et rien de visible ne peut changer
-// dans l'intervalle. Le seuil range donc les passages répétés d'un marchand
-// sur la même page de résultats en un seul aller-retour, tout en laissant au
-// moins quatre observations par jour et par annonce consultée.
-const FRESH_MS = 6 * 3600 * 1000
-
-const config = async () => ({
-  ...DEFAULTS,
-  ...(await chrome.storage.local.get(Object.keys(DEFAULTS))),
-})
-
-const toObservation = (l) => ({
-  site: l.site, site_id: l.siteId,
-  price: l.price ?? null,
-  brand: l.brand ?? null, model: l.model ?? null, version: l.version ?? null,
-  year: l.year ?? null, mileage: l.mileage ?? null,
-  seller_type: l.sellerType ?? null, seller_id: l.sellerId ?? null, seller_name: l.sellerName ?? null,
-  published_at: l.publishedAt ?? null, bumped_at: l.bumpedAt ?? null,
-  // Trois champs optionnels du lot « champs manquants » : vocabulaire fermé
-  // déjà traduit par le module de site, département dérivé du code postal.
-  // Absents, ils n'effacent jamais une valeur déjà connue côté API.
-  fuel: l.fuel ?? null, gearbox: l.gearbox ?? null,
-  department: l.department ?? null, postal_code: l.postalCode ?? null,
-})
-
-// Ce que l'observation apprendrait à l'API. Inchangée, elle ne lui apprend
-// rien ; changée, elle passe outre le seuil de fraîcheur — un prix qui bouge
-// est précisément ce qu'on ne veut pas retenir six heures.
-const signature = (l) => [l.price ?? '', l.publishedAt ?? '', l.bumpedAt ?? ''].join('|')
-
-const stale = (listing, entry, now) =>
-  !entry || now - entry.at >= FRESH_MS || entry.sig !== signature(listing)
-
-// Clé configurée → Bearer, machines inchangées ; sinon cookie de session et
-// jeton CSRF. `method` vaut POST par défaut ; `me` seul lit, en GET.
-const call = async (path, body, cfg, method = 'POST') => {
-  const res = await fetch(cfg.apiBase + path, {
-    method,
-    headers: ADS.auth.headers(cfg, body ? { 'Content-Type': 'application/json' } : {}),
-    credentials: ADS.auth.credentials(cfg),
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  })
-  const authRequired = await ADS.auth.mark(cfg, res.status)
-  if (!res.ok) {
-    const e = new Error(`${res.status}`)
-    e.authRequired = authRequired
-    throw e
+// Les modules de site, sans en nommer aucun : le manifeste dit déjà lesquels
+// existent et pour quelles origines. Le service worker charge ceux du monde de
+// l'extension — le monde MAIN ne lui appartient pas —, dans l'ordre déclaré et
+// chacun une fois. Ajouter un site reste ce que l'architecture promet : un
+// fichier, et deux lignes au manifeste.
+const siteFiles = () => {
+  const seen = new Set()
+  for (const block of chrome.runtime.getManifest().content_scripts) {
+    if (block.world === 'MAIN') continue
+    for (const f of block.js) if (f.startsWith('src/sites/')) seen.add(`/${f}`)
   }
-  return res.json()
+  return [...seen]
 }
+
+// L'état de santé et la joignabilité d'abord : l'authentification et les appels
+// s'y rapportent. Le registre des sites ensuite — le service worker en a besoin
+// pour savoir quelles origines l'extension prétend couvrir, et donc lesquelles
+// le navigateur lui accorde encore.
+importScripts(
+  '/src/health.js', '/src/reach.js', '/src/auth.js', '/src/cache.js',
+  '/src/api.js', '/src/observation.js', '/src/lookup.js', '/src/sites.js',
+)
+importScripts(...siteFiles())
+importScripts('/src/access.js')
+
+const { config, call } = ADS.api
+const { signature, stale } = ADS.observation
 
 // Un seul aller-retour côté content script : on pousse ce qui a été vu, puis
 // on récupère ce que le pool sait déjà, pour ce qui manque au cache ou a vieilli.
@@ -64,7 +36,7 @@ const sync = async (site, listings) => {
   const due = listings.filter((l) => stale(l, known[l.siteId], now))
   if (!due.length) return { ok: true, sent: 0, signals: {}, skipped: listings.length }
 
-  const items = due.map(toObservation)
+  const items = due.map(ADS.observation.of)
   for (let i = 0; i < items.length; i += 100) {
     await call('/v1/observations', { items: items.slice(i, i + 100) }, cfg)
   }
@@ -117,9 +89,15 @@ const BADGE_COLOR = '#9f1239'
 
 // Le badge de l'icône, par onglet — un nombre toujours affiché devient du
 // papier peint en deux jours, donc rien à dire, rien d'affiché.
+//
+// `null` et non `''` : un texte par onglet, fût-il vide, recouvre le badge
+// global. C'est ainsi que le « ! » d'une session tombée restait invisible
+// précisément sur les onglets où le lecteur regardait. Tant qu'un problème est
+// en cours, l'onglet ne pose donc rien et laisse passer l'alerte : le compte
+// dit ce que la page montre, le « ! » dit que l'extension ne travaille plus.
 const badge = async (alerts, tab) => {
   if (!tab) return { ok: false, reason: 'no-tab' }
-  const text = alerts > 0 ? String(alerts) : ''
+  const text = ADS.health.text() || alerts <= 0 ? null : String(alerts)
   if (text) await chrome.action.setBadgeBackgroundColor({ tabId: tab.id, color: BADGE_COLOR })
   await chrome.action.setBadgeText({ tabId: tab.id, text })
   return { ok: true, text }
@@ -134,6 +112,10 @@ const handlers = {
   seller: async (msg) => ADS.lookup.seller(msg.site, msg.sellerId, await config()),
   badge: (msg, sender) => badge(msg.alerts, sender && sender.tab),
   me: () => me(),
+  // Ce que la fenêtre affiche avant tout le reste. L'accès aux sites est
+  // revérifié à chaque ouverture : c'est le seul problème que le navigateur
+  // peut créer sans qu'aucun appel n'échoue.
+  health: async () => ({ ok: true, problems: await ADS.access.check() }),
   'cache-stats': () => ADS.cache.stats(),
   'cache-clear': async () => ({ ok: true, cleared: await ADS.cache.clear() }),
 }
@@ -143,6 +125,13 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
   if (!handler) return false
   handler(msg, sender)
     .then(respond)
-    .catch((e) => respond({ ok: false, reason: e.message, authRequired: !!e.authRequired }))
+    .catch((e) =>
+      respond({ ok: false, reason: e.message, authRequired: !!e.authRequired, unreachable: !!e.unreachable }),
+    )
   return true
 })
+
+// Au démarrage, et à chaque fois que le navigateur accorde ou retire une
+// permission : c'est par là que l'accès coupé se sait sans qu'un seul appel
+// n'ait échoué.
+ADS.access.watch()

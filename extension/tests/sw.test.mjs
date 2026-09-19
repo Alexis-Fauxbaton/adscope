@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -20,7 +21,7 @@ const signalsOf = (id) => ({ site_id: id, tracked_days: 4, price: 9900 })
 // sont fournis par `importScripts`, les messages arrivent par l'écouteur
 // qu'il pose. `status` se change en cours de test avec `setStatus` — c'est
 // ainsi qu'on rejoue un 401 qui tombe, puis un appel qui repasse.
-const boot = ({ entries = {}, licenseKey = KEY, offline = false, status = 200 } = {}) => {
+const boot = ({ entries = {}, licenseKey = KEY, offline = false, status = 200, granted = true } = {}) => {
   const store = storage({ entries: { licenseKey, apiBase: 'http://api', ...entries } })
   const calls = []
   const auths = []
@@ -31,10 +32,22 @@ const boot = ({ entries = {}, licenseKey = KEY, offline = false, status = 200 } 
   globalThis.ADS = undefined
   globalThis.chrome = {
     storage: { local: store.local },
-    runtime: { onMessage: { addListener: (fn) => (listener = fn) } },
+    // Le manifeste réel : c'est lui qui dit au service worker quels modules de
+    // site charger, et le test ne doit pas en tenir une copie.
+    runtime: {
+      onMessage: { addListener: (fn) => (listener = fn) },
+      getManifest: () => JSON.parse(readFileSync(src('../manifest.json'), 'utf8')),
+    },
     action: {
       setBadgeText: async (o) => badge.push(o),
       setBadgeBackgroundColor: async () => {},
+    },
+    // L'accès aux sites, tel que le navigateur le rend : `granted` dit lesquels
+    // sont encore accordés — `true` pour tous, ou la liste de ceux qui le sont.
+    permissions: {
+      contains: async ({ origins }) => granted === true || origins.every((o) => granted.includes(o)),
+      onAdded: { addListener: () => {} },
+      onRemoved: { addListener: () => {} },
     },
   }
   globalThis.importScripts = (...files) => {
@@ -64,7 +77,9 @@ const boot = ({ entries = {}, licenseKey = KEY, offline = false, status = 200 } 
   return {
     store, calls, auths, badge,
     setStatus: (s) => (currentStatus = s),
-    ask: (msg) => new Promise((r) => listener(msg, null, r)),
+    // La vérification d'accès du démarrage est attendue d'abord : elle peint
+    // l'icône, et sans cela l'ordre des peintures dépendrait de l'ordonnanceur.
+    ask: async (msg) => (await ADS.access.ready(), new Promise((r) => listener(msg, null, r))),
   }
 }
 
@@ -186,7 +201,9 @@ test('en mode clé, un 401 ne pose aucun badge', async () => {
   const { badge, ask } = boot({ status: 401 })
   const res = await ask({ type: 'sync', site: 'lbc', listings: [listing('1')] })
   assert.equal(res.authRequired, false)
-  assert.deepEqual(badge, [])
+  // L'icône est réconciliée une fois au démarrage — elle n'a rien à dire — et
+  // le 401 n'y ajoute rien : aucun « ! » n'est jamais posé.
+  assert.deepEqual(badge, [{ text: '' }])
 })
 
 // Fait rougir `if (cfg.licenseKey) return false` dans `ADS.auth.mark` : sorti
