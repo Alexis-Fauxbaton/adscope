@@ -2,12 +2,17 @@
 canonique de `taxonomy.py`.
 
 `brand` et `model` restent des filtres **exacts** : un seau, pas une
-ressemblance. Ils portent désormais sur `canon_brand` / `canon_model`, et la
-saisie passe par la même `canonical` que l'écriture — `brand=RENAULT` et
-`brand=Renault` désignent le même seau, `brand=Corvette` désigne les Chevrolet.
-Le modèle ne se déduit jamais de la marque seule : `canonical` pose « Corvette »
-en modèle quand on lui donne la marque « Corvette », mais on ne s'en sert que
-si le client a lui-même demandé un modèle.
+ressemblance. Mais l'égalité porte sur la **clé** canonique — l'écriture
+canonique repliée, `taxonomy.key` — et la saisie passe par la même fonction que
+l'écriture. Donc les deux côtés sont pliés : `brand=RENAULT`, `brand=Renault`,
+`brand=renault` désignent le même seau, `brand=Citroen` et `brand=Citroën` aussi
+— y compris pour les milliers de modèles qui ne figurent dans aucune table
+(`model=captur` sert les « Captur »), et y compris après une correction
+d'orthographe, qui ne déplace aucune clé. `brand=Corvette` désigne les
+Chevrolet, par l'alias. Le modèle ne se déduit jamais de la marque seule :
+`canonical` pose « Corvette » en modèle quand on lui donne la marque
+« Corvette », mais on ne s'en sert que si le client a lui-même demandé un
+modèle.
 
 `q` est la recherche tolérante : la saisie est pliée (minuscules, sans
 accents), découpée en mots, et **chaque mot** doit se retrouver dans
@@ -17,7 +22,7 @@ accents), découpée en mots, et **chaque mot** doit se retrouver dans
 rendrait la base entière.
 """
 
-from .taxonomy import canonical, fold
+from .taxonomy import fold, key
 
 _LIKE_SPECIALS = ("\\", "%", "_")
 
@@ -29,11 +34,11 @@ def _escaped(word) -> str:
 
 
 def family(query, brand_column, model_column, brand, model):
-    canon_brand, canon_model = canonical(brand, model)
+    brand_key, model_key = key(brand, model)
     if brand:
-        query = query.where(brand_column == canon_brand)
+        query = query.where(brand_column == brand_key)
     if model:
-        query = query.where(model_column == canon_model)
+        query = query.where(model_column == model_key)
     return query
 
 

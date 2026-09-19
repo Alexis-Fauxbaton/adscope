@@ -5,6 +5,7 @@ import pytest
 from adscope_api.auth import hash_key, new_key
 from adscope_api.follow_models import Follow, TrackedFamily
 from adscope_api.models import License, Listing
+from adscope_api.naming import label
 from adscope_api.observations import record
 from adscope_api.intake import ObservationIn
 from adscope_api.revisit import ADDRESS, QUIET, SPACING, due
@@ -158,6 +159,21 @@ def test_a_listing_of_the_perimeter_comes_first_too(session):
     session.add(TrackedFamily(license_key_hash=merchant(session), brand="Renault",
                               model="Clio"))
     session.commit()
+    assert ids(due(session, "lbc", 10, NOW)) == ["1000000001", "1000000003"]
+
+
+# Fait rougir `TrackedFamily.brand == Listing.brand` : le périmètre se compare
+# aux formes **observées**, qui ne bougent jamais. Une famille enregistrée
+# « Citroen / C3 » sert donc encore les annonces que le marché affiche désormais
+# « Citroën C3 » — corriger une orthographe ne sort rien du périmètre.
+def test_a_family_registered_before_the_spelling_change_still_ranks_first(session):
+    listed(session, "1000000003", seller_type="pro", published=NOW - timedelta(days=200))
+    mine = listed(session, "1000000001", seller_type="private",
+                  published=NOW - timedelta(days=2), brand="Citroen", model="C3")
+    session.add(TrackedFamily(license_key_hash=merchant(session), brand="Citroen",
+                              model="C3"))
+    session.commit()
+    assert label(mine.brand, mine.model, mine.version) == "Citroën C3"
     assert ids(due(session, "lbc", 10, NOW)) == ["1000000001", "1000000003"]
 
 

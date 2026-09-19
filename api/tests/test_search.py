@@ -2,13 +2,15 @@
 
 Le constat mesuré le 2026-09-18 : `brand=ferrari` rendait 0 et `brand=Ferrari`
 390. Ces tests tiennent le contrat qui le corrige — casse, accents, mots dans
-le désordre, et la famille comparée à la forme canonique.
+le désordre, et la famille comparée à la clé canonique — pliée des deux côtés,
+donc insensible à une correction d'orthographe.
 
 Pas d'horloge réelle : `NOW` est posé à la main, comme dans `test_market.py`.
 """
 
 from datetime import datetime, timezone
 
+from adscope_api import spelling
 from adscope_api.auth import resolve
 from adscope_api.market_items import item_of
 from adscope_api.market_query import market_page
@@ -133,9 +135,9 @@ def test_an_empty_search_filters_nothing(session, key):
     assert found(session, key, q="   ")[0] == 2
 
 
-# Fait rougir `brand_column == canon_brand` dans `search.family` : le filtre
-# reste exact, mais sur la forme canonique — les 8 « RENAULT » de la base
-# tombent dans le même seau que les 10 590 « Renault ».
+# Fait rougir `brand_column == brand_key` dans `search.family` : le filtre reste
+# exact, mais sur la clé canonique — les 8 « RENAULT » de la base tombent dans
+# le même seau que les 10 601 « Renault ».
 def test_the_family_filter_is_exact_on_the_canonical_form(session, key):
     car(session, "a", brand="Renault", model="Clio")
     car(session, "b", brand="RENAULT", model="CLIO")
@@ -144,8 +146,8 @@ def test_the_family_filter_is_exact_on_the_canonical_form(session, key):
     assert found(session, key, brand="Renault", model="clio") == (2, ["a", "b"])
 
 
-# Fait rougir `canonical(brand, model)` dans `search.family` : les deux
-# classements de la Corvette rentrent dans la même famille.
+# Fait rougir `key(brand, model)` dans `search.family`, qui traverse l'alias :
+# les deux classements de la Corvette rentrent dans la même famille.
 def test_the_two_classifications_answer_one_family_filter(session, key):
     car(session, "chev", brand="Chevrolet", model="Corvette")
     car(session, "corv", brand="Corvette", model="Autres")
@@ -162,6 +164,45 @@ def test_a_brand_alone_never_adds_the_model_the_alias_implies(session, key):
     car(session, "corv", brand="Corvette", model="Autres")
     car(session, "aveo", brand="Chevrolet", model="Aveo")
     assert found(session, key, brand="Corvette") == (2, ["aveo", "corv"])
+
+
+# Fait rougir `key(brand, model)` dans `search.family` : la clé est pliée des
+# deux côtés, donc un modèle qui ne figure dans aucune table se filtre quand
+# même. Sur la forme d'affichage, `model=captur` rendait 0 des 72 « Captur ».
+def test_a_model_no_table_knows_filters_all_the_same(session, key):
+    car(session, "capt", brand="Renault", model="Captur")
+    car(session, "clio", brand="Renault", model="Clio")
+    assert found(session, key, brand="renault", model="captur") == (1, ["capt"])
+    assert found(session, key, brand="Renault", model="CAPTUR") == (1, ["capt"])
+
+
+# Fait rougir `fold(v)` dans `taxonomy.key`, et c'est **la** règle du lot :
+# l'orthographe affichée ne change aucun résultat. On remet ici « Citroen » à la
+# place de « Citroën » dans la table, après que l'annonce a été écrite : sur la
+# forme d'affichage, la clé en base serait « Citroën » et le filtre chercherait
+# « Citroen » — zéro annonce sur les 7 184 de la marque.
+def test_changing_a_display_spelling_moves_no_listing(session, key, monkeypatch):
+    car(session, "c3", brand="Citroen", model="C3")
+    monkeypatch.setitem(spelling._BRANDS, "citroen", "Citroen")
+    assert found(session, key, brand="Citroën", model="C3") == (1, ["c3"])
+    assert found(session, key, brand="Citroen", model="C3") == (1, ["c3"])
+    assert found(session, key, q="citroen c3") == (1, ["c3"])
+
+
+# Fait rougir la même ligne pour le périmètre du marchand : `tracked_families`
+# porte la marque telle que le site l'écrivait quand il l'a enregistrée
+# (« Citroen »), et le site rappelle ce texte en filtre. Il doit servir les
+# annonces que le marché affiche désormais « Citroën C3 ».
+def test_a_family_registered_before_the_spelling_change_still_serves(session, key):
+    row = car(session, "c3", brand="Citroen", model="C3")
+    assert item_of_row(session, key, "c3")["label"] == "Citroën C3"
+    assert (row.canon_brand, row.canon_model) == ("citroen", "c3")
+    assert found(session, key, brand="Citroen", model="C3") == (1, ["c3"])
+
+
+def item_of_row(session, key_, site_id):
+    total, rows = market_page(session, resolve(session, key_), NOW)
+    return next(item_of(r) for r in rows if r.site_id == site_id)
 
 
 # Fait rougir le montage de `q` dans `market.get_market` : le nom du paramètre

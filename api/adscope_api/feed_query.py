@@ -16,8 +16,8 @@ from sqlalchemy.orm import selectinload
 from .follow_models import Follow
 from .market_items import ItemOut
 from .models import Listing
+from .naming import label
 from .sellers import age_days
-from .taxonomy import label
 from .urls import build as build_url
 
 # Les seuils d'ancienneté qui valent la peine d'être signalés. Le plus haut

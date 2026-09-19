@@ -15,8 +15,8 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from .naming import label
 from .schemas import SellerType
-from .taxonomy import label
 from .urls import build as build_url
 
 

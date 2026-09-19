@@ -50,7 +50,7 @@ def test_it_fills_what_the_migration_left_empty(session):
     bare(session, 3)
     assert script.recanonize(session, batch=2) == 3
     for listing in rows(session):
-        assert (listing.canon_brand, listing.canon_model) == ("Renault", "Clio")
+        assert (listing.canon_brand, listing.canon_model) == ("renault", "clio")
         assert listing.search_text == "renault clio iv 1.5 dci"
 
 
@@ -86,7 +86,7 @@ def test_by_default_it_leaves_alone_what_is_already_filled(session):
 def test_all_takes_the_lines_an_alias_change_would_move(session):
     stale(session)
     assert script.recanonize(session, only_missing=False) == 2
-    assert {r.canon_brand for r in rows(session)} == {"Chevrolet"}
+    assert {r.canon_brand for r in rows(session)} == {"chevrolet"}
 
 
 # Fait rougir `return before != (brand, model, text)` dans `taxonomy.derive` :

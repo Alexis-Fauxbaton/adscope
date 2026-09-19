@@ -211,7 +211,7 @@ def test_a_confirmation_marks_the_day_seen_not_the_days_missed(session):
 def test_an_observation_lays_the_canonical_columns(session):
     listing = record(session, obs(), source="user", now=NOW)
     session.commit()
-    assert (listing.canon_brand, listing.canon_model) == ("Peugeot", "308 II phase 2")
+    assert (listing.canon_brand, listing.canon_model) == ("peugeot", "308 ii phase 2")
     assert "peugeot" in listing.search_text.split()
     assert "puretech" in listing.search_text.split()
 
@@ -233,7 +233,7 @@ def test_the_canonical_layer_survives_an_observation_that_says_nothing(session):
     record(session, obs(), source="user", now=NOW)
     listing = record(session, obs(model=None, version=None), source="user", now=NOW)
     session.commit()
-    assert listing.canon_model == "308 II phase 2"
+    assert listing.canon_model == "308 ii phase 2"
     assert "puretech" in listing.search_text.split()
 
 
