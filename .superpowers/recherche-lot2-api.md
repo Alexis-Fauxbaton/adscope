@@ -128,3 +128,97 @@ supplémentaires au jugement) ; les deux filtres retenus sont testés
   volume actuel (52 981 annonces), à reconsidérer si la base grossit d'un
   ordre de grandeur ou si un filtre isolé (département seul, par ex.)
   s'avère lent en usage réel une fois l'extension en production.
+
+## Revue fermée, 2026-09-19 — le membre du tuple que rien ne gardait, GNV/Hydrogène
+
+Base 07dc761. Fichiers touchés : `adscope_api/vocab.py`, `tests/test_vocab.py`,
+`tests/test_intake.py`, `tests/test_market.py`, `tests/test_observations.py`.
+Aucun sous-agent dispatché.
+
+### 1. `postal_code` retiré de `VEHICLE_FIELDS`, rien ne rougissait
+
+Chaque membre de `VEHICLE_FIELDS` retiré un par un, suite complète relancée à
+chaque fois (script jetable, jamais commité) :
+
+| membre        | retrait sans lui fait rougir…                                          |
+|----------------|--------------------------------------------------------------------------|
+| `brand`        | `test_signals.py` (4 tests, empreinte absente)                          |
+| `model`        | idem                                                                     |
+| `version`      | idem                                                                     |
+| `year`         | idem                                                                     |
+| `mileage`      | idem                                                                     |
+| `postal_code`  | **aucun** — 516/516 verts sans lui                                       |
+| `seller_type`  | `test_signals.py::test_seller_type_is_stored`                           |
+| `fuel`         | `test_observations.py` (2), `test_routes.py::test_fuel_gearbox_department_travel_from_post_to_market` |
+| `gearbox`      | idem                                                                     |
+| `department`   | idem                                                                     |
+
+`postal_code` était écrit (`obs()` le porte par défaut dans les fixtures) mais
+jamais relu sur `listing.postal_code` après `record` — seul `ObservationIn.postal_code`
+(la validation d'entrée) et son effacement (`test_gauge.py`) étaient couverts.
+Trois tests ajoutés à `test_observations.py`, même trio de preuves que
+fuel/gearbox/department : écrit, jamais effacé par une observation muette,
+corrigé par une observation suivante. Vérifiés en les faisant rougir (retrait
+de `"postal_code"` du tuple → les trois rougissent, seuls). Suite : **519**
+avant la partie 2.
+
+### 2. GNV et Hydrogène : leur propre case dans `FUEL_VALUES`
+
+`vocab.py` : `FUEL_VALUES`/`Fuel` gagnent `gnv` (code leboncoin 7) et
+`hydrogene` (code 9), `autre` ne gardant plus que le code 5. Aucun autre
+fichier API ne portait ce vocabulaire en dur (`grep` sur `essence.*diesel`
+hors `vocab.py` : rien) — `market.py`/`intake.py` l'héritent via
+`Fuel`/`FUEL_VALUES` importés, aucun changement à y faire.
+
+Trois tests existants utilisaient `"gnv"` comme exemple de valeur *hors*
+vocabulaire (`test_vocab.py` × 2, `test_intake.py` × 1, `test_market.py` × 1
+pour le 422) : devenus faux avec l'ajout, corrigés vers `"kerosene"` (jamais
+un carburant de voiture d'occasion, exemple stable). Ajoutés : le pendant
+positif (`gnv`/`hydrogene` traversent sans tomber en `autre`, côté `intake` et
+côté `vocab`), `test_gnv_is_a_recognized_filter_value` (`/v1/market?fuel=gnv`
+→ 200, `items: []`), et deux tests qui figent `FUEL_VALUES`/`GEARBOX_VALUES`
+en toutes lettres.
+
+**Le vocabulaire est dupliqué, pas partagé.** `extension/src/sites/leboncoin.js`
+(table `FUEL`) porte la même liste en JS. Un fichier `shared/` existe déjà
+pour l'empreinte véhicule (`shared/fingerprint-vectors.json`, lu des deux
+côtés) — rien d'équivalent pour ce vocabulaire aujourd'hui, et ce lot n'en a
+pas créé un (hors périmètre demandé). À la place : un test de chaque côté fige
+la liste en dur (`test_the_fuel_vocabulary_matches_what_the_extension_sends`
+ici, son miroir dans `vehicle-fields.test.mjs`) — un écart entre les deux se
+voit au diff des deux tests, pas en silence. Si ce vocabulaire bouge encore,
+un `shared/vocab.json` lu par les deux côtés vaudrait la peine.
+
+Chaque test neuf vérifié en le faisant rougir : `FUEL_VALUES` remis à sept
+valeurs (sans `gnv`/`hydrogene`) → trois tests rougissent
+(`test_gnv_and_hydrogen_are_not_lumped_into_autre`,
+`test_the_fuel_vocabulary_matches_what_the_extension_sends`,
+`test_gnv_and_hydrogen_pass_through`) ; `Fuel` (le type Literal du filtre)
+amputé de `gnv` → `test_gnv_is_a_recognized_filter_value` rougit (422 au lieu
+de 200 attendu).
+
+### 3. Vérifié
+
+- `./.venv/bin/pytest tests/ -q` : **524 passés** (516 avant, 8 ajoutés),
+  aucun échec.
+- `launchctl kickstart -k gui/$UID/fr.adscope.api` : service relancé sur le
+  nouveau code. `GET /app/` → 200. `GET /v1/market` (sans licence) → 401,
+  `?fuel=gnv` et `?fuel=kerosene` sans licence → 401 aussi (l'authentification
+  se résout avant la validation des paramètres de requête — vérifié par
+  observation directe, pas seulement lu dans le code), donc pas de 500 : le
+  nouveau vocabulaire ne casse pas la route en vrai.
+- **La distinction 200 (`gnv`) / 422 (`kerosene`) n'a pas été vérifiée avec
+  une licence réelle sur `adscope`** : elle exige un jeton `Bearer` valide, la
+  base réelle ne conserve que le hash des clés (aucune clé en clair
+  récupérable), et en créer une pour l'occasion serait l'écriture d'essai que
+  la tâche interdit. Vérifiée à la place par la route complète (FastAPI, Pydantic,
+  authentification, jusqu'à la réponse JSON) sur `adscope_test`, via
+  `client`/`key` (`test_gnv_is_a_recognized_filter_value`,
+  `test_an_unknown_fuel_filter_value_is_a_422`) — le même code que sert
+  `localhost:8000`, une base différente pour le seul jeton d'accès.
+- **Pas d'écriture d'essai dans `adscope`** : aucune ligne insérée, aucune
+  licence créée. Seules des lectures (`SELECT count(*) FROM licenses`, `curl`
+  sans corps).
+- `cd extension && node --test tests/*.test.mjs` : **385** verts, y compris
+  avec `Date` décalée d'un an (`--import` sur un module jetable qui remplace
+  `globalThis.Date`, non commité).

@@ -135,3 +135,44 @@ changé.
   ici, l'extension envoie déjà les champs (l'API actuelle les ignore
   silencieusement, Pydantic sans `extra=forbid`, testé en lisant
   `api/adscope_api/intake.py`).
+
+## Revue fermée, 2026-09-19 — GNV et Hydrogène rejoignent le vocabulaire
+
+Base 07dc761. Fichiers touchés : `src/sites/leboncoin.js`,
+`tests/vehicle-fields.test.mjs`. Aucun sous-agent dispatché.
+
+Réserve levée : la table `FUEL` (ligne 36) portait `7: 'autre'` (GNV) et
+`9: 'autre'` (Hydrogène), faute de case dédiée — décision reportée à Alexis au
+lot précédent. Prise ici, côté API en parallèle
+(`.superpowers/recherche-lot2-api.md`) : `7: 'gnv'`, `9: 'hydrogene'`, `autre`
+ne gardant plus que le code 5. Une ligne changée, le fichier reste à 150
+lignes pile.
+
+`tests/vehicle-fields.test.mjs` : le test qui boucle sur les neuf codes de la
+fixture (`leboncoin-champs-codes.json`) mis à jour vers les nouvelles valeurs
+attendues. Un test ajouté, miroir de celui posé côté API
+(`test_the_fuel_vocabulary_matches_what_the_extension_sends`) : fige
+l'ensemble des neuf valeurs traduites (`essence`, `diesel`, `gpl`,
+`electrique`, `autre`, `hybride`, `gnv`, `hybride_rechargeable`,
+`hydrogene`) — un écart avec l'API se voit au diff des deux tests. Aucun
+fichier `shared/` commun pour ce vocabulaire aujourd'hui (contrairement à
+l'empreinte véhicule, `shared/fingerprint-vectors.json`) — ce lot n'en a pas
+créé un, voir la réserve équivalente côté rapport API.
+
+Les deux tests vérifiés en les faisant rougir : `FUEL` remis à `7: 'autre'`,
+`9: 'autre'` → les deux tests rougissent (le code fuel connu se traduit mal,
+le miroir API ne retrouve plus `gnv`/`hydrogene` dans l'ensemble traduit).
+
+### Vérifié
+
+`cd extension && node --test tests/*.test.mjs` → **385** pass, 0 fail (384
+avant, 1 ajouté), y compris avec `Date` décalée d'un an (`--import` sur un
+module jetable, non commité, qui remplace `globalThis.Date`). `api/` (524,
+modifié en parallèle par le même lot côté `api/`, hors périmètre extension)
+revérifié vert aussi.
+
+### Réserve toujours ouverte
+
+- La Centrale : aucune valeur GNV ni Hydrogène n'a été observée sur ce site
+  pendant la reconnaissance — aucune correspondance n'y a été ajoutée, rien à
+  inventer.
