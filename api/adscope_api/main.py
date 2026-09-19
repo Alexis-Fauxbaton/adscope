@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
@@ -22,6 +21,7 @@ from .schemas import (
 )
 from .sellers import stats_for
 from .signals import signals_for
+from .static import NoCacheStaticFiles
 from .usage import compact_daily
 
 app = FastAPI(title="adscope", version="0.1.0")
@@ -35,8 +35,8 @@ app.include_router(market.router)
 # exister au démarrage du service (les trois lots livrent en parallèle) ; sans
 # lui `StaticFiles` refuse de se monter et le service entier ne démarre plus.
 app.mount(
-    "/app", StaticFiles(directory=Path(__file__).resolve().parents[2] / "web",
-                        html=True, check_dir=False),
+    "/app", NoCacheStaticFiles(directory=Path(__file__).resolve().parents[2] / "web",
+                               html=True, check_dir=False),
     name="app",
 )
 
