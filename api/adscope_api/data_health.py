@@ -25,6 +25,7 @@ from sqlalchemy import func, select
 
 from .data_health_fields import field_fill_rate, version_names_another_model
 from .data_health_queries import emerging_models, publication_freshness, unknown_brands, unknown_share
+from .data_health_unverified import fuel_other_share_by_site, unverified_rules
 from .models import Listing
 
 DEFAULT_WINDOW = timedelta(days=7)
@@ -47,6 +48,8 @@ class Report:
     freshness: list = field(default_factory=list)
     field_fill_rate: dict = field(default_factory=dict)
     model_named_by_version: dict = field(default_factory=dict)
+    unverified_rules: dict = field(default_factory=dict)
+    fuel_other_share: list = field(default_factory=list)
 
     @property
     def alerts(self) -> list[str]:
@@ -71,4 +74,6 @@ def compute(session, now=None, window=DEFAULT_WINDOW) -> Report:
         freshness=publication_freshness(session, now, window),
         field_fill_rate=field_fill_rate(session, since, now),
         model_named_by_version=version_names_another_model(session),
+        unverified_rules=unverified_rules(session),
+        fuel_other_share=fuel_other_share_by_site(session),
     )

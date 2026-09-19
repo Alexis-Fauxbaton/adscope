@@ -82,6 +82,32 @@ def render(report: Report) -> str:
         f"  - {named['count']} sur {named['population']} ({_pct(named['rate'])})",
     ]
 
+    lines += ["", "Règles pas encore vérifiées sur données réelles :"]
+    for key, title in (
+        ("corsica", "Corse (département 2A/2B)"),
+        ("lacentrale_fuel", "La Centrale, carburant hors essence/diesel"),
+        ("lacentrale_gearbox", "La Centrale, boîte renseignée"),
+    ):
+        row = report.unverified_rules.get(key, {"count": 0, "examples": []})
+        if not row["count"]:
+            lines.append(f"  - {title} : aucune donnée encore")
+        else:
+            examples = ", ".join(f"{e['site']}/{e['site_id']}" for e in row["examples"])
+            lines.append(
+                f"  - {title} : à vérifier maintenant — {row['count']} annonces "
+                f"(ex. {examples})"
+            )
+
+    lines += ["", "Part de « autre » par site (carburant, information seulement) :"]
+    if report.fuel_other_share:
+        for row in report.fuel_other_share:
+            lines.append(
+                f"  - {row['site']} : {_pct(row['rate'])} sur {row['total']} annonces "
+                f"avec carburant renseigné"
+            )
+    else:
+        lines.append("  - aucune annonce avec carburant renseigné")
+
     if report.alerts:
         lines += ["", *(f"ALERTE : {a}" for a in report.alerts)]
     lines += ["", f"Code de sortie : {1 if report.alerts else 0}"]

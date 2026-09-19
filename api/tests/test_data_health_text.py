@@ -118,3 +118,48 @@ def test_no_alert_announces_exit_code_zero():
     text = render(bare_report())
     assert "Code de sortie : 0" in text
     assert "ALERTE" not in text
+
+
+# Fait rougir `if not row["count"]: lines.append(f"  - {title} : aucune
+# donnée encore")` : tant qu'aucune annonce ne permet de vérifier une règle,
+# le rapport le dit plutôt que de rester silencieux.
+def test_an_unverified_rule_at_zero_says_no_data_yet():
+    text = render(bare_report())
+    assert "Corse (département 2A/2B) : aucune donnée encore" in text
+
+
+# Fait rougir la branche non nulle : dès qu'il y a de quoi vérifier une
+# règle, le rapport le dit « maintenant », avec le compte et trois exemples.
+def test_an_unverified_rule_with_data_calls_it_out_with_examples():
+    text = render(bare_report(unverified_rules={
+        "corsica": {"count": 5, "examples": [
+            {"site": "lbc", "site_id": "1"}, {"site": "lbc", "site_id": "2"},
+            {"site": "lc", "site_id": "3"},
+        ]},
+        "lacentrale_fuel": {"count": 0, "examples": []},
+        "lacentrale_gearbox": {"count": 0, "examples": []},
+    }))
+    assert (
+        "Corse (département 2A/2B) : à vérifier maintenant — 5 annonces "
+        "(ex. lbc/1, lbc/2, lc/3)" in text
+    )
+    assert "ALERTE" not in text
+    assert "Code de sortie : 0" in text
+
+
+# Fait rougir `else: lines.append("  - aucune annonce avec carburant
+# renseigné")` : sans aucune annonce à carburant connu, le rapport le dit.
+def test_no_fuel_other_share_says_so():
+    text = render(bare_report())
+    assert "aucune annonce avec carburant renseigné" in text
+
+
+# Fait rougir la boucle qui affiche `report.fuel_other_share` : la part de
+# « autre » se lit par site, jamais confondue entre deux sites.
+def test_the_fuel_other_share_line_shows_each_site():
+    text = render(bare_report(fuel_other_share=[
+        {"site": "lbc", "total": 100, "other": 5, "rate": 0.05},
+        {"site": "lc", "total": 40, "other": 20, "rate": 0.5},
+    ]))
+    assert "lbc : 5.0% sur 100 annonces avec carburant renseigné" in text
+    assert "lc : 50.0% sur 40 annonces avec carburant renseigné" in text

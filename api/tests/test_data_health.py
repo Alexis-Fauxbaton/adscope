@@ -12,6 +12,7 @@ from adscope_api.data_health_queries import (
     MIN_WINDOW_LISTINGS, emerging_models, publication_freshness, unknown_brands,
     unknown_share,
 )
+from adscope_api.data_health_unverified import fuel_other_share_by_site, unverified_rules
 from adscope_api.models import Listing
 from adscope_api.taxonomy import derive
 
@@ -332,3 +333,116 @@ def test_compute_wires_the_model_named_by_version(session):
     session.commit()
     report = compute(session, now=NOW, window=WEEK)
     assert report.model_named_by_version["count"] == 1
+
+
+# Fait rougir `Listing.department.in_(("2A", "2B"))` dans `_rule` (via
+# `unverified_rules`) : sans annonce corse en base, rien ne permet encore de
+# vérifier la règle.
+def test_unverified_corsica_rule_is_empty_without_corsican_listings(session):
+    add(session, "lbc", "1", NOW, department="75")
+    session.commit()
+    assert unverified_rules(session)["corsica"] == {"count": 0, "examples": []}
+
+
+# Même règle, dans le sens positif : une annonce 2A et une 2B comptent, une
+# annonce 75 non — et les deux figurent en exemple.
+def test_unverified_corsica_rule_counts_corsican_listings_with_examples(session):
+    add(session, "lbc", "1", NOW, department="2A")
+    add(session, "lbc", "2", NOW, department="2B")
+    add(session, "lbc", "3", NOW, department="75")
+    session.commit()
+    rules = unverified_rules(session)
+    assert rules["corsica"]["count"] == 2
+    assert {e["site_id"] for e in rules["corsica"]["examples"]} == {"1", "2"}
+
+
+# Fait rougir `Listing.site == "lc"` dans la règle du carburant La Centrale :
+# un carburant tiers sur leboncoin ne la vérifie pas, elle porte sur l'autre
+# site.
+def test_unverified_lacentrale_fuel_rule_ignores_other_sites(session):
+    add(session, "lbc", "1", NOW, fuel="hybride")
+    session.commit()
+    assert unverified_rules(session)["lacentrale_fuel"] == {"count": 0, "examples": []}
+
+
+# Même règle : essence et diesel sur La Centrale ne comptent pas
+# (`Listing.fuel.notin_(("essence", "diesel"))`), un carburant tiers oui.
+def test_unverified_lacentrale_fuel_rule_counts_only_other_fuels(session):
+    add(session, "lc", "1", NOW, fuel="essence")
+    add(session, "lc", "2", NOW, fuel="diesel")
+    add(session, "lc", "3", NOW, fuel="hybride")
+    session.commit()
+    rules = unverified_rules(session)
+    assert rules["lacentrale_fuel"]["count"] == 1
+    assert rules["lacentrale_fuel"]["examples"] == [{"site": "lc", "site_id": "3"}]
+
+
+# Fait rougir `Listing.gearbox.isnot(None)` : une boîte non renseignée sur La
+# Centrale ne permet toujours pas de vérifier la règle.
+def test_unverified_lacentrale_gearbox_rule_is_empty_without_data(session):
+    add(session, "lc", "1", NOW)
+    session.commit()
+    assert unverified_rules(session)["lacentrale_gearbox"] == {"count": 0, "examples": []}
+
+
+# Même règle, dans le sens positif — et `Listing.site == "lc"` : une boîte
+# renseignée sur leboncoin ne compte pas, seule La Centrale est en cause.
+def test_unverified_lacentrale_gearbox_rule_counts_only_lacentrale(session):
+    add(session, "lc", "1", NOW, gearbox="manuelle")
+    add(session, "lbc", "2", NOW, gearbox="manuelle")
+    session.commit()
+    rules = unverified_rules(session)
+    assert rules["lacentrale_gearbox"]["count"] == 1
+    assert rules["lacentrale_gearbox"]["examples"] == [{"site": "lc", "site_id": "1"}]
+
+
+# Fait rougir `func.count(Listing.id).filter(Listing.fuel == OTHER)` dans
+# `fuel_other_share_by_site` : la part de « autre » ne compte que ce qui y
+# est réellement rangé.
+def test_fuel_other_share_counts_only_the_autre_bucket(session):
+    add(session, "lbc", "1", NOW, fuel="diesel")
+    add(session, "lbc", "2", NOW, fuel="autre")
+    session.commit()
+    assert fuel_other_share_by_site(session) == [
+        {"site": "lbc", "total": 2, "other": 1, "rate": 0.5},
+    ]
+
+
+# Fait rougir `.where(Listing.fuel.isnot(None))` : une annonce sans carburant
+# ne pèse ni pour le total ni pour la part.
+def test_fuel_other_share_ignores_listings_without_fuel(session):
+    add(session, "lbc", "1", NOW, fuel="diesel")
+    add(session, "lbc", "2", NOW)
+    session.commit()
+    assert fuel_other_share_by_site(session) == [
+        {"site": "lbc", "total": 1, "other": 0, "rate": 0.0},
+    ]
+
+
+# Fait rougir `group_by(Listing.site)` : un pic chez un site ne se confond
+# jamais avec un autre.
+def test_fuel_other_share_is_reported_separately_per_site(session):
+    add(session, "lbc", "1", NOW, fuel="diesel")
+    add(session, "lc", "2", NOW, fuel="autre")
+    session.commit()
+    assert fuel_other_share_by_site(session) == [
+        {"site": "lbc", "total": 1, "other": 0, "rate": 0.0},
+        {"site": "lc", "total": 1, "other": 1, "rate": 1.0},
+    ]
+
+
+# Fait rougir `unverified_rules=unverified_rules(session)` dans `compute`.
+def test_compute_wires_unverified_rules(session):
+    add(session, "lbc", "1", NOW, department="2A")
+    session.commit()
+    report = compute(session, now=NOW, window=WEEK)
+    assert report.unverified_rules["corsica"]["count"] == 1
+
+
+# Fait rougir `fuel_other_share=fuel_other_share_by_site(session)` dans
+# `compute`.
+def test_compute_wires_fuel_other_share(session):
+    add(session, "lbc", "1", NOW, fuel="autre")
+    session.commit()
+    report = compute(session, now=NOW, window=WEEK)
+    assert report.fuel_other_share == [{"site": "lbc", "total": 1, "other": 1, "rate": 1.0}]
