@@ -13,8 +13,8 @@ ADS.lacentrale = ADS.sites.register((() => {
   const date = (s) => (s ? new Date(s) : null)
   const number = (v) => (v === null || v === undefined || v === '' ? null : Number(v))
   const type = (t) => (t === 'PRO' ? 'pro' : 'private')
-  // Vocabulaire fermé, relevé le 2026-09-19 (.superpowers/recherche-lot2-ext.md) ; rien d'autre vu.
-  const FUEL = { ESSENCE: 'essence', DIESEL: 'diesel' }
+  // Complété le 2026-09-19 (.superpowers/lc-carburants.md) — BIOETHANOL part en `autre` (pas de case), HYBRID_DIESEL_ELECTRIC est déduit par symétrie (jamais vu).
+  const FUEL = { ESSENCE: 'essence', DIESEL: 'diesel', ELECTRIC: 'electrique', BIO_ESSENCE_GPL: 'gpl', HYBRID_ESSENCE_ELECTRIC: 'hybride', HYBRID_DIESEL_ELECTRIC: 'hybride', PLUGIN_HYBRID_ESSENCE_ELECTRIC: 'hybride_rechargeable', PLUGIN_HYBRID_DIESEL_ELECTRIC: 'hybride_rechargeable' }
   const GEARBOX = { MANUAL: 'manuelle', AUTO: 'automatique', MECANIQUE: 'manuelle', AUTOMATIQUE: 'automatique' }
   // L'adresse se déduit de la référence : le site remplace la lettre de tête par son code ASCII
   // (W103538172 → 87103538172), vérifié sur les 23 annonces de la page relevée.
