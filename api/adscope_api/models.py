@@ -9,6 +9,7 @@ from .base import Base
 # Réexportées : `Base.metadata` doit les porter, et `from .models import ...`
 # continue de les trouver là où on les a toujours prises.
 from .auth_models import Account, LoginToken, SessionToken  # noqa: F401
+from .license_models import License  # noqa: F401
 from .follow_models import Follow, TrackedFamily  # noqa: F401
 from .usage_models import UsageDay, UsageSummary  # noqa: F401
 
@@ -41,6 +42,10 @@ class Listing(Base):
     # `shared/vehicle-aliases.json`.
     canon_brand: Mapped[str | None] = mapped_column(String(64), default=None)
     canon_model: Mapped[str | None] = mapped_column(String(128), default=None)
+    # D'où vient `canon_model` : « site » (le site l'a classée, ou son alias de
+    # marque l'a posé) ou « version » (déduit par `inference.infer_model`).
+    # NULL = modèle non précisé — ni donné ni déduit.
+    canon_model_source: Mapped[str | None] = mapped_column(String(8), default=None)
     search_text: Mapped[str | None] = mapped_column(Text, default=None)
     year: Mapped[int | None] = mapped_column(default=None)
     mileage: Mapped[int | None] = mapped_column(default=None)
@@ -120,31 +125,3 @@ class PricePoint(Base):
     )
 
     listing: Mapped[Listing] = relationship(back_populates="prices")
-
-
-class License(Base):
-    __tablename__ = "licenses"
-    __table_args__ = (Index("ix_licenses_account", "account_id"),)
-
-    key_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
-    label: Mapped[str] = mapped_column(String(64))
-    # À qui elle appartient. Nulle pour une clé de machine — le crawler n'est
-    # pas un humain et n'a pas d'adresse. `SET NULL` plutôt que cascade : un
-    # compte supprimé ne doit pas emporter l'historique de marché que sa licence
-    # a produit, dont `price_points` porte l'empreinte.
-    account_id: Mapped[int | None] = mapped_column(
-        ForeignKey("accounts.id", ondelete="SET NULL"), default=None
-    )
-    active: Mapped[bool] = mapped_column(Boolean, default=True)
-    # Un émetteur automatique — le crawler local — poste avec une licence comme
-    # l'extension. Sans cette marque ses observations passent pour l'usage d'un
-    # humain, et la mesure n'est plus que du bruit.
-    automated: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
-    expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), default=None
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-
-    account: Mapped[Account | None] = relationship()

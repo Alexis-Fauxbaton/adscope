@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 
 from .data_health_queries import KNOWN_MODEL_MIN_LISTINGS, _UNKNOWN_KEY
 from .models import Listing
-from .taxonomy import _words, version_names_model
+from .mentions import _words, version_names_model
 
 
 def _rate(session, since=None, now=None) -> dict:

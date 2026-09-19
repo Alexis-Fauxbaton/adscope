@@ -1,27 +1,16 @@
 """Le registre des migrations : une suite d'instructions SQL par nom.
 
 Extrait de `migrations.py`, que ce registre faisait grossir d'un lot à
-l'autre — `apply_migrations` et `migrate` restent seuls dans ce dernier, avec
-le journal (`LEDGER`) qui inscrit ce qui a été appliqué.
+l'autre — `apply_migrations` et `migrate` restent seuls dans ce dernier. Les
+deux fragments SQL qui ne tiennent pas sur une ligne (`LEDGER`, la clé
+étrangère de la 001) sont dans `migration_sql.py`, sortis pour la même
+raison : le registre gagne une migration par lot, il n'a pas à porter en plus
+ce qui ne change jamais.
 """
 
-LEDGER = """
-CREATE TABLE IF NOT EXISTS schema_migrations (
-    name       varchar(64) PRIMARY KEY,
-    applied_at timestamptz NOT NULL DEFAULT now()
-)
-"""
+from .migration_sql import ADD_LICENSE_FK, LEDGER
 
-# La clé étrangère ne s'ajoute pas en `IF NOT EXISTS` : on absorbe le doublon.
-ADD_LICENSE_FK = """
-DO $$ BEGIN
-    ALTER TABLE price_points
-        ADD CONSTRAINT price_points_license_key_hash_fkey
-        FOREIGN KEY (license_key_hash) REFERENCES licenses (key_hash)
-        ON DELETE SET NULL;
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$
-"""
+__all__ = ["LEDGER", "MIGRATIONS"]
 
 MIGRATIONS = (
     ("001_price_points_license", (
@@ -145,5 +134,14 @@ MIGRATIONS = (
         "ALTER TABLE listings ADD COLUMN IF NOT EXISTS fuel varchar(24)",
         "ALTER TABLE listings ADD COLUMN IF NOT EXISTS gearbox varchar(16)",
         "ALTER TABLE listings ADD COLUMN IF NOT EXISTS department varchar(3)",
+    )),
+    # D'où vient le modèle canonique : du site, ou déduit de la version
+    # (`inference.py`). Une colonne vide sur les 53 142 annonces enregistrées —
+    # la migration ne déduit rien, comme la 010 ne canonisait rien : c'est
+    # `scripts/recanonize.py` qui la remplit, par lots et autant de fois qu'on
+    # veut. Pas d'index : la colonne ne filtre rien, elle explique
+    # `canon_model` (qui, lui, est déjà indexé avec `canon_brand`).
+    ("012_listings_canon_model_source", (
+        "ALTER TABLE listings ADD COLUMN IF NOT EXISTS canon_model_source varchar(8)",
     )),
 )
