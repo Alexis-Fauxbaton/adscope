@@ -286,3 +286,28 @@ def test_fuel_gearbox_and_department_are_outside_the_fingerprint(session):
         source="user", now=NOW,
     ).fingerprint
     assert without == with_fields == "54b22edbd39c"
+
+
+# Fait rougir `"postal_code"` dans `VEHICLE_FIELDS` : seul membre du tuple que
+# rien d'autre ne gardait — retiré, les 516 tests restaient verts. Même trio
+# de preuves que fuel/gearbox/department : écrit, jamais effacé, corrigé.
+def test_a_complete_postal_code_is_recorded(session):
+    listing = record(session, obs(postal_code="75015"), source="user", now=NOW)
+    session.commit()
+    assert listing.postal_code == "75015"
+
+
+def test_a_later_observation_without_a_postal_code_erases_nothing(session):
+    record(session, obs(postal_code="75015"), source="user", now=NOW)
+    listing = record(session, ObservationIn(site="lc", site_id="87103336930", price=9900),
+                     source="user", now=NOW + timedelta(days=1))
+    session.commit()
+    assert listing.postal_code == "75015"
+
+
+def test_a_corrected_postal_code_overwrites_the_previous_one(session):
+    record(session, obs(postal_code="75015"), source="user", now=NOW)
+    listing = record(session, obs(postal_code="69003"), source="user",
+                     now=NOW + timedelta(days=1))
+    session.commit()
+    assert listing.postal_code == "69003"
