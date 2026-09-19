@@ -238,11 +238,22 @@ def test_limit_is_capped_at_100(client, key):
 
 
 # Fait rougir `fuel: list[Fuel] | None` : le typage fermé rejette une valeur
-# hors vocabulaire avant même d'atteindre `market_page`.
+# hors vocabulaire avant même d'atteindre `market_page`. `gnv` est désormais
+# une valeur connue (`test_gnv_is_a_recognized_filter_value` plus bas) : le
+# kérosène n'entrera jamais dans ce vocabulaire, il sert d'exemple stable.
 def test_an_unknown_fuel_filter_value_is_a_422(client, key):
     assert client.get(
-        "/v1/market", params={"fuel": "gnv"}, headers=auth(key)
+        "/v1/market", params={"fuel": "kerosene"}, headers=auth(key)
     ).status_code == 422
+
+
+# Fait rougir `Fuel` amputé de `"gnv"` : le filtre doit accepter la valeur,
+# même si aucune annonce ne la porte encore (colonnes vides, `.superpowers/
+# recherche-lot2-api.md`).
+def test_gnv_is_a_recognized_filter_value(client, key, session):
+    response = client.get("/v1/market", params={"fuel": "gnv"}, headers=auth(key))
+    assert response.status_code == 200
+    assert response.json()["items"] == []
 
 
 # Fait rougir `if None in normalized: raise HTTPException(422, ...)` dans

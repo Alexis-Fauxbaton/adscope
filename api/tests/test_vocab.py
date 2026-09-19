@@ -20,9 +20,12 @@ def test_a_known_gearbox_value_passes_through():
 
 
 # Fait rougir `return OTHER` : une valeur hors vocabulaire ne fait pas échouer
-# l'observation, elle se range dans le seau commun.
+# l'observation, elle se range dans le seau commun. Le kérosène n'est le
+# carburant d'aucune annonce de voiture d'occasion : il ne rejoindra jamais le
+# vocabulaire fermé, contrairement au GNV et à l'Hydrogène (`test_vocab.py`
+# plus bas), et sert donc d'exemple stable de valeur hors vocabulaire.
 def test_an_unknown_value_falls_back_to_autre(caplog):
-    assert canonical("gnv", FUEL_VALUES, "fuel") == "autre"
+    assert canonical("kerosene", FUEL_VALUES, "fuel") == "autre"
 
 
 # Fait rougir `folded = ... if isinstance(value, str) else None` : un type
@@ -36,5 +39,30 @@ def test_a_non_string_value_falls_back_to_autre():
 # pas seulement rangée en silence.
 def test_an_unknown_value_is_logged(caplog):
     with caplog.at_level("WARNING", logger="adscope.vocab"):
-        canonical("gnv", FUEL_VALUES, "fuel")
-    assert "gnv" in caplog.text
+        canonical("kerosene", FUEL_VALUES, "fuel")
+    assert "kerosene" in caplog.text
+
+
+# Fait rougir `OTHER` mis au lieu de `"gnv"`/`"hydrogene"` dans `FUEL_VALUES` :
+# les deux codes leboncoin relevés le 2026-09-19 (7 et 9) ont leur propre case,
+# `autre` ne recueille plus que le code 5.
+def test_gnv_and_hydrogen_are_not_lumped_into_autre():
+    assert canonical("gnv", FUEL_VALUES, "fuel") == "gnv"
+    assert canonical("hydrogene", FUEL_VALUES, "fuel") == "hydrogene"
+
+
+# Fait rougir un retrait ou un ajout silencieux dans `FUEL_VALUES`/
+# `GEARBOX_VALUES` : ce vocabulaire est dupliqué côté extension
+# (`extension/src/sites/leboncoin.js`, table `FUEL`, et
+# `tests/vehicle-fields.test.mjs` qui le fige à son tour) faute d'un fichier
+# `shared/` commun pour ce genre de liste aujourd'hui — un écart entre les deux
+# doit se voir au diff des deux tests, pas rester silencieux.
+def test_the_fuel_vocabulary_matches_what_the_extension_sends():
+    assert FUEL_VALUES == (
+        "essence", "diesel", "hybride", "hybride_rechargeable", "electrique",
+        "gpl", "gnv", "hydrogene", "autre",
+    )
+
+
+def test_the_gearbox_vocabulary_matches_what_the_extension_sends():
+    assert GEARBOX_VALUES == ("manuelle", "automatique", "autre")

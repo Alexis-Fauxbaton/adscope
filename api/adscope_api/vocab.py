@@ -8,12 +8,21 @@ refusé. Refuser ferait perdre l'observation entière pour un fait secondaire.
 cette liste est un 422, jamais un seau muet qui ne rend jamais rien.
 
 Établi sur pièce le 2026-09-19 (`.superpowers/recherche-lot2-api.md`) :
-leboncoin sert neuf codes fuel, dont GNV et Hydrogène qui n'ont pas de case
-dédiée ici et retombent sur `autre` — une perte d'information assumée en
-attendant une décision d'Alexis. `gearbox` n'a que deux valeurs observées
-(manuelle, automatique) sur les deux sites ; `autre` reste néanmoins la case de
-repli, pour la même raison que côté fuel : une boîte non reconnue ne doit pas
-faire échouer l'observation.
+leboncoin sert neuf codes fuel. Sept avaient une case ; GNV (code 7, 600 à 700
+annonces) et Hydrogène (code 9, une trentaine) n'en avaient pas et retombaient
+sur `autre` — ajoutés au vocabulaire le même jour, sur le même relevé, `autre`
+ne gardant plus que le code 5 (« Autre »). `gearbox` n'a que deux valeurs
+observées (manuelle, automatique) sur les deux sites ; `autre` reste néanmoins
+la case de repli, pour la même raison que côté fuel : une boîte non reconnue
+ne doit pas faire échouer l'observation.
+
+Ce vocabulaire est dupliqué côté extension (`extension/src/sites/leboncoin.js`,
+table `FUEL`) faute d'un fichier `shared/` commun pour ce genre de liste
+aujourd'hui (il en existe un pour l'empreinte véhicule,
+`shared/fingerprint-vectors.json` — rien d'équivalent pour le vocabulaire
+fuel/gearbox). Chaque côté fige donc sa propre liste dans un test
+(`test_vocab.py` ici, `vehicle-fields.test.mjs` côté extension) pour qu'un
+écart se voie au diff plutôt qu'en silence.
 """
 
 import logging
@@ -24,12 +33,14 @@ log = logging.getLogger("adscope.vocab")
 OTHER = "autre"
 
 FUEL_VALUES = (
-    "essence", "diesel", "hybride", "hybride_rechargeable", "electrique", "gpl", OTHER,
+    "essence", "diesel", "hybride", "hybride_rechargeable", "electrique", "gpl",
+    "gnv", "hydrogene", OTHER,
 )
 GEARBOX_VALUES = ("manuelle", "automatique", OTHER)
 
 Fuel = Literal[
-    "essence", "diesel", "hybride", "hybride_rechargeable", "electrique", "gpl", "autre",
+    "essence", "diesel", "hybride", "hybride_rechargeable", "electrique", "gpl",
+    "gnv", "hydrogene", "autre",
 ]
 Gearbox = Literal["manuelle", "automatique", "autre"]
 

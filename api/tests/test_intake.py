@@ -23,7 +23,15 @@ def test_fuel_and_gearbox_are_folded_to_the_closed_vocabulary():
 # entière n'est pas perdue pour un fait secondaire, la valeur se range en
 # « autre ».
 def test_an_unknown_fuel_falls_back_to_autre_without_rejecting_the_observation():
-    assert obs(fuel="gnv").fuel == "autre"
+    assert obs(fuel="kerosene").fuel == "autre"
+
+
+# Fait rougir `Fuel` amputé de `"gnv"`/`"hydrogene"` : les deux codes leboncoin
+# relevés le 2026-09-19 (7 et 9) ont leur propre case, ils ne se perdent plus
+# dans « autre ».
+def test_gnv_and_hydrogen_pass_through():
+    assert obs(fuel="gnv").fuel == "gnv"
+    assert obs(fuel="hydrogene").fuel == "hydrogene"
 
 
 # Fait rougir `code if department.is_complete(code) else None` : un
