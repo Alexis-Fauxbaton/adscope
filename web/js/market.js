@@ -15,6 +15,13 @@ function compte(total) {
   return `${number(total)} annonce${total > 1 ? 's' : ''}`
 }
 
+// Zéro résultat sur une recherche texte ne se lit pas comme zéro résultat sur
+// un filtre : le marchand veut savoir ce qu'il a tapé, pas juste « rien ».
+export function messageVide(filters) {
+  const q = String((filters && filters.q) || '').trim()
+  return q ? `Aucune annonce pour « ${q} » parmi celles qu'adscope a vues.` : RIEN
+}
+
 export async function renderMarket(root, state) {
   // Une licence refusée en cours de route ramène à l'écran de connexion ; le
   // reste des pannes reste dans la page.
@@ -30,12 +37,14 @@ export async function renderMarket(root, state) {
   const zone = el('div')
   const tri = el('div')
 
-  // Les filtres se redessinent dans leur boîte, pas la page entière : la
-  // saisie de la famille est validée avant, donc rien ne se perd.
+  // Les filtres se redessinent dans leur boîte, pas la page entière. Deux
+  // façons de bouger : `onChange` (bouton, validation du champ) redessine et
+  // recharge, `onSearch` (frappe en cours) ne fait que recharger — redessiner
+  // pendant la frappe couperait le focus du marchand.
   function poserFiltres() {
-    clear(filtres).append(renderFilters(state, state.families, () => {
-      poserFiltres()
-      charger(false)
+    clear(filtres).append(renderFilters(state, state.families, {
+      onChange: () => { poserFiltres(); charger(false) },
+      onSearch: () => charger(false),
     }))
   }
 
@@ -61,7 +70,7 @@ export async function renderMarket(root, state) {
   function peindre() {
     clear(zone)
     if (!state.items.length) {
-      zone.append(el('div', { class: 'carte vide', text: RIEN }))
+      zone.append(el('div', { class: 'carte vide', text: messageVide(state.filters) }))
       return
     }
     zone.append(el('div', { class: 'pile' }, state.items.map(carteAnnonce)))

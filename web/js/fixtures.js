@@ -3,6 +3,7 @@
 // les routes se livrent en parallèle.
 
 import { DEMO_NOW, FOLLOW_ROWS, MARKET_ROWS, isoDaysBefore } from './fixtures-data.js'
+import { demoLabel, matchesQuery } from './fixtures-search.js'
 
 export const THRESHOLDS = [30, 60, 90]
 
@@ -18,6 +19,7 @@ function baseItem(row, index) {
     site_id: siteId(index),
     url: `https://www.lacentrale.fr/auto-occasion-annonce-${siteId(index)}.html`,
     brand, model, version, year, mileage, price,
+    label: demoLabel(brand, model, version),
     seller_type: sellerType,
     seller_name: sellerName,
     published_at: isoDaysBefore(ageDays),
@@ -79,10 +81,13 @@ export function feed({ since_days: sinceDays = 7 } = {}) {
 function matches(item, params) {
   const brand = params.get('brand')
   const model = params.get('model')
+  const q = params.get('q')
   const sellerType = params.get('seller_type')
   const minAge = Number(params.get('min_age_days') || 0)
+  // Filtres exacts, comparés à la forme canonique — ici celle des fixtures.
   if (brand && item.brand.toLowerCase() !== brand.toLowerCase()) return false
-  if (model && !item.model.toLowerCase().includes(model.toLowerCase())) return false
+  if (model && item.model.toLowerCase() !== model.toLowerCase()) return false
+  if (q && !matchesQuery(item, q)) return false
   if (sellerType && item.seller_type !== sellerType) return false
   if (item.age_days < minAge) return false
   if (params.get('dropped') === 'true' && item.price_delta_since_first >= 0) return false

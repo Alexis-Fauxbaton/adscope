@@ -44,7 +44,14 @@ export const MARKET_ROWS = [
   ['Opel', 'Corsa', 'VI 1.2 75 Edition', 2021, 32700, 13750, 'pro', 'Sud Automobiles', 108, -400],
   ['Opel', 'Corsa', 'V 1.4 90 Enjoy', 2015, 128900, 6300, 'private', null, 592, -1500],
   ['Fiat', '500', '1.2 69 Lounge', 2018, 54300, 9850, 'private', null, 246, 0],
-  ['Mini', 'Cooper', 'III 1.5 136 Chili', 2017, 71500, 15200, 'pro', 'Auto Sélection 34', 398, -1800],
+  // La version répète le modèle, comme sur 89 % des annonces (constat du
+  // 2026-09-18) : `label` doit dire « Mini Cooper S Chili », jamais
+  // « Mini Cooper Cooper S Chili ».
+  ['Mini', 'Cooper', 'Cooper S III Chili', 2017, 71500, 15200, 'pro', 'Auto Sélection 34', 398, -1800],
+  // Le modèle « Autres » (9 % de la base) ne doit jamais fuiter dans le nom
+  // affiché : `label` doit dire « Corvette C3 Stingray 5.7 V8 », jamais
+  // « Corvette Autres C3 Stingray 5.7 V8 ».
+  ['Corvette', 'Autres', 'C3 Stingray 5.7 V8', 1969, 88000, 42000, 'pro', 'Classic Cars 06', 145, -900],
 ]
 
 // brand, model, version, year, mileage, price, seller_type, seller_name,

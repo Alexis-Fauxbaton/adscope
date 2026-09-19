@@ -10,6 +10,7 @@ export const MAX_LIMIT = 100
 export const PAGE_SIZE = 20
 
 export const EMPTY_FILTERS = {
+  q: '',
   brand: '',
   model: '',
   sellerType: '',
@@ -24,8 +25,10 @@ function trimmed(value) {
 
 export function marketQuery(filters = {}, { limit = PAGE_SIZE, offset = 0 } = {}) {
   const params = new URLSearchParams()
+  const q = trimmed(filters.q)
   const brand = trimmed(filters.brand)
   const model = trimmed(filters.model)
+  if (q) params.set('q', q)
   if (brand) params.set('brand', brand)
   if (model) params.set('model', model)
   if (filters.sellerType) params.set('seller_type', filters.sellerType)
@@ -39,15 +42,44 @@ export function marketQuery(filters = {}, { limit = PAGE_SIZE, offset = 0 } = {}
   return params
 }
 
-// Le champ « famille » est une liste et une saisie libre à la fois : le
-// marchand choisit une Clio dans son périmètre, ou tape « 208 » parce que
-// l'annonce qu'il a en tête n'y est pas encore.
-export function parseFamily(text) {
-  const words = trimmed(text).split(/\s+/).filter(Boolean)
-  if (!words.length) return { brand: '', model: '' }
-  return { brand: words[0], model: words.slice(1).join(' ') }
-}
-
 export function familyLabel(family) {
   return [family.brand, family.model].filter(Boolean).join(' ')
+}
+
+const DIACRITICS = /[\u0300-\u036f]/g
+
+function foldedForMatch(text) {
+  return trimmed(text).toLowerCase().normalize('NFD').replace(DIACRITICS, '')
+}
+
+// Le champ « famille » est une liste et une saisie libre à la fois : le
+// marchand choisit une Clio dans son périmètre — marque et modèle exacts,
+// aucune recherche texte à côté — ou tape ce qu'il a en tête, qui part tel
+// quel dans `q` : découper la saisie en mots (l'ancien `parseFamily`) faisait
+// de « land rover » une marque « land » et un modèle « rover » qui ne
+// rendait jamais rien. Saisie et famille ne se cumulent jamais : l'une
+// efface toujours l'autre.
+export function familyInputPatch(text, families) {
+  const folded = foldedForMatch(text)
+  const match = families.find((f) => foldedForMatch(familyLabel(f)) === folded)
+  if (match) return { brand: match.brand, model: match.model, q: '' }
+  return { brand: '', model: '', q: trimmed(text) }
+}
+
+// Les globaux du navigateur : appelés tels quels et non comme méthodes d'un
+// objet, sinon `setTimeout` détaché de `window` lève « Illegal invocation »
+// dans un vrai navigateur (Node, lui, ne le remarque pas — c'est ce qui rend
+// ce genre de bug invisible aux tests si la minuterie par défaut n'imite pas
+// ce piège).
+const REAL_TIMERS = { setTimeout: (...a) => setTimeout(...a), clearTimeout: (...a) => clearTimeout(...a) }
+
+// Une frappe déclenche une recherche après une courte pause, jamais à chaque
+// caractère — ça noierait l'API d'une requête par lettre. La minuterie est
+// injectable : le test du mécanisme n'attend jamais un vrai délai.
+export function debounce(fn, wait, timers = REAL_TIMERS) {
+  let handle = null
+  return (...args) => {
+    if (handle != null) timers.clearTimeout(handle)
+    handle = timers.setTimeout(() => { handle = null; fn(...args) }, wait)
+  }
 }

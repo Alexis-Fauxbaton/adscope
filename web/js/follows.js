@@ -4,14 +4,15 @@
 import * as api from './api.js'
 import { clear, el, outLink } from './dom.js'
 import { factsOf, isGone } from './facts.js'
-import { kilometres, money, spellAge } from './format.js'
+import { kilometres, money, spellAge, vehicleShortLabel } from './format.js'
 
 const FENETRES = [[1, '24 heures'], [7, '7 jours']]
 
-// « Peugeot 208 · 2020 · 3 574 km » : la marque et le modèle nomment une seule
-// chose, ils ne se séparent pas par le point médian qui sépare les faits.
+// « Peugeot 208 · 2020 · 3 574 km » : le nom du véhicule (marque + modèle, ou
+// `label` quand l'API le sert) ne se sépare pas par le point médian qui
+// sépare les faits.
 function ligneVehicule(item) {
-  return [[item.brand, item.model].filter(Boolean).join(' '), item.year,
+  return [vehicleShortLabel(item), item.year,
     item.mileage != null && kilometres(item.mileage)].filter(Boolean).join(' · ')
 }
 

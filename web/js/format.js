@@ -68,8 +68,23 @@ export function kilometres(n) {
 
 // Le titre d'une annonce : marque, modèle, version quand le site l'a donnée —
 // elle ne l'est que sur une annonce sur trois, et l'absence ne se comble pas.
+// C'est aussi le repli de `vehicleLabel` : une API pas encore mise à jour ne
+// sert pas `label`, et la carte doit quand même nommer le véhicule.
 export function vehicleTitle(item) {
   return [item.brand, item.model, item.version].filter(Boolean).join(' ')
+}
+
+// Le nom propre du véhicule, composé côté API à un seul endroit (répétitions
+// et « Autres » nettoyés). Une API plus ancienne ne le sert pas encore : le
+// repli reprend l'ancienne composition plutôt que de laisser un trou.
+export function vehicleLabel(item) {
+  return item.label || vehicleTitle(item)
+}
+
+// Le même repli, mais sans la version : c'est la composition que « Mes
+// suivis » utilisait avant `label`, gardée pour les API qui ne le servent pas.
+export function vehicleShortLabel(item) {
+  return item.label || [item.brand, item.model].filter(Boolean).join(' ')
 }
 
 // Les codes sont ceux que la base porte et que l'extension pose

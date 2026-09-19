@@ -62,13 +62,44 @@ test('un particulier n’a pas de nom', () => {
 
 test('les fixtures du marché tiennent le contrat demandé', () => {
   const { total, items } = market(marketQuery({}, { limit: 100 }))
-  assert.equal(total, 30)
-  assert.equal(items.length, 30)
+  assert.equal(total, 31)
+  assert.equal(items.length, 31)
   for (const item of items) {
     assert.ok(item.url.startsWith('https://'))
     assert.ok(item.price_delta_since_first <= 0)
     assert.equal(item.disappeared_at, null)
+    assert.ok(item.label)
   }
+  // Rouge sur le `model === 'Autres'` et le `startsWith` de `demoLabel` dans
+  // js/fixtures-search.js : sans eux, le marchand lirait « Corvette Autres
+  // C3 Stingray 5.7 V8 » et « Mini Cooper Cooper S III Chili » sur la carte.
+  assert.equal(items.find((i) => i.brand === 'Corvette').label, 'Corvette C3 Stingray 5.7 V8')
+  assert.equal(items.find((i) => i.brand === 'Mini').label, 'Mini Cooper S III Chili')
+})
+
+// Rouge sur le `mots.every(...)` de `matchesQuery` (js/fixtures-search.js) :
+// une recherche par famille (« land rover », « citroën c3 ») que l'ancien
+// champ coupait en marque/modèle ne rendait jamais rien (2026-09-18 :
+// `ferrari` → 0, `Ferrari` → 390).
+test('la recherche q est tolérante à la casse, aux accents, à l’ordre des mots', () => {
+  const casse = market(marketQuery({ q: 'CORVETTE' }, { limit: 100 }))
+  assert.equal(casse.total, 1)
+  const accents = market(marketQuery({ q: 'citroen c3' }, { limit: 100 }))
+  assert.equal(accents.total, 2)
+  const ordre = market(marketQuery({ q: 'c3 citroën' }, { limit: 100 }))
+  assert.equal(ordre.total, 2)
+  const chaqueMot = market(marketQuery({ q: 'corvette cabriolet' }, { limit: 100 }))
+  assert.equal(chaqueMot.total, 0)
+})
+
+// Rouge sur le `!== model.toLowerCase()` de `matches` dans js/fixtures.js :
+// avec un `.includes(...)`, chercher le modèle « C3 » rendrait aussi les
+// annonces dont la version le mentionne en passant.
+test('le filtre model est exact, pas un sous-texte', () => {
+  const exact = market(marketQuery({ brand: 'Corvette', model: 'Autres' }, { limit: 100 }))
+  assert.equal(exact.total, 1)
+  const trop = market(marketQuery({ brand: 'Corvette', model: 'C3' }, { limit: 100 }))
+  assert.equal(trop.total, 0)
 })
 
 // Rouge sur les comparateurs de `ORDERS` dans js/fixtures.js.
@@ -85,7 +116,7 @@ test('chaque tri ordonne ce qu’il annonce', () => {
 // montre un écran qui n'existera pas.
 test('les filtres du mode démo mordent vraiment', () => {
   const vieilles = market(marketQuery({ minAgeDays: 90 }, { limit: 100 })).items
-  assert.ok(vieilles.length < 30 && vieilles.length > 0)
+  assert.ok(vieilles.length < 31 && vieilles.length > 0)
   for (const item of vieilles) assert.ok(item.age_days >= 90)
   const baissees = market(marketQuery({ dropped: true }, { limit: 100 })).items
   for (const item of baissees) assert.ok(item.price_delta_since_first < 0)
@@ -111,7 +142,7 @@ test('la pagination avance sans redonner la même page', () => {
   const un = market(marketQuery({}, { limit: 20, offset: 0 }))
   const deux = market(marketQuery({}, { limit: 20, offset: 20 }))
   assert.equal(un.items.length, 20)
-  assert.equal(deux.items.length, 10)
+  assert.equal(deux.items.length, 11)
   assert.equal(un.total, deux.total)
   const ids = new Set(un.items.map((i) => i.site_id))
   for (const item of deux.items) assert.ok(!ids.has(item.site_id))

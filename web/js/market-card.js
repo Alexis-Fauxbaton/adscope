@@ -2,7 +2,7 @@
 // mesure qu'adscope apporte et que le site ne donne pas.
 
 import { el, outLink } from './dom.js'
-import { longDate, money, signedMoney, spellAge, vehicleLine, vehicleTitle } from './format.js'
+import { longDate, money, signedMoney, spellAge, vehicleLabel, vehicleLine } from './format.js'
 
 function prix(item) {
   const baisse = item.price_delta_since_first < 0 && el('span', {
@@ -17,7 +17,7 @@ function prix(item) {
 export function carteAnnonce(item) {
   return el('article', { class: 'carte' }, el('div', { class: 'annonce' }, [
     el('div', {}, [
-      el('h2', { class: 'annonce-h', text: vehicleTitle(item) }),
+      el('h2', { class: 'annonce-h', text: vehicleLabel(item) }),
       el('p', { class: 'annonce-s', text: vehicleLine(item) }),
       prix(item),
       // L'identité d'un vendeur n'est servie que s'il est professionnel.

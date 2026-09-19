@@ -5,8 +5,8 @@ process.env.TZ = 'Europe/Paris'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  longDate, money, number, shortDate, signedMoney, siteLabel, spellAge, vehicleLine,
-  vehicleTitle,
+  longDate, money, number, shortDate, signedMoney, siteLabel, spellAge, vehicleLabel,
+  vehicleLine, vehicleShortLabel, vehicleTitle,
 } from '../js/format.js'
 
 const THIN = ' '
@@ -89,5 +89,29 @@ test('le titre et la ligne du véhicule sautent ce que le site n’a pas donné'
   assert.equal(
     vehicleLine({ ...nu, mileage: 28410 }),
     `2021 · 28${THIN}410${NBSP}km · La Centrale`,
+  )
+})
+
+// Rouge sur le `item.label ||` de `vehicleLabel` dans js/format.js : sans
+// lui, la carte du marché ignorerait le nom propre que l'API compose et
+// réafficherait toujours l'ancien assemblage, même quand `label` est là.
+test('vehicleLabel sert item.label, et retombe sur l’ancien titre s’il manque', () => {
+  const item = { brand: 'Corvette', model: 'Autres', version: 'C3 Stingray 5.7 V8' }
+  assert.equal(vehicleLabel(item), 'Corvette Autres C3 Stingray 5.7 V8')
+  assert.equal(
+    vehicleLabel({ ...item, label: 'Corvette C3 Stingray 5.7 V8' }),
+    'Corvette C3 Stingray 5.7 V8',
+  )
+})
+
+// Rouge sur le `item.label ||` de `vehicleShortLabel` : sans lui, « Mes
+// suivis » perdrait le nom propre servi par l'API et retomberait toujours sur
+// marque + modèle, même quand `label` est là.
+test('vehicleShortLabel sert item.label, et retombe sur marque + modèle s’il manque', () => {
+  const item = { brand: 'Renault', model: 'Clio', version: 'V TCe 90' }
+  assert.equal(vehicleShortLabel(item), 'Renault Clio')
+  assert.equal(
+    vehicleShortLabel({ ...item, label: 'Renault Clio V TCe 90 Evolution' }),
+    'Renault Clio V TCe 90 Evolution',
   )
 })
