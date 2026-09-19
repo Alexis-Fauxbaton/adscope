@@ -1,0 +1,18 @@
+{
+ "fuel": {
+  "1": "Essence",
+  "2": "Diesel",
+  "3": "GPL",
+  "4": "Électrique",
+  "5": "Autre",
+  "6": "Hybride",
+  "7": "Gaz Naturel (GNV)",
+  "8": "Hybride Rechargeable",
+  "9": "Hydrogène"
+ },
+ "gearbox": {
+  "1": "Manuelle",
+  "2": "Automatique"
+ },
+ "_source": "leboncoin.fr/recherche?category=2&fuel=<code>, value_label observé sur le premier résultat de chaque filtre, Playwright/Chrome réel le 2026-09-19. Complétude des codes fuel confirmée par api.leboncoin.fr/finder/search (POST), champ aggregations.fuel — 9 codes vus (1..9, tous peuplés), aucun 10e. aggregations.gearbox ne porte que les codes 1 et 2 : liste complète."
+}

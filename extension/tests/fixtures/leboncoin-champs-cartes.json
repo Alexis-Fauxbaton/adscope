@@ -1,0 +1,102 @@
+[
+ {
+  "list_id": 3201276928,
+  "url": "https://www.leboncoin.fr/ad/voitures/3201276928",
+  "subject": "Ford Kuga 2.5 Duratec 180 ch FlexiFuel FHEV E85 Powershift Titanium",
+  "attributes": [
+   {
+    "key": "brand",
+    "value": "Ford",
+    "value_label": "Ford"
+   },
+   {
+    "key": "model",
+    "value": "Kuga",
+    "value_label": "Kuga"
+   },
+   {
+    "key": "fuel",
+    "value": "4",
+    "value_label": "Électrique",
+    "key_label": "Énergie"
+   },
+   {
+    "key": "gearbox",
+    "value": "2",
+    "value_label": "Automatique",
+    "key_label": "Boîte de vitesse"
+   }
+  ],
+  "location": {
+   "country_id": "FR",
+   "region_id": "20",
+   "region_name": "Poitou-Charentes",
+   "department_id": "79",
+   "department_name": "Deux-Sèvres",
+   "city_label": "Niort 79000",
+   "city": "Niort",
+   "zipcode": "79000",
+   "source": "city"
+  }
+ },
+ {
+  "list_id": 3269366832,
+  "url": "https://www.leboncoin.fr/ad/voitures/3269366832",
+  "subject": "Véhicule électrique, boîte manuelle",
+  "attributes": [
+   {
+    "key": "fuel",
+    "value": "4",
+    "value_label": "Électrique",
+    "key_label": "Énergie"
+   },
+   {
+    "key": "gearbox",
+    "value": "1",
+    "value_label": "Manuelle",
+    "key_label": "Boîte de vitesse"
+   }
+  ],
+  "location": {
+   "country_id": "FR",
+   "region_id": "22",
+   "region_name": "Rhône-Alpes",
+   "department_id": "69",
+   "department_name": "Rhône",
+   "city_label": "Vénissieux 69200 Grand Trou",
+   "city": "Vénissieux",
+   "zipcode": "69200",
+   "district": "Grand Trou",
+   "source": "address"
+  }
+ },
+ {
+  "list_id": 3205582768,
+  "url": "https://www.leboncoin.fr/ad/voitures/3205582768",
+  "subject": "TOYOTA COROLLA HYBRIDE MY21 18CH GR Sport",
+  "attributes": [
+   {
+    "key": "fuel",
+    "value": "6",
+    "value_label": "Hybride",
+    "key_label": "Énergie"
+   },
+   {
+    "key": "gearbox",
+    "value": "2",
+    "value_label": "Automatique",
+    "key_label": "Boîte de vitesse"
+   }
+  ],
+  "location": {
+   "country_id": "FR",
+   "region_id": "26",
+   "region_name": "Réunion",
+   "department_id": "0",
+   "city_label": "Saint-Pierre 97410",
+   "city": "Saint-Pierre",
+   "zipcode": "97410",
+   "source": "city"
+  }
+ }
+]

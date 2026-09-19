@@ -183,7 +183,7 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
     'panel-icons.js', 'panel-curve.js', 'panel-note.js', 'panel-sections.js', 'panel-cards.js',
     'panel.js',
   ]
-  for (const f of ['context.js', 'sites.js', 'sites/read.js', site, ...MODULES.slice(3)]) load(f)
+  for (const f of ['context.js', 'sites.js', 'sites/read.js', 'sites/vehicle-fields.js', site, ...MODULES.slice(3)]) load(f)
   // Le travail lourd, compté à travers le registre : le code partagé y accède
   // de la même façon, par le site que l'origine désigne.
   const current = ADS.sites.current()

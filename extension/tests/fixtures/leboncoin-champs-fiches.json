@@ -1,0 +1,65 @@
+[
+ {
+  "list_id": 3205582768,
+  "url": "https://www.leboncoin.fr/ad/voitures/3205582768",
+  "subject": "TOYOTA COROLLA HYBRIDE MY21 18CH GR Sport Climatisation automatique bi-zone Caméra Carplay Garantie 12 mois",
+  "attributes": [
+   {
+    "key": "fuel",
+    "value": "6",
+    "value_label": "Hybride",
+    "key_label": "Énergie"
+   },
+   {
+    "key": "gearbox",
+    "value": "2",
+    "value_label": "Automatique",
+    "key_label": "Boîte de vitesse"
+   }
+  ],
+  "location": {
+   "country_id": "FR",
+   "region_id": "26",
+   "region_name": "Réunion",
+   "department_id": "0",
+   "city_label": "Saint-Pierre 97410",
+   "city": "Saint-Pierre",
+   "zipcode": "97410",
+   "lat": -21.34295,
+   "lng": 55.4683,
+   "source": "city"
+  }
+ },
+ {
+  "list_id": 2825347339,
+  "url": "https://www.leboncoin.fr/ad/voitures/2825347339",
+  "subject": "Kia Niro 1.6 GDi 183ch PHEV Premium DCT6",
+  "attributes": [
+   {
+    "key": "fuel",
+    "value": "8",
+    "value_label": "Hybride Rechargeable",
+    "key_label": "Énergie"
+   },
+   {
+    "key": "gearbox",
+    "value": "2",
+    "value_label": "Automatique",
+    "key_label": "Boîte de vitesse"
+   }
+  ],
+  "location": {
+   "country_id": "FR",
+   "region_id": "4",
+   "region_name": "Basse-Normandie",
+   "department_id": "50",
+   "department_name": "Manche",
+   "city_label": "Saint-Quentin-sur-le-Homme 50220",
+   "city": "Saint-Quentin-sur-le-Homme",
+   "zipcode": "50220",
+   "lat": 48.64911,
+   "lng": -1.35121,
+   "source": "address"
+  }
+ }
+]

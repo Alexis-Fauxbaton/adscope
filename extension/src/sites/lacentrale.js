@@ -13,21 +13,18 @@ ADS.lacentrale = ADS.sites.register((() => {
   const date = (s) => (s ? new Date(s) : null)
   const number = (v) => (v === null || v === undefined || v === '' ? null : Number(v))
   const type = (t) => (t === 'PRO' ? 'pro' : 'private')
-  // L'adresse se déduit de la référence : le site remplace la lettre de tête par son code
-  // ASCII (W103538172 → 87103538172), vérifié sur les 23 annonces de la page relevée.
+  // Vocabulaire fermé, relevé le 2026-09-19 (.superpowers/recherche-lot2-ext.md) ; rien d'autre vu.
+  const FUEL = { ESSENCE: 'essence', DIESEL: 'diesel' }
+  const GEARBOX = { MANUAL: 'manuelle', AUTO: 'automatique', MECANIQUE: 'manuelle', AUTOMATIQUE: 'automatique' }
+  // L'adresse se déduit de la référence : le site remplace la lettre de tête par son code ASCII
+  // (W103538172 → 87103538172), vérifié sur les 23 annonces de la page relevée.
   const slug = (ref) => `auto-occasion-annonce-${String(ref).charCodeAt(0)}${String(ref).slice(1)}.html`
   // Et se relit dans l'autre sens : c'est ainsi qu'une adresse ouverte nomme son annonce.
   const urlId = (path) => {
     const m = path.match(/auto-occasion-annonce-(\d\d)(\d+)\.html/)
     return m ? String.fromCharCode(Number(m[1])) + m[2] : null
   }
-  const listing = (ref, rest) => ({
-    site: SITE,
-    siteId: String(ref),
-    url: `https://www.lacentrale.fr/${slug(ref)}`,
-    ...rest,
-  })
-
+  const listing = (ref, rest) => ({ site: SITE, siteId: String(ref), url: `https://www.lacentrale.fr/${slug(ref)}`, ...rest })
   // Seul le marchand est retenu : agréger les annonces d'une entreprise est de la donnée
   // d'entreprise, celles d'un particulier seraient personnelles — et une fiche de particulier
   // porte son nom. `customerReference` est la clé du vendeur des deux côtés ; le siret, porté
@@ -36,13 +33,14 @@ ADS.lacentrale = ADS.sites.register((() => {
     customerType === 'PRO' && id
       ? { sellerId: String(id), sellerName: name || null }
       : { sellerId: null, sellerName: null }
-
   const card = (c) => {
     const v = c.vehicle || {}
     return listing(c.reference, {
       title: [v.make, v.model, v.version].filter(Boolean).join(' ') || null,
       sellerType: type(c.customerType),
       ...seller(c.customerType, c.customerReference, (c.contacts || {}).nomPublie),
+      ...ADS.vehicleFields.withZip(null, (c.location || {}).visitPlace),
+      fuel: ADS.vehicleFields.canon(FUEL, v.energy), gearbox: ADS.vehicleFields.canon(GEARBOX, v.gearbox),
       price: number(c.price), publishedAt: date(c.firstOnlineDate),
       // `lastUpdate` dit qu'on a touché à l'annonce, jamais pourquoi — voir BUMP_MIN_MS.
       bumpedAt: c.lastUpdate ? new Date(c.lastUpdate * 1000) : null,
@@ -50,11 +48,14 @@ ADS.lacentrale = ADS.sites.register((() => {
       year: number(v.year), mileage: number(v.mileage),
     })
   }
-  const detail = (c, ld, vehicle, account) =>
+  // `location`/`sellerAddr` : `visitPlace` et `sellerInfos.zipCode`, cherchés au point d'appel.
+  const detail = (c, ld, vehicle, account, location, sellerAddr) =>
     listing(c.classifiedReference, {
       title: ld.name || null,
       sellerType: type(c.customerType),
       ...seller(c.customerType, c.customerReference, account.publishedName),
+      ...ADS.vehicleFields.withZip(sellerAddr.zipCode, location.visitPlace),
+      fuel: ADS.vehicleFields.canon(FUEL, vehicle.energy), gearbox: ADS.vehicleFields.canon(GEARBOX, vehicle.gearbox),
       price: number((ld.offers || {}).price) || number(c.price), publishedAt: date(c.creationDate),
       // Rien sur une fiche ne dit qu'elle a été remontée : on n'invente pas.
       bumpedAt: null,
@@ -68,9 +69,9 @@ ADS.lacentrale = ADS.sites.register((() => {
     const found = texts.flatMap(blobs)
     const combined = collect(found, isDetail)[0]
     if (combined) {
-      const vehicle = collect(found, (o) => 'make' in o && 'label' in o)[0] || {}
-      const account = collect(found, (o) => 'publishedName' in o)[0] || {}
-      return [detail(combined, found.find((o) => o['@type'] === 'Car') || {}, vehicle, account)]
+      const vehicle = collect(found, (o) => 'make' in o && 'label' in o)[0] || {}, account = collect(found, (o) => 'publishedName' in o)[0] || {}
+      const location = collect(found, (o) => 'visitPlace' in o)[0] || {}, sellerAddr = collect(found, (o) => 'zipCode' in o && 'city' in o)[0] || {}
+      return [detail(combined, found.find((o) => o['@type'] === 'Car') || {}, vehicle, account, location, sellerAddr)]
     }
     const seen = new Set()
     return collect(found, isCard).filter((c) => !seen.has(c.reference) && seen.add(c.reference)).map(card)
@@ -141,8 +142,7 @@ ADS.lacentrale = ADS.sites.register((() => {
       : null
 
   return {
-    id: SITE, name: 'La Centrale', origins: ['https://www.lacentrale.fr'],
-    urlId, card: cardOf,
+    id: SITE, name: 'La Centrale', origins: ['https://www.lacentrale.fr'], urlId, card: cardOf,
     dateNode, mount, words, claim, displayed, fromDocument, fromScripts, payload, signals,
   }
 })())

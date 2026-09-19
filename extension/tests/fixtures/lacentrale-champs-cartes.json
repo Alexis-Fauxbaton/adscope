@@ -1,0 +1,92 @@
+[
+ {
+  "reference": "W103536233",
+  "customerType": "PRO",
+  "vehicle": {
+   "make": "PEUGEOT",
+   "model": "208",
+   "version": "(2) 1.6 BLUEHDI 100 ACTIVE BUSINESS 5P",
+   "energy": "DIESEL",
+   "gearbox": "MANUAL"
+  },
+  "location": {
+   "country": "FR",
+   "visitPlace": "93"
+  }
+ },
+ {
+  "reference": "W103527802",
+  "customerType": "PRO",
+  "vehicle": {
+   "make": "PEUGEOT",
+   "model": "208",
+   "version": "II 1.2 PURETECH 130 S&S GT EAT8",
+   "energy": "ESSENCE",
+   "gearbox": "AUTO"
+  },
+  "location": {
+   "country": "FR",
+   "visitPlace": "75"
+  }
+ },
+ {
+  "reference": "W103538172",
+  "customerType": "PRO",
+  "vehicle": {
+   "make": "PEUGEOT",
+   "model": "208",
+   "version": "1.2 VTI 82 ACTIVE 5P",
+   "energy": "ESSENCE",
+   "gearbox": "MANUAL"
+  },
+  "location": {
+   "country": "FR",
+   "visitPlace": "92"
+  }
+ },
+ {
+  "reference": "W103527811",
+  "customerType": "PRO",
+  "vehicle": {
+   "make": "PEUGEOT",
+   "model": "208",
+   "version": "II 1.2 PURETECH 130 S&S GT EAT8",
+   "energy": "ESSENCE",
+   "gearbox": "AUTO"
+  },
+  "location": {
+   "country": "FR",
+   "visitPlace": "75"
+  }
+ },
+ {
+  "reference": "W103531664",
+  "customerType": "PRO",
+  "vehicle": {
+   "make": "PEUGEOT",
+   "model": "208",
+   "version": "(2) 1.2 PURETECH 82 ALLURE 5P",
+   "energy": "ESSENCE",
+   "gearbox": "MANUAL"
+  },
+  "location": {
+   "country": "FR",
+   "visitPlace": "94"
+  }
+ },
+ {
+  "reference": "W103527309",
+  "customerType": "PRO",
+  "vehicle": {
+   "make": "PEUGEOT",
+   "model": "208",
+   "version": "(2) 1.6 BLUEHDI 75 ACTIVE 5P",
+   "energy": "DIESEL",
+   "gearbox": "MANUAL"
+  },
+  "location": {
+   "country": "FR",
+   "visitPlace": "93"
+  }
+ }
+]

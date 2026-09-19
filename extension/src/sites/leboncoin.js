@@ -32,6 +32,9 @@ ADS.leboncoin = ADS.sites.register((() => {
     return out
   }
 
+  // Vocabulaire fermé, relevé le 2026-09-19 (.superpowers/recherche-lot2-ext.md) ; GNV/Hydrogène → « autre ».
+  const FUEL = { 1: 'essence', 2: 'diesel', 3: 'gpl', 4: 'electrique', 5: 'autre', 6: 'hybride', 7: 'autre', 8: 'hybride_rechargeable', 9: 'autre' }
+  const GEARBOX = { 1: 'manuelle', 2: 'automatique' }
   // Relevé le 2026-09-06 sur une page réelle : `owner` porte `store_id`, `name`,
   // `user_id` et `siren`, **quel que soit le type de vendeur** — un particulier
   // y figure avec un prénom. La présence du champ ne dit donc rien ; le type,
@@ -44,21 +47,21 @@ ADS.leboncoin = ADS.sites.register((() => {
       : { sellerId: null, sellerName: null }
 
   const normalize = (ad) => {
-    const attr = attributes(ad)
-    const owner = ad.owner || {}
+    const attr = attributes(ad), owner = ad.owner || {}, loc = ad.location || {}, VF = ADS.vehicleFields
     return {
       site: 'lbc',
       siteId: String(ad.list_id),
       url: ad.url,
       title: ad.subject,
       sellerType: owner.type === 'pro' ? 'pro' : 'private',
-      ...seller(owner),
+      ...seller(owner), ...VF.withZip(loc.zipcode, loc.department_id),
       price: Array.isArray(ad.price) ? ad.price[0] : ad.price,
       publishedAt: parseDate(ad.first_publication_date),
       bumpedAt: parseDate(ad.index_date),
       brand: attr.brand, model: attr.model, version: attr.u_car_version,
       year: attr.regdate ? Number(attr.regdate) : null,
       mileage: attr.mileage ? Number(attr.mileage) : null,
+      fuel: VF.numeric(FUEL, VF.attrOf(ad.attributes, 'fuel')), gearbox: VF.numeric(GEARBOX, VF.attrOf(ad.attributes, 'gearbox')),
     }
   }
 
@@ -127,10 +130,7 @@ ADS.leboncoin = ADS.sites.register((() => {
 
   // Le vocabulaire du site : `index_date` atteste une réactualisation, et
   // « encore » n'a de sens que sur une annonce déjà ancienne — l'alerte, donc.
-  const words = {
-    bump: (s) => `${s.notable ? 'encore ' : ''}réactualisée`,
-    bumpLabel: 'Réactualisée',
-  }
+  const words = { bump: (s) => `${s.notable ? 'encore ' : ''}réactualisée`, bumpLabel: 'Réactualisée' }
 
   // La contradiction, nommée : le site montre une date d'indexation là où le lecteur comprend
   // une date de mise en ligne. `days` dit ce qu'elle couvre : pas plus loin que la remontée.

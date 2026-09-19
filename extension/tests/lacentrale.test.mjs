@@ -12,6 +12,7 @@ const require = createRequire(import.meta.url)
 // communs : les deux se chargent avant lui, comme le manifeste les déclare.
 require(join(here, '../src/sites.js'))
 require(join(here, '../src/sites/read.js'))
+require(join(here, '../src/sites/vehicle-fields.js'))
 const site = require(join(here, '../src/sites/lacentrale.js'))
 const { fromDocument, fromScripts, signals, claim, displayed, payload } = site
 

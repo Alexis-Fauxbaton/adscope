@@ -1,0 +1,40 @@
+[
+ {
+  "reference": "W103538172",
+  "visitPlace": "92",
+  "vehicle": {
+   "make": "PEUGEOT",
+   "model": "208",
+   "label": "1.2 VTI 82 ACTIVE 5P",
+   "energy": "ESSENCE",
+   "gearbox": "MECANIQUE"
+  },
+  "sellerInfos": {
+   "zipCode": "92120",
+   "city": "MONTROUGE",
+   "address": {
+    "zipCode": "92120",
+    "city": "MONTROUGE"
+   }
+  }
+ },
+ {
+  "reference": "B101733515",
+  "visitPlace": "85",
+  "vehicle": {
+   "make": "PEUGEOT",
+   "model": "208",
+   "label": "II 1.2 PURETECH 100 S&S ALLURE EAT8",
+   "energy": "ESSENCE",
+   "gearbox": "AUTOMATIQUE"
+  },
+  "sellerInfos": {
+   "zipCode": "85300",
+   "city": "CHALLANS",
+   "address": {
+    "zipCode": null,
+    "city": null
+   }
+  }
+ }
+]

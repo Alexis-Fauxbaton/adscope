@@ -15,19 +15,17 @@ const config = async () => ({
 })
 
 const toObservation = (l) => ({
-  site: l.site,
-  site_id: l.siteId,
+  site: l.site, site_id: l.siteId,
   price: l.price ?? null,
-  brand: l.brand ?? null,
-  model: l.model ?? null,
-  version: l.version ?? null,
-  year: l.year ?? null,
-  mileage: l.mileage ?? null,
-  seller_type: l.sellerType ?? null,
-  seller_id: l.sellerId ?? null,
-  seller_name: l.sellerName ?? null,
-  published_at: l.publishedAt ?? null,
-  bumped_at: l.bumpedAt ?? null,
+  brand: l.brand ?? null, model: l.model ?? null, version: l.version ?? null,
+  year: l.year ?? null, mileage: l.mileage ?? null,
+  seller_type: l.sellerType ?? null, seller_id: l.sellerId ?? null, seller_name: l.sellerName ?? null,
+  published_at: l.publishedAt ?? null, bumped_at: l.bumpedAt ?? null,
+  // Trois champs optionnels du lot « champs manquants » : vocabulaire fermé
+  // déjà traduit par le module de site, département dérivé du code postal.
+  // Absents, ils n'effacent jamais une valeur déjà connue côté API.
+  fuel: l.fuel ?? null, gearbox: l.gearbox ?? null,
+  department: l.department ?? null, postal_code: l.postalCode ?? null,
 })
 
 // Ce que l'observation apprendrait à l'API. Inchangée, elle ne lui apprend

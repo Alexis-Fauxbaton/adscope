@@ -245,6 +245,29 @@ test("le vendeur professionnel voyage avec l'observation", async () => {
 })
 
 
+// Fait rougir `fuel`/`gearbox`/`department`/`postal_code` de `toObservation` :
+// ces quatre champs optionnels du lot « champs manquants » doivent voyager
+// dans l'observation, jamais s'effacer d'eux-mêmes quand ils manquent.
+test('carburant, boîte, département et code postal voyagent avec l\'observation', async () => {
+  const { calls, ask } = boot()
+  await ask({
+    type: 'sync', site: 'lbc',
+    listings: [
+      { ...listing('1'), fuel: 'electrique', gearbox: 'automatique', department: '974', postalCode: '97410' },
+      { ...listing('2') },
+    ],
+  })
+  const [full, bare] = calls[0].body.items
+  assert.equal(full.fuel, 'electrique')
+  assert.equal(full.gearbox, 'automatique')
+  assert.equal(full.department, '974')
+  assert.equal(full.postal_code, '97410')
+  assert.equal(bare.fuel, null)
+  assert.equal(bare.gearbox, null)
+  assert.equal(bare.department, null)
+  assert.equal(bare.postal_code, null)
+})
+
 // Fait rougir `absent` dans `sw.js` : la constatation part sur sa propre route,
 // avec la preuve que la page a donnée, et sans rien mettre en cache — un
 // verdict n'est pas un signal à afficher.

@@ -12,6 +12,7 @@ const require = createRequire(import.meta.url)
 globalThis.location = { origin: 'https://www.leboncoin.fr' }
 require(join(here, '../src/sites.js'))
 require(join(here, '../src/sites/read.js'))
+require(join(here, '../src/sites/vehicle-fields.js'))
 const { normalize, signals, claim } = require(join(here, '../src/sites/leboncoin.js'))
 require(join(here, '../src/format.js'))
 const view = require(join(here, '../src/view.js'))

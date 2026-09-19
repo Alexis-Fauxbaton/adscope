@@ -15,12 +15,17 @@ export const href = (ref) => `${ORIGIN}/auto-occasion-annonce-${ref.charCodeAt(0
 // Centrale pose ses charges dans des scripts en ligne — `var
 // CLASSIFIED_MORE_INFOS` sur une fiche, `window.__PRELOADED_STATE_LISTING__`
 // sur des résultats — et le JSON-LD `Car` dans un script à part.
-export const fiche = (f, { sellerName = null, lastname = null } = {}) => [
+// `visitPlace`, `energy`, `gearboxType`, `sellerZip`/`sellerCity` reproduisent
+// `data.classified.visitPlace`, `data.vehicle.energy`/`.gearbox` et
+// `data.sellerInfos` tels que relevés le 2026-09-19 (fixtures
+// `lacentrale-champs-fiches.json`) — absents par défaut, comme une fiche dont
+// le champ n'a pas été observé.
+export const fiche = (f, { sellerName = null, lastname = null, visitPlace = null, energy = null, gearboxType = null, sellerZip = null, sellerCity = null } = {}) => [
   `var CLASSIFIED_MORE_INFOS=  ${JSON.stringify({
     config: { source: 'LC', vertical: 'auto' },
     data: {
-      classified: { year: String(new Date(f.firstCirculationDate).getUTCFullYear()) },
-      vehicle: { make: f.brand.toUpperCase(), model: f.model, label: '1.2 VTI 82 ACTIVE 5P' },
+      classified: { year: String(new Date(f.firstCirculationDate).getUTCFullYear()), visitPlace },
+      vehicle: { make: f.brand.toUpperCase(), model: f.model, label: '1.2 VTI 82 ACTIVE 5P', energy, gearbox: gearboxType },
       financing: {
         combined: {
           price: f.price,
@@ -33,6 +38,7 @@ export const fiche = (f, { sellerName = null, lastname = null } = {}) => [
           energy: 'ESSENCE',
         },
       },
+      ...(sellerZip ? { sellerInfos: { zipCode: sellerZip, city: sellerCity, address: { zipCode: sellerZip, city: sellerCity } } } : {}),
     },
   })}`,
   `var SellerInformationData= ${JSON.stringify({
@@ -53,6 +59,9 @@ export const fiche = (f, { sellerName = null, lastname = null } = {}) => [
   }),
 ]
 
+// `energy`/`gearbox`/`visitPlace` reproduisent `item.vehicle.energy`/`.gearbox`
+// et `item.location.visitPlace` (fixture `lacentrale-champs-cartes.json`) —
+// absents par défaut, comme une carte dont le champ n'a pas été observé.
 const item = (c) => ({
   reference: c.reference,
   customerType: c.customerType,
@@ -61,7 +70,11 @@ const item = (c) => ({
   firstOnlineDate: c.firstOnlineDate,
   customerReference: 'C000077',
   contacts: { ville: 'PARIS', nomPublie: c.sellerName, siret: '34051417300012' },
-  vehicle: { make: 'PEUGEOT', model: '208', version: '1.2 PURETECH 110 5P', year: 2018, mileage: 52626 },
+  vehicle: {
+    make: 'PEUGEOT', model: '208', version: '1.2 PURETECH 110 5P', year: 2018, mileage: 52626,
+    energy: c.energy || null, gearbox: c.gearbox || null,
+  },
+  location: { country: 'FR', visitPlace: c.visitPlace || null },
 })
 
 // La réserve que la page précharge sans la rendre : relevé le 2026-09-06, six

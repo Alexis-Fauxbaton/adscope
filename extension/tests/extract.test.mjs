@@ -9,6 +9,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 require(join(here, '../src/sites.js'))
 require(join(here, '../src/sites/read.js'))
+require(join(here, '../src/sites/vehicle-fields.js'))
 const { normalize, signals } = require(join(here, '../src/sites/leboncoin.js'))
 
 const ads = JSON.parse(readFileSync(join(here, 'fixtures/leboncoin-ads.json'), 'utf8'))
