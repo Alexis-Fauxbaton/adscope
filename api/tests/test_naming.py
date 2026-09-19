@@ -67,10 +67,11 @@ def test_a_two_word_model_the_version_repeats_goes_whole():
 # reverse=True` de `_phrases` : leboncoin écrit le modèle « Ds3 » en colonne et
 # « DS 3 » dans la version. Sans l'accumulation, ou si la marque « Ds » passait
 # avant le modèle « Ds3 », seul le « DS » partait et le « 3 » restait orphelin —
-# « Ds Ds3 3 Crossback ». 157 annonces DS.
+# « Ds Ds3 3 Crossback ». Et depuis `_rebrand`, la marque ne se répète plus en
+# tête puisque le modèle canonique commence déjà par elle (68 annonces DS).
 def test_the_model_written_with_a_space_in_the_version_goes_whole():
     assert label("Ds", "Ds3", "DS 3 Crossback PureTech 130ch Performance Line") == (
-        "DS DS 3 Crossback PureTech 130ch Performance Line"
+        "DS 3 Crossback PureTech 130ch Performance Line"
     )
 
 
@@ -164,3 +165,53 @@ def test_a_version_that_repeats_nothing_is_kept_whole():
 def test_the_label_shows_the_official_spelling():
     assert label("CITROEN", "Ds3", None) == "Citroën DS 3"
     assert label("Audi", "Tt", "Tt 1.8 T 180ch") == "Audi TT 1.8 T 180ch"
+
+
+# Remesuré sur la base réelle (52 957 annonces, 2026-09-19) : 94 annonces dont
+# le modèle canonique commence par la marque — DS 68, McLaren 15, Abarth 11,
+# zéro contre-exemple. Fait rougir `_rebrand` dans `label` : sans lui, la
+# marque se répète — « DS DS 3 », jamais affiché tel quel aujourd'hui.
+def test_a_model_that_already_starts_with_the_brand_does_not_repeat_it():
+    assert label("Ds", "Ds3", None) == "DS 3"
+    assert label("Abarth", "Abarth 500", "Abarth 500 1.4 T-Jet 135ch") == (
+        "Abarth 500 1.4 T-Jet 135ch"
+    )
+
+
+# La marque a sa propre orthographe d'affichage, sur la liste fermée des 83
+# marques ; le modèle est un vocabulaire ouvert et ne la porte pas toujours
+# aussi soigneusement (« Mclaren » sans capitale au C). Fait rougir
+# `[canon_brand, *model_words[len(brand_words):]]` dans `_rebrand` : sans lui
+# le libellé reprendrait l'écriture du modèle telle quelle et perdrait la
+# casse propre de la marque.
+def test_the_kept_brand_keeps_its_own_spelling_not_the_models():
+    assert label("McLaren", "Mclaren 720S", "Mclaren 720S 4.0 V8 720ch") == (
+        "McLaren 720S 4.0 V8 720ch"
+    )
+
+
+# Garde-fou explicitement demandé : une marque égale à son modèle continue de
+# ne se dire qu'une fois, comme avant ce lot — jamais par `_rebrand`, qui ne
+# doit même pas être atteint puisque `head` est déjà réduit à un seul élément.
+def test_a_brand_equal_to_its_model_still_behaves_as_before_this_change():
+    assert label("Mini", "Mini", "Mini Cooper S 192ch Exquisite BVA7") == (
+        "Mini Cooper S 192ch Exquisite BVA7"
+    )
+
+
+# Fait rougir la comparaison mot à mot de `_rebrand` dans ce sens : un modèle
+# plus court que la marque n'a pas assez de mots pour l'égaler, il ne doit
+# rien perdre.
+def test_a_model_shorter_than_the_brand_is_not_touched():
+    assert label("Land Rover", "Defender", "Defender 90 2.2 TD4") == (
+        "Land Rover Defender 90 2.2 TD4"
+    )
+
+
+# Fait rougir la comparaison mot à mot de `_rebrand` (et non sous-chaîne) : une
+# marque qui n'est qu'un préfixe textuel du modèle, sans former un mot entier,
+# ne doit pas être retirée à tort.
+def test_a_brand_that_is_only_a_text_prefix_not_a_whole_word_is_kept():
+    assert label("Renault", "Renaultsport Clio", "Renaultsport Clio 200 CVS") == (
+        "Renault Renaultsport Clio 200 CVS"
+    )

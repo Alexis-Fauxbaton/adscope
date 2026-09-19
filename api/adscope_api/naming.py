@@ -85,11 +85,36 @@ def _trimmed(version, phrases) -> str:
     return " ".join(kept)
 
 
+def _rebrand(canon_brand, canon_model):
+    """Le modèle qui redit déjà la marque, ramené à un seul nom.
+
+    « DS » + « DS 3 » perd sa marque en tête ; mesuré sur 52 957 annonces, 94
+    la répètent ainsi (DS 68, McLaren 15, Abarth 11), zéro contre-exemple. La
+    comparaison porte sur des mots entiers, jamais une sous-chaîne — sinon
+    « Renault » mordrait dans « Renaultsport ». La marque garde sa propre
+    orthographe (liste fermée, `spelling._BRANDS`) plutôt que celle du modèle
+    (vocabulaire ouvert) : « McLaren » + « Mclaren 720S » rend « McLaren
+    720S », jamais « Mclaren 720S ».
+    """
+    brand_words = [w for w in _WORDS.split(fold(canon_brand)) if w]
+    model_words = [w for w in _WORDS.split(canon_model) if w]
+    # Un modèle pas plus long que la marque ne peut jamais l'égaler ici : la
+    # tranche prise sur lui est alors plus courte que `brand_words` et diffère
+    # d'elle par construction — un seul test suffit, jamais deux.
+    if [fold(w) for w in model_words[:len(brand_words)]] != brand_words:
+        return None
+    return " ".join([canon_brand, *model_words[len(brand_words):]])
+
+
 def label(brand, model, version) -> str:
     """Marque, modèle, version — sans « Autres » et sans redite."""
     canon_brand, canon_model = canonical(brand, model)
     head = [p for p in (canon_brand, canon_model) if p and p != UNKNOWN]
     if len(head) == 2 and fold(head[0]) == fold(head[1]):
         head = head[:1]
+    elif len(head) == 2:
+        rebranded = _rebrand(canon_brand, canon_model)
+        if rebranded is not None:
+            head = [rebranded]
     tail = _trimmed(_unglued(version), _phrases(brand, model, canon_brand, canon_model))
     return " ".join(head + ([tail] if tail else [])) or NO_VEHICLE
