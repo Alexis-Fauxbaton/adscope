@@ -43,6 +43,9 @@ def render(report: Report) -> str:
         f"{_pct(window['model_rate'])} sur la fenêtre",
         f"  - marque + modèle : {_pct(overall['brand_and_model_rate'])} sur "
         f"toute la base, {_pct(window['brand_and_model_rate'])} sur la fenêtre",
+        f"  - modèle déduit de la version : {_pct(overall['inferred_rate'])} des "
+        f"annonces sans modèle du site ({overall['inferred']}), "
+        f"{overall['unresolved']} restent non précisées",
     ]
 
     lines += ["", "Date de première publication, par site :"]

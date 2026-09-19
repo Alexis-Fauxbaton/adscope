@@ -18,8 +18,10 @@ def bare_report(**kw):
         now=NOW, total_listings=10, last_seen=NOW,
         unknown_brands=[], emerging_models=[],
         unknown_share={
-            "overall": {"total": 10, "model_rate": 0.1, "brand_and_model_rate": 0.0},
-            "window": {"total": 2, "model_rate": 0.0, "brand_and_model_rate": 0.0},
+            "overall": {"total": 10, "model_rate": 0.1, "brand_and_model_rate": 0.0,
+                        "inferred": 0, "unresolved": 1, "inferred_rate": 0.0},
+            "window": {"total": 2, "model_rate": 0.0, "brand_and_model_rate": 0.0,
+                       "inferred": 0, "unresolved": 0, "inferred_rate": None},
         },
         freshness=[],
         field_fill_rate={
@@ -163,3 +165,16 @@ def test_the_fuel_other_share_line_shows_each_site():
     ]))
     assert "lbc : 5.0% sur 100 annonces avec carburant renseigné" in text
     assert "lc : 50.0% sur 40 annonces avec carburant renseigné" in text
+
+
+# Fait rougir la ligne « modèle déduit de la version » de `render` : la part
+# des « Autres » que la déduction a résolus, et ce qui lui résiste.
+def test_the_deduced_model_line_shows_what_was_resolved_and_what_remains():
+    text = render(bare_report(unknown_share={
+        "overall": {"total": 10, "model_rate": 0.2, "brand_and_model_rate": 0.0,
+                    "inferred": 3, "unresolved": 17, "inferred_rate": 0.15},
+        "window": {"total": 2, "model_rate": 0.0, "brand_and_model_rate": 0.0,
+                   "inferred": 0, "unresolved": 0, "inferred_rate": None},
+    }))
+    assert "modèle déduit de la version : 15.0%" in text
+    assert "(3)" in text and "17 restent non précisées" in text

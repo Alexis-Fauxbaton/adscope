@@ -446,3 +446,26 @@ def test_compute_wires_fuel_other_share(session):
     session.commit()
     report = compute(session, now=NOW, window=WEEK)
     assert report.fuel_other_share == [{"site": "lbc", "total": 1, "other": 1, "rate": 1.0}]
+
+
+# Fait rougir `func.count(...).filter(Listing.canon_model_source == FROM_VERSION)` :
+# le rapport dit ce que la déduction du lot 3a a rattrapé.
+def test_unknown_share_counts_what_the_deduction_resolved(session):
+    add(session, "lbc", "1", NOW, model="Xsara", version="Xsara 2.0 HDi90")
+    resolved = add(session, "lbc", "2", NOW, model="Autres",
+                   version="Xsara 2.0 HDi90")
+    resolved.canon_model, resolved.canon_model_source = "xsara", "version"
+    add(session, "lbc", "3", NOW, model="Autres", version="MG4 EV 170ch")
+    add(session, "lbc", "4", NOW, model="Autres", version="Mustang Fastback 5.0")
+    session.commit()
+    overall = unknown_share(session, NOW - WEEK, NOW)["overall"]
+    assert (overall["inferred"], overall["unresolved"]) == (1, 2)
+    assert overall["inferred_rate"] == 1 / 3
+
+
+# Fait rougir `None if not without_site_model` : une base où le site a tout
+# classé n'a pas de part à rendre — pas une division par zéro.
+def test_unknown_share_has_no_deduction_rate_when_nothing_was_unclassified(session):
+    add(session, "lbc", "1", NOW, model="Xsara", version="Xsara 2.0 HDi90")
+    session.commit()
+    assert unknown_share(session, NOW - WEEK, NOW)["overall"]["inferred_rate"] is None

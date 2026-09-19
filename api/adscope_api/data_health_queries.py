@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from .models import Listing
 from .naming import label
 from .spelling import _BRANDS, fold
-from .taxonomy import UNKNOWN
+from .taxonomy import FROM_VERSION, UNKNOWN
 
 MIN_WINDOW_LISTINGS = 50
 NEW_MODEL_MIN_LISTINGS = 5
@@ -81,14 +81,22 @@ def _unknown_counts(session, *, since=None, now=None) -> dict:
         func.count(Listing.id).filter(
             Listing.canon_brand == _UNKNOWN_KEY, Listing.canon_model == _UNKNOWN_KEY
         ),
+        # Ce que la déduction du lot 3a a rattrapé, et ce qui lui résiste : les
+        # annonces sans modèle du site, selon qu'une version l'a nommé ou non.
+        func.count(Listing.id).filter(Listing.canon_model_source == FROM_VERSION),
+        func.count(Listing.id).filter(Listing.canon_model_source.is_(None)),
     )
     if since is not None:
         query = query.where(Listing.first_seen >= since, Listing.first_seen < now)
-    total, model_unknown, both_unknown = session.execute(query).one()
+    total, model_unknown, both_unknown, inferred, unresolved = session.execute(query).one()
+    without_site_model = inferred + unresolved
     return {
         "total": total,
         "model_rate": None if not total else model_unknown / total,
         "brand_and_model_rate": None if not total else both_unknown / total,
+        "inferred": inferred,
+        "unresolved": unresolved,
+        "inferred_rate": None if not without_site_model else inferred / without_site_model,
     }
 
 
