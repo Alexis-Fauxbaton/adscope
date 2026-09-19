@@ -222,3 +222,133 @@ de 200 attendu).
 - `cd extension && node --test tests/*.test.mjs` : **385** verts, y compris
   avec `Date` décalée d'un an (`--import` sur un module jetable qui remplace
   `globalThis.Date`, non commité).
+
+## Retours d'Alexis appliqués, 2026-09-19 — région déduite, rappel des règles non vérifiées
+
+Base **811b80d**. Périmètre : `api/` seulement. Aucun sous-agent dispatché.
+
+### 1. La région, fonction du département — aucune colonne
+
+`adscope_api/region.py` (neuf, à côté de `department.py`) : `REGIONS`, un
+dictionnaire `identifiant -> (nom officiel, départements)` couvrant le
+découpage en vigueur depuis le 1er janvier 2016, et deux fonctions pures,
+`of_department` (département -> nom de région ou `None`) et `departments_of`
+(identifiant de région -> ses départements ou `None`). Rien en base, rien à
+migrer : la région se recalcule à chaque lecture depuis `department`, déjà
+stocké.
+
+Les dix-huit régions, identifiant choisi pour l'URL (ASCII minuscule, jamais
+recalculé du nom) et nombre de départements :
+
+  - `auvergne-rhone-alpes` → Auvergne-Rhône-Alpes (12 départements)
+  - `bourgogne-franche-comte` → Bourgogne-Franche-Comté (8 départements)
+  - `bretagne` → Bretagne (4 départements)
+  - `centre-val-de-loire` → Centre-Val de Loire (6 départements)
+  - `corse` → Corse (2 départements)
+  - `grand-est` → Grand Est (10 départements)
+  - `hauts-de-france` → Hauts-de-France (5 départements)
+  - `ile-de-france` → Île-de-France (8 départements)
+  - `normandie` → Normandie (5 départements)
+  - `nouvelle-aquitaine` → Nouvelle-Aquitaine (12 départements)
+  - `occitanie` → Occitanie (13 départements)
+  - `pays-de-la-loire` → Pays de la Loire (5 départements)
+  - `paca` → Provence-Alpes-Côte d'Azur (6 départements) — abrégé plutôt que
+    `provence-alpes-cote-d-azur`, choix arbitraire, cohérent partout (code,
+    tests, ce rapport)
+  - `guadeloupe` → Guadeloupe (971)
+  - `martinique` → Martinique (972)
+  - `guyane` → Guyane (973)
+  - `la-reunion` → La Réunion (974)
+  - `mayotte` → Mayotte (976)
+
+101 départements au total (96 de métropole, 2A/2B compris, plus les 5 DOM),
+chacun dans exactement une région — vérifié en code (`test_region.py` :
+`test_every_one_of_the_101_departments_has_a_region`,
+`test_no_department_belongs_to_two_regions`,
+`test_there_are_eighteen_distinct_regions`) et à la main sur 2A/2B, 974, 75,
+69, 13.
+
+`market.py` : nouveau paramètre `region` (répétable), traduit en départements
+par `_region_departments` (422 sur un identifiant inconnu — vocabulaire fermé
+de dix-huit, comme `fuel`/`gearbox`, à la différence de `department` qui n'en
+a pas), puis combiné à `department` par `_combined_departments` — intersection
+des deux quand les deux sont donnés, jamais une union. Le cas qui a fait
+rougir un test avant d'être corrigé : une intersection vide (région et
+département donnés sans recoupement) doit rendre **zéro** ligne ; `market_query._core`
+testait `if department:` (une liste vide est fausse en Python), donc ignorait
+le filtre au lieu de le faire échouer — corrigé en `if department is not
+None:`, avec un commentaire qui l'explique.
+
+`ItemOut`/`item_of` (`market_items.py`) et `_feed_item` (`feed_query.py`)
+portent chacun `region`, dérivée de `department` par `region.of_department` —
+jamais une colonne SQL, jamais stockée. `None` exactement quand `department`
+l'est.
+
+### 2. Le rapport de santé rappelle ce qui n'a jamais été vérifié sur pièce
+
+`adscope_api/data_health_unverified.py` (neuf) :
+
+- `unverified_rules(session)` : pour la règle Corse (département `2A`/`2B`)
+  et les deux règles La Centrale (carburant hors essence/diesel, boîte
+  renseignée), le compte d'annonces qui permettraient enfin de vérifier
+  chacune, et jusqu'à trois `(site, site_id)` en exemple dès qu'il y en a un
+  seul. Information, jamais dans `Report.alerts` — le code de sortie de
+  `data_health.py` n'en dépend pas.
+- `fuel_other_share_by_site(session)` : la part de `autre` par site pour le
+  carburant seul (`Listing.fuel.isnot(None)` exclu du dénominateur) — un pic
+  chez un site signalerait une valeur que `vocab.canonical` range en `autre`
+  faute de case dédiée.
+
+Câblées dans `data_health.compute` (`Report.unverified_rules`,
+`Report.fuel_other_share`) et mises en texte dans `data_health_text.render`,
+deux nouvelles sections, toutes deux sans effet sur `alerts` ni le code de
+sortie — vérifié par des tests construits sur chaque état (zéro/non zéro) et
+en cassant chaque ligne de production tour à tour (le filtre `site == "lc"`,
+la paire `2A`/`2B`, le `group_by(Listing.site)`, le `where(fuel.isnot(None))`,
+les deux branches du texte).
+
+### 3. Vérifié en vrai
+
+- `./.venv/bin/pytest tests/ -q` : **559 passés** (524 avant ce lot, 35
+  ajoutés — 13 dans `test_region.py`, le reste dans `test_market.py`,
+  `test_feed.py`, `test_data_health.py`, `test_data_health_text.py`), aucun
+  échec, aucun test qui lit l'horloge réelle.
+- Chaque ligne de production neuve ou modifiée cassée puis restaurée à la
+  main pour confirmer qu'un test au moins rougit : `region.of_department`,
+  `region.departments_of` (ses deux branches), `market._region_departments`
+  (le 422), `market._combined_departments` (l'intersection, pas l'union),
+  `market_query._core` (`if department is not None:`), les trois filtres de
+  `unverified_rules`, le `group_by`/`where` de `fuel_other_share_by_site`, et
+  les deux branches ajoutées à `data_health_text.render`.
+- `launchctl kickstart -k gui/$UID/fr.adscope.api` : service relancé. `GET
+  /app/` → 200, `GET /v1/market` sans licence → 401.
+- **Pas d'écriture d'essai dans `adscope`** : `scripts/data_health.py` est un
+  script de lecture seule, aucune ligne insérée. Sortie des deux nouvelles
+  sections, sur la base réelle (53 133 annonces) :
+
+  ```
+  Règles pas encore vérifiées sur données réelles :
+    - Corse (département 2A/2B) : aucune donnée encore
+    - La Centrale, carburant hors essence/diesel : aucune donnée encore
+    - La Centrale, boîte renseignée : aucune donnée encore
+
+  Part de « autre » par site (carburant, information seulement) :
+    - aucune annonce avec carburant renseigné
+  ```
+
+  Cohérent avec le remplissage encore nul de `fuel`/`gearbox`/`department`
+  sur la base réelle (0,0 % partout, section « Remplissage » du même rapport)
+  : le balayage n'a pas encore reposé sur ces colonnes assez d'annonces pour
+  qu'il y ait quoi que ce soit à vérifier. Le rapport le dira de lui-même dès
+  que ce sera le cas — c'est tout le point du point 3 d'Alexis.
+
+### Réserves
+
+- Les deux règles non vérifiées (Corse, La Centrale fuel/gearbox) restent
+  aussi non vérifiées qu'avant ce lot : ce lot ajoute seulement le rappel
+  automatique, il ne les vérifie pas — impossible tant que la base n'en porte
+  aucune (voir sortie ci-dessus).
+- L'identifiant `paca` est un choix arbitraire (l'alternative
+  `provence-alpes-cote-d-azur` était tout aussi défendable) — figé dans
+  `region.py`, ce rapport, et à retenir si un futur lot touche l'extension ou
+  le web pour l'affichage des filtres.
