@@ -29,10 +29,9 @@ def _dev(monkeypatch):
     monkeypatch.setenv("ADSCOPE_DEV_LOGIN", "1")
 
 
-# Le navigateur du marchand : le service tourne en HTTP sur sa machine, donc
-# sur `localhost`. Le client partagé, lui, parle à `testserver` — un hôte que
-# `is_secure` tient pour distant, et dont le cookie `Secure` ne repartirait
-# jamais sur `http://`. C'est précisément ce que le test des attributs vérifie.
+# Le navigateur du marchand : `is_secure` ne regarde plus l'hôte de la
+# requête, seulement `ADSCOPE_PUBLIC_URL` (voir `test_the_cookie_carries_its_
+# attributes` et `test_the_cookie_is_not_secure_on_the_local_machine`).
 @pytest.fixture
 def browser(session):
     app.dependency_overrides[get_session] = lambda: session
@@ -84,10 +83,11 @@ def test_the_session_id_is_never_stored_in_the_clear(browser, session, clock):
     assert stored and browser.cookies[COOKIE] not in stored
 
 
-def posed_cookie(opened):
-    link = opened.post("/v1/auth/login", json={"email": "pro@garage.fr"}) \
-                 .json()["dev_link"]
-    return opened.get(link, follow_redirects=False).headers["set-cookie"]
+def posed_cookie(opened, headers=None):
+    link = opened.post("/v1/auth/login", json={"email": "pro@garage.fr"},
+                        headers=headers).json()["dev_link"]
+    return opened.get(link, follow_redirects=False,
+                       headers=headers).headers["set-cookie"]
 
 
 # Fait rougir chaque attribut posé par `sessions.set_cookie` : `HttpOnly` tient
@@ -109,12 +109,33 @@ def test_the_cookie_carries_its_attributes(client, session, clock, monkeypatch):
     assert "Secure" in posed
 
 
-# Fait rougir `is_secure` : le service tourne en HTTP sur la machine du
-# marchand. Un cookie `Secure` n'y serait jamais renvoyé — la connexion
-# marcherait une fois puis plus jamais.
+# Fait rougir `return public_url().startswith("https://")` dans `is_secure` :
+# le service tourne en HTTP sur la machine du marchand, sans `ADSCOPE_PUBLIC_URL`
+# — un cookie `Secure` n'y serait jamais renvoyé, la connexion marcherait une
+# fois puis plus jamais.
 def test_the_cookie_is_not_secure_on_the_local_machine(browser, session, clock):
     enrolled(session)
     assert "Secure" not in posed_cookie(browser)
+
+
+# Fait rougir `is_secure` en le cassant pour lire `request.url.hostname` (la
+# régression) : `ADSCOPE_PUBLIC_URL` reste local, mais un `Host` forgé vers un
+# domaine distant faisait passer la version fautive à `Secure`. C'est le repro
+# exact de la faille : `POST /v1/auth/logout` avec `Host: app.adscope.fr`.
+def test_a_forged_host_does_not_add_secure_when_public_url_is_local(client, session, clock):
+    enrolled(session)
+    posed = posed_cookie(client, headers={"Host": "app.adscope.fr"})
+    assert "Secure" not in posed
+
+
+# Symétrique : `ADSCOPE_PUBLIC_URL` en `https://`, mais un `Host` forgé vers
+# `localhost` — la version fautive retirait alors `Secure` d'un cookie qui
+# doit voyager en HTTPS.
+def test_a_forged_host_does_not_remove_secure_when_public_url_is_https(client, session, clock, monkeypatch):
+    monkeypatch.setenv("ADSCOPE_PUBLIC_URL", "https://app.adscope.fr")
+    enrolled(session)
+    posed = posed_cookie(client, headers={"Host": "localhost"})
+    assert "Secure" in posed
 
 
 # Fait rougir `if row.expires_at <= now` dans `sessions.resolve` : une session
@@ -171,6 +192,17 @@ def test_logout_closes_the_session(browser, session, clock):
 # `sessions.check_csrf` : une page tierce peut poster vers l'API avec le cookie
 # du marchand, elle ne peut pas y poser un en-tête personnalisé sans un prévol
 # CORS que l'API n'accorde à personne.
+# Même repro que `test_a_forged_host_does_not_add_secure_when_public_url_is_
+# local`, mais sur le cookie effacé au logout — le signalement d'origine porte
+# précisément sur cette requête.
+def test_logout_clears_the_cookie_ignoring_a_forged_host(browser, session, clock):
+    enrolled(session)
+    sign_in(browser)
+    cleared = browser.post("/v1/auth/logout",
+                            headers={**XA, "Host": "app.adscope.fr"})
+    assert "Secure" not in cleared.headers["set-cookie"]
+
+
 def test_a_cookie_write_without_the_header_is_refused(browser, session, clock):
     enrolled(session)
     listed(session)

@@ -13,6 +13,9 @@ verrou de ligne sur la session du marchand.
 Ce module ne connaît ni licence ni compte : il tient la table `sessions` et le
 cookie, rien de plus. `auth.require_license` fait le pont, et c'est pourquoi la
 dépendance va d'`auth` vers ici, jamais l'inverse.
+
+Rien ici ne lit l'hôte ni le schéma de la requête : `Secure` suit la base
+configurée (`is_secure`), pas un en-tête que le client choisit.
 """
 
 import hashlib
@@ -22,15 +25,13 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
 
 from .auth_models import SessionToken
+from .config import public_url
 
 COOKIE = "adscope_session"
 LIFETIME = timedelta(days=90)
 # Le pas du rafraîchissement : en deçà, `last_seen_at` n'est pas réécrit.
 REFRESH = timedelta(days=1)
 WRITES = ("POST", "PUT", "DELETE")
-# Les hôtes où le cookie doit rester lisible en clair : le service tourne en
-# HTTP sur la machine du marchand. Partout ailleurs, `Secure`.
-LOCAL = ("localhost", "127.0.0.1", "::1")
 
 
 def new_token() -> str:
@@ -82,8 +83,14 @@ def drop(session, raw: str) -> None:
         session.delete(row)
 
 
-def is_secure(request) -> bool:
-    return request.url.hostname not in LOCAL
+# `Secure` suit la base configurée, jamais la requête : l'en-tête `Host` est
+# une donnée du client, et un `proxy_pass` sans `proxy_set_header Host` (le
+# défaut de nginx) la remplacerait par celle du service en amont — HTTP, même
+# derrière un déploiement HTTPS. `ADSCOPE_PUBLIC_URL` est la même base que le
+# lien de connexion (`config.public_url`, voir `auth_email.post_login`) :
+# une seule source pour les deux.
+def is_secure() -> bool:
+    return public_url().startswith("https://")
 
 
 def set_cookie(response, raw: str, secure: bool) -> None:

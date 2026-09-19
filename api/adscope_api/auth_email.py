@@ -53,7 +53,7 @@ def post_login(payload: LoginIn, session=Depends(get_session), now=Depends(now_u
 
 
 @router.get("/v1/auth/verify", name="verify_login")
-def get_verify(request: Request, token: str = "",
+def get_verify(token: str = "",
                session=Depends(get_session), now=Depends(now_utc)):
     account_id = consume(session, token, now)
     if account_id is None:
@@ -62,7 +62,7 @@ def get_verify(request: Request, token: str = "",
                                 headers=NO_REFERRER)
     raw = sessions.create(session, account_id, now)
     response = RedirectResponse("/app/", status_code=303, headers=NO_REFERRER)
-    sessions.set_cookie(response, raw, sessions.is_secure(request))
+    sessions.set_cookie(response, raw, sessions.is_secure())
     session.commit()
     return response
 
@@ -73,7 +73,7 @@ def post_logout(request: Request, session=Depends(get_session)):
     sessions.drop(session, request.cookies.get(sessions.COOKIE, ""))
     session.commit()
     response = Response(status_code=204)
-    sessions.clear_cookie(response, sessions.is_secure(request))
+    sessions.clear_cookie(response, sessions.is_secure())
     return response
 
 

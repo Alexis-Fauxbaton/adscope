@@ -55,11 +55,15 @@ que l'API n'accorde à personne. Les requêtes `Bearer` en sont dispensées : ri
 d'ambiant ne les authentifie. `logout` porte le même contrôle — sinon une page
 tierce déconnecterait le marchand à volonté.
 
-**`Secure` hors `localhost`, `127.0.0.1`, `::1`.** Le service tourne en HTTP sur
-la machine du marchand : un cookie `Secure` n'y repartirait jamais et la
-connexion marcherait une fois, puis plus jamais. Le test des attributs exacts
-passe par `testserver` (donc `Secure` posé), celui du poste local par
-`127.0.0.1`.
+**`Secure` suit `ADSCOPE_PUBLIC_URL`, jamais la requête.** `sessions.is_secure`
+vaut « la base configurée est en `https://` » — la même base que le lien de
+connexion (`config.public_url`), une seule source pour les deux. Une première
+version lisait `request.url.hostname` : un `Host` forgé décidait alors de
+l'attribut, inoffensif en local mais dangereux derrière un `proxy_pass` sans
+`proxy_set_header Host` (le défaut de nginx), qui livre l'hôte du service en
+amont plutôt que celui du client — voir « Revue de sécurité, close le
+2026-09-19 ». Le test des attributs exacts configure `ADSCOPE_PUBLIC_URL` en
+`https://…`, celui du poste local le laisse à son défaut `http://localhost:8000`.
 
 **`last_seen_at` une fois par jour au plus.** La popup émet plusieurs requêtes
 par fiche ouverte ; rafraîchir à chaque fois ferait de toute lecture du marché
@@ -235,3 +239,32 @@ un piège déjà constaté et documenté tel quel.
 fois : login → lien `localhost:8000` (`Host` forgé y compris) → verify → 303
 + cookie → `/v1/me` répond le compte → lien rejoué → `303 …?login=expired` →
 `/v1/follows` `200` par cookie → logout `204` → cookie rejoué → `401`.
+
+## Revue de sécurité, close le 2026-09-19
+
+Dernière faille du lot. HEAD `71918f8` → correctif ci-dessous. 339 tests
+(336 + 3), chacun nommant en commentaire la ligne qu'il fait rougir, les trois
+rejoués sur l'ancien code pour confirmer qu'ils rougissent avant d'être
+restaurés.
+
+**`Secure` décidé par l'en-tête `Host`.** `sessions.is_secure(request)` valait
+`request.url.hostname not in LOCAL` — la donnée que le correctif du lien de
+connexion (`89eda88`) a bannie du lien, restée ici. Démontré sur le service
+réel : `POST /v1/auth/logout` avec `Host: app.adscope.fr` changeait l'attribut
+du `Set-Cookie` posé et de celui effacé. Inoffensif en local ; mais derrière
+un `proxy_pass http://127.0.0.1:8000` sans `proxy_set_header Host` (le défaut
+de nginx), un déploiement en HTTPS aurait posé le cookie de session **sans**
+`Secure`. Correctif : `is_secure()` ne prend plus de requête, elle lit
+`config.public_url().startswith("https://")` — la même base que le lien de
+connexion. `LOCAL` retiré : plus rien dans `api/` ne lit l'hôte ni le schéma de
+la requête (confirmé par grep sur `request.url`, `base_url`, `url_for`, les
+en-têtes `host` et `x-forwarded-*` — `sessions.py:86` était la dernière ligne).
+`get_verify` perd son paramètre `request`, devenu inutile.
+
+`/v1/me` inchangé : `{email, label, expires_at}` — `expires_at` reste, lu par
+`extension/popup/config.js` (voir plus haut, 2026-09-18).
+
+**Vérifié en vrai sur le service rechargé** (`launchctl kickstart -k
+gui/$UID/fr.adscope.api`, `ADSCOPE_PUBLIC_URL=http://localhost:8000` inchangé
+dans le gabarit) : `POST /v1/auth/logout` avec et sans `Host: app.adscope.fr`
+forgé rendent le même `Set-Cookie` (`Secure` absent des deux).
