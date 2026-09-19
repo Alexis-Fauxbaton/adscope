@@ -19,6 +19,7 @@ from .department import normalize as normalize_department
 from .feed_query import FeedOut, feed_for
 from .market_items import MarketOut, item_of
 from .market_query import market_page
+from .region import departments_of as region_departments
 from .schemas import SellerType
 from .vocab import Fuel, Gearbox
 
@@ -38,6 +39,37 @@ def _departments(values: list[str] | None) -> list[str] | None:
     return normalized
 
 
+# `region`, à l'inverse, *est* un vocabulaire fermé (les dix-huit de
+# `region.REGIONS`) : un identifiant qui n'y figure pas est un 422, jamais un
+# filtre muet. Traduit en départements avant d'atteindre `market_page`, qui
+# n'a jamais entendu parler de région.
+def _region_departments(values: list[str] | None) -> list[str] | None:
+    if values is None:
+        return None
+    departments: set[str] = set()
+    for value in values:
+        found = region_departments(value)
+        if found is None:
+            raise HTTPException(status_code=422, detail="région inconnue")
+        departments.update(found)
+    return sorted(departments)
+
+
+# `department` et `region` ensemble filtrent en « et » : seuls les
+# départements demandés qui tombent aussi dans une région demandée passent.
+# Aucun des deux donné : pas de filtre (`None`). Un seul donné : lui seul.
+# Les deux, sans recoupement : liste vide, `market_query._core` doit alors ne
+# rien rendre plutôt que d'ignorer le filtre (voir son commentaire).
+def _combined_departments(department: list[str] | None, region: list[str] | None) -> list[str] | None:
+    dept = _departments(department)
+    reg = _region_departments(region)
+    if dept is None:
+        return reg
+    if reg is None:
+        return dept
+    return sorted(set(dept) & set(reg))
+
+
 @router.get("/v1/market", response_model=MarketOut)
 def get_market(
     brand: str | None = None, model: str | None = None,
@@ -46,6 +78,7 @@ def get_market(
     fuel: list[Fuel] | None = Query(default=None),
     gearbox: list[Gearbox] | None = Query(default=None),
     department: list[str] | None = Query(default=None),
+    region: list[str] | None = Query(default=None),
     min_age_days: int | None = Query(default=None, ge=0),
     dropped: bool | None = None,
     sort: Literal["age_desc", "drop_desc", "recent"] = "age_desc",
@@ -55,7 +88,7 @@ def get_market(
     now = datetime.now(timezone.utc)
     total, rows = market_page(
         session, license_, now, brand=brand, model=model, q=q, seller_type=seller_type,
-        fuel=fuel, gearbox=gearbox, department=_departments(department),
+        fuel=fuel, gearbox=gearbox, department=_combined_departments(department, region),
         min_age_days=min_age_days, dropped=dropped, sort=sort, limit=limit, offset=offset,
     )
     return {"total": total, "items": [item_of(row) for row in rows]}

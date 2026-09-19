@@ -56,6 +56,15 @@ def test_the_feed_item_carries_fuel_gearbox_and_department(session, key):
     assert (item["fuel"], item["gearbox"], item["department"]) == ("diesel", "automatique", "75")
 
 
+# Fait rougir `"region": region_of_department(listing.department)` dans
+# `feed_query._feed_item` : le suivi porte la région déduite, comme le marché.
+def test_the_feed_item_carries_its_region_derived_from_department(session, key):
+    watched = car(session, "watched", department="75")
+    follow_it(session, key, watched)
+    item = feed(session, key)[0]
+    assert item["region"] == "Île-de-France"
+
+
 # Fait rougir `if cur.observed_at >= since` dans `feed_query._feed_item` :
 # un changement plus vieux que la fenêtre n'y figure pas, même s'il a servi de
 # point de départ au dernier changement retenu.
@@ -168,7 +177,7 @@ def test_the_feed_route_serves_the_contract_shape(client, key, session):
     assert set(body["items"][0].keys()) == {
         "site", "site_id", "url", "brand", "model", "version", "label",
         "year", "mileage",
-        "price", "fuel", "gearbox", "department",
+        "price", "fuel", "gearbox", "department", "region",
         "seller_type", "seller_name", "published_at", "age_days",
         "price_delta_since_first", "last_change_at", "followed", "disappeared_at",
         "followed_at", "changes", "flags",

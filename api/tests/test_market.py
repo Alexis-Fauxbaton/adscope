@@ -285,7 +285,92 @@ def test_the_market_route_serves_the_contract_shape(client, key, session):
     assert set(body["items"][0].keys()) == {
         "site", "site_id", "url", "brand", "model", "version", "label",
         "year", "mileage",
-        "price", "fuel", "gearbox", "department",
+        "price", "fuel", "gearbox", "department", "region",
         "seller_type", "seller_name", "published_at", "age_days",
         "price_delta_since_first", "last_change_at", "followed", "disappeared_at",
     }
+
+
+# Fait rougir `"region": region_of_department(row.department)` dans
+# `market_items.item_of` : chaque item porte le nom officiel de sa région,
+# déduit du département, jamais stocké.
+def test_the_item_carries_its_region_derived_from_department(session, key):
+    car(session, "1", department="75")
+    _, items = page(session, key)
+    assert items[0]["region"] == "Île-de-France"
+
+
+# Même ligne, dans le cas nul : une annonce sans département n'a pas de
+# région, jamais une valeur devinée.
+def test_an_item_without_department_has_no_region(session, key):
+    car(session, "1")
+    _, items = page(session, key)
+    assert items[0]["region"] is None
+
+
+# Fait rougir `_region_departments` puis `_combined_departments` dans
+# `market.py` : une région filtre comme l'union des départements qu'elle
+# recouvre.
+def test_filters_by_region_through_the_route(client, key, session):
+    car(session, "1", department="75")  # Île-de-France
+    car(session, "2", department="13")  # PACA
+    body = client.get(
+        "/v1/market", params={"region": "ile-de-france"}, headers=auth(key)
+    ).json()
+    assert [i["site_id"] for i in body["items"]] == ["1"]
+
+
+# Fait rougir `departments.update(found)` sur sa forme répétable : plusieurs
+# régions se combinent en « ou », comme `fuel`/`department`.
+def test_region_filter_accepts_several_values(client, key, session):
+    car(session, "1", department="75")  # Île-de-France
+    car(session, "2", department="13")  # PACA
+    car(session, "3", department="69")  # Auvergne-Rhône-Alpes
+    body = client.get(
+        "/v1/market", params={"region": ["ile-de-france", "paca"]}, headers=auth(key)
+    ).json()
+    assert {i["site_id"] for i in body["items"]} == {"1", "2"}
+
+
+# Fait rougir `sorted(set(dept) & set(reg))` dans `market._combined_departments` :
+# région et département donnés ensemble filtrent en « et », pas en « ou ».
+def test_region_and_department_filters_intersect(client, key, session):
+    car(session, "1", department="75")  # Paris, Île-de-France
+    car(session, "2", department="92")  # Hauts-de-Seine, Île-de-France
+    body = client.get(
+        "/v1/market", params={"region": "ile-de-france", "department": "75"},
+        headers=auth(key),
+    ).json()
+    assert [i["site_id"] for i in body["items"]] == ["1"]
+
+
+# Même ligne, sur l'intersection vide : aucun département demandé ne tombe
+# dans la région demandée — zéro résultat, jamais le filtre ignoré.
+def test_region_and_department_filters_with_no_overlap_yield_nothing(client, key, session):
+    car(session, "1", department="75")  # Île-de-France, pas la Corse
+    body = client.get(
+        "/v1/market", params={"region": "corse", "department": "75"}, headers=auth(key),
+    ).json()
+    assert body["items"] == []
+
+
+# Prouve la composition avec un filtre déjà existant : région et carburant se
+# combinent en « et », comme tout le reste des filtres du marché.
+def test_region_combined_with_fuel_filter(client, key, session):
+    car(session, "1", department="75", fuel="diesel")
+    car(session, "2", department="75", fuel="essence")
+    car(session, "3", department="13", fuel="diesel")
+    body = client.get(
+        "/v1/market", params={"region": "ile-de-france", "fuel": "diesel"},
+        headers=auth(key),
+    ).json()
+    assert [i["site_id"] for i in body["items"]] == ["1"]
+
+
+# Fait rougir `if found is None: raise HTTPException(422, ...)` dans
+# `market._region_departments` : un identifiant de région inconnu est rejeté,
+# jamais un filtre muet qui ne rend jamais rien.
+def test_an_unrecognizable_region_filter_value_is_a_422(client, key):
+    assert client.get(
+        "/v1/market", params={"region": "atlantide"}, headers=auth(key)
+    ).status_code == 422

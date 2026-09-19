@@ -86,7 +86,10 @@ def _core(license_, now, *, brand, model, q, seller_type, min_age_days, dropped,
         query = query.where(Listing.fuel.in_(fuel))
     if gearbox:
         query = query.where(Listing.gearbox.in_(gearbox))
-    if department:
+    if department is not None:
+        # Jamais `if department:` : une intersection région/département vide
+        # (`market._combined_departments`) doit rendre zéro ligne, pas
+        # retomber sur « aucun filtre » parce que la liste est vide.
         query = query.where(Listing.department.in_(department))
     if min_age_days is not None:
         query = query.where(age >= min_age_days)
