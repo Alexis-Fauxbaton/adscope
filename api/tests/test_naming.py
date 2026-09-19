@@ -105,6 +105,21 @@ def test_a_short_model_never_bites_into_a_longer_word():
     )
 
 
+# Fait rougir `conditional = rule.get("vers_modele_sous_reserve_de_version")`
+# dans `taxonomy.canonical` : les Camaro du seau « Corvette / Autres » ne
+# disent pas « Corvette » dans leur version, l'alias ne pose donc plus ce
+# modèle faux — seule la marque est corrigée, et le préfixe de finition
+# « Base_ » suit la règle ordinaire de `_unglued` (il ne reparaît pas plus
+# loin, il reste).
+def test_the_conditional_alias_does_not_pose_a_model_the_version_contradicts():
+    assert label("Corvette", "Autres", "Base_Camaro Coupé 6.2 V8 453ch 8AT") == (
+        "Chevrolet Base Camaro Coupé 6.2 V8 453ch 8AT"
+    )
+    assert label("Corvette", "Autres", "1969 Camaro Camaro SS") == (
+        "Chevrolet 1969 Camaro Camaro SS"
+    )
+
+
 # Fait rougir `return rest if prefix and repeated else version` dans `_unglued` :
 # leboncoin colle la finition devant la version par un souligné et la redit à la
 # fin. 3 350 versions. Le préfixe qui reparaît ne dit rien de plus, il part.
@@ -126,7 +141,7 @@ def test_the_finition_prefix_goes_even_when_the_model_follows_it():
 # **pas** porte la seule finition qu'on ait, et on ne jette pas une information.
 def test_a_finition_prefix_that_repeats_nothing_stays():
     assert label("Corvette", "Autres", "Base_Camaro Coupé 6.2 V8 453ch 8AT") == (
-        "Chevrolet Corvette Base Camaro Coupé 6.2 V8 453ch 8AT"
+        "Chevrolet Base Camaro Coupé 6.2 V8 453ch 8AT"
     )
 
 

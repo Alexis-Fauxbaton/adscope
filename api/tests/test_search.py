@@ -166,6 +166,22 @@ def test_a_brand_alone_never_adds_the_model_the_alias_implies(session, key):
     assert found(session, key, brand="Corvette") == (2, ["aveo", "corv"])
 
 
+# Fait rougir `conditional = rule.get("vers_modele_sous_reserve_de_version")`
+# dans `taxonomy.canonical`, traversé par `key` puis `search.family` : les deux
+# Camaro du seau « Corvette / Autres » (leur version ne dit pas « Corvette »)
+# n'entrent plus dans le modèle canonique « Corvette » — la base réelle en
+# rendait 57, elle en rend 55.
+def test_a_camaro_in_the_corvette_bucket_leaves_the_corvette_family(session, key):
+    car(session, "corv", brand="Corvette", model="Autres", version="Corvette C6 6.0 V8")
+    car(session, "chev", brand="Chevrolet", model="Corvette")
+    car(session, "cam1", brand="Corvette", model="Autres",
+        version="Base_Camaro Coupé 6.2 V8 453ch 8AT")
+    car(session, "cam2", brand="Corvette", model="Autres", version="1969 Camaro Camaro SS")
+    assert found(session, key, brand="Chevrolet", model="Corvette") == (
+        2, ["chev", "corv"]
+    )
+
+
 # Fait rougir `key(brand, model)` dans `search.family` : la clé est pliée des
 # deux côtés, donc un modèle qui ne figure dans aucune table se filtre quand
 # même. Sur la forme d'affichage, `model=captur` rendait 0 des 72 « Captur ».

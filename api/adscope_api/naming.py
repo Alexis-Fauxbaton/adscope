@@ -108,7 +108,7 @@ def _rebrand(canon_brand, canon_model):
 
 def label(brand, model, version) -> str:
     """Marque, modèle, version — sans « Autres » et sans redite."""
-    canon_brand, canon_model = canonical(brand, model)
+    canon_brand, canon_model = canonical(brand, model, version)
     head = [p for p in (canon_brand, canon_model) if p and p != UNKNOWN]
     if len(head) == 2 and fold(head[0]) == fold(head[1]):
         head = head[:1]

@@ -67,18 +67,22 @@
       "rs q8": "RS Q8"
     }
   },
+  "_alias": "vers_marque et vers_modele disent ce que l'alias impose ; vers_modele ne s'applique que si le modele observe est vide ou « Autres » — jamais si le site en a donne un. vers_modele_sous_reserve_de_version (booleen, absent = false) restreint encore : il ne pose vers_modele que si la version ne le contredit pas — vide, ou le nommant en mots entiers, forme repliee. Une version qui dit autre chose ne pose que la marque, le modele reste tel quel.",
   "alias": [
     {
       "marque": "corvette",
       "vers_marque": "Chevrolet",
       "vers_modele": "Corvette",
-      "pourquoi": "La taxonomie de leboncoin se contredit : la meme voiture est classee « Chevrolet / Corvette » et « Corvette / Autres ». Corvette n'a jamais ete une marque, c'est un modele Chevrolet. « vers_modele » ne s'applique que si le modele observe est vide ou « Autres » — ici les 23.",
+      "vers_modele_sous_reserve_de_version": true,
+      "pourquoi": "La taxonomie de leboncoin se contredit : la meme voiture est classee « Chevrolet / Corvette » et « Corvette / Autres ». Corvette n'a jamais ete une marque, c'est un modele Chevrolet. « vers_modele » ne s'applique que si le modele observe est vide ou « Autres » — ici les 23. leboncoin range aussi les Camaro dans ce meme seau (zero annonce Chevrolet/Camaro en base) : `vers_modele_sous_reserve_de_version` fait qu'une version qui dit « Camaro » ne pose pas « Corvette » — mieux vaut un modele absent qu'un modele faux.",
       "effectifs": {
         "marque_corvette": 23,
         "chevrolet_corvette": 34,
-        "apres_fusion": 57
+        "corvette_confirmees_par_la_version": 21,
+        "marque_seule_version_contraire": 2,
+        "apres_fusion_modele_corvette": 55
       },
-      "reserve": "2 des 23 sont des Camaro d'apres leur version (« 1969 Camaro Camaro SS », « Base_Camaro Coupe 6.2 V8 453ch 8AT ») : le seau « Corvette » de leboncoin sert de fourre-tout aux sportives Chevrolet. Elles gagnent la bonne marque et un modele faux. Le lot 3 (modele deduit du titre) les reprendra."
+      "reserve": "2 des 23 sont des Camaro d'apres leur version (« 1969 Camaro Camaro SS », « Base_Camaro Coupe 6.2 V8 453ch 8AT ») : le seau « Corvette » de leboncoin sert de fourre-tout aux sportives Chevrolet. Leur version ne mentionne pas « Corvette » : elles gagnent la bonne marque (Chevrolet), leur modele canonique reste « Autres ». Le lot 3 (modele deduit du titre) pourra leur trouver « Camaro »."
     },
     {
       "marque": "buic",

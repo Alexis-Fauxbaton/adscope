@@ -16,6 +16,8 @@ test le tient.
 nom propre du véhicule.
 """
 
+import re
+
 from .spelling import ALIASES, brand as spelled_brand, fold, model as spelled_model
 
 # Le seau « je ne sais pas » des sites. Il reste dans les colonnes canoniques —
@@ -24,24 +26,51 @@ from .spelling import ALIASES, brand as spelled_brand, fold, model as spelled_mo
 UNKNOWN = "Autres"
 NO_VEHICLE = "Véhicule non précisé"
 
+# Le souligné de leboncoin est un séparateur de mots, comme `naming._WORDS`.
+_ALIAS_WORDS = re.compile(r"[\s_]+")
 
-def canonical(brand, model):
+
+def _version_confirms(version, posed_model) -> bool:
+    """La condition de `vers_modele_sous_reserve_de_version` : vide, ou
+    `posed_model` présent en mots entiers (replié, souligné = espace).
+
+    Une version qui ne dit rien ne contredit personne. Une version qui dit
+    autre chose (« Camaro » pour l'alias qui pose « Corvette ») ne le confirme
+    pas — mots entiers, jamais une sous-chaîne, sinon « Corvette C6 » mordrait
+    dans un modèle qui ne serait que « C6 ».
+    """
+    words = [fold(w) for w in _ALIAS_WORDS.split(version or "") if w]
+    if not words:
+        return True
+    target = [fold(w) for w in _ALIAS_WORDS.split(posed_model) if w]
+    span = len(target)
+    return any(words[i:i + span] == target for i in range(len(words) - span + 1))
+
+
+def canonical(brand, model, version=None):
     """(marque, modèle) sous l'écriture d'affichage, alias appliqués.
 
     L'alias remplace le modèle seulement quand le site n'en donne pas : une
     « Corvette / Autres » devient « Chevrolet / Corvette », une hypothétique
-    « Corvette / Stingray » garderait son modèle.
+    « Corvette / Stingray » garderait son modèle. Quand le fichier marque
+    l'alias `vers_modele_sous_reserve_de_version`, poser le modèle exige en
+    plus que la version ne le contredise pas (`_version_confirms`) : les
+    Camaro que leboncoin range aussi dans le seau « Corvette / Autres » gagnent
+    la marque, jamais le modèle — un modèle faux est pire qu'un modèle absent.
     """
     canon_brand, canon_model = spelled_brand(brand), spelled_model(model)
     rule = ALIASES.get(fold(brand))
     if rule is not None:
         canon_brand = rule["vers_marque"]
-        if rule["vers_modele"] and canon_model in (None, UNKNOWN):
-            canon_model = rule["vers_modele"]
+        posed_model = rule.get("vers_modele")
+        if posed_model and canon_model in (None, UNKNOWN):
+            conditional = rule.get("vers_modele_sous_reserve_de_version", False)
+            if not conditional or _version_confirms(version, posed_model):
+                canon_model = posed_model
     return canon_brand, canon_model
 
 
-def key(brand, model):
+def key(brand, model, version=None):
     """La clé de rapprochement : la forme canonique **repliée**.
 
     C'est ce que `listings.canon_brand` / `canon_model` portent et ce que
@@ -49,7 +78,7 @@ def key(brand, model):
     côtés. L'orthographe affichée ne se stocke pas : elle se recalcule par
     `naming.label`, et la changer ne change aucun seau.
     """
-    return tuple(None if v is None else fold(v) for v in canonical(brand, model))
+    return tuple(None if v is None else fold(v) for v in canonical(brand, model, version))
 
 
 def search_text(brand, model, version) -> str:
@@ -59,7 +88,7 @@ def search_text(brand, model, version) -> str:
     « Chevrolet / Corvette » se retrouvent ainsi toutes deux sur `q=corvette`,
     et le modèle « Ds3 » sur `q=ds3` comme sur `q=ds 3`.
     """
-    canon_brand, canon_model = canonical(brand, model)
+    canon_brand, canon_model = canonical(brand, model, version)
     words = {}
     for value in (brand, model, version, canon_brand, canon_model):
         # Le souligné de leboncoin est un séparateur de mots, comme dans
@@ -78,7 +107,7 @@ def derive(listing) -> bool:
     de la table. Ne connaît de l'annonce que cinq noms d'attributs — rien de
     l'ORM.
     """
-    brand, model = key(listing.brand, listing.model)
+    brand, model = key(listing.brand, listing.model, listing.version)
     text = search_text(listing.brand, listing.model, listing.version)
     before = (listing.canon_brand, listing.canon_model, listing.search_text)
     listing.canon_brand, listing.canon_model, listing.search_text = brand, model, text

@@ -764,3 +764,42 @@ et qui ne le retire jamais ; `search.family` sur l'orthographe au lieu de la
 clé ; `revisit._wanted` sur la colonne canonique au lieu de la forme observée.
 
 **Aucun test ne lit l'horloge réelle** : `NOW` est posé à la main partout.
+
+---
+
+## 10. Correctif — l'alias Corvette n'affirmait pas toujours vrai (2026-09-19)
+
+Vu à l'écran : deux Camaro du seau leboncoin « Corvette / Autres »
+s'affichaient « Chevrolet **Corvette** Base Camaro Coupé… » et « Chevrolet
+**Corvette** 1969 Camaro Camaro SS ». leboncoin n'a pas de modèle Chevrolet
+« Camaro » (zéro annonce en base) : ces deux-là tombent dans le seau
+fourre-tout de Corvette, et l'alias, inconditionnel, leur collait un modèle
+faux — pire qu'un modèle absent.
+
+**Le correctif** : `shared/vehicle-aliases.json` porte un champ nouveau,
+`vers_modele_sous_reserve_de_version` (booléen, voir la clé `_alias`). Quand il
+est vrai, `taxonomy.canonical` (nouvelle fonction `_version_confirms`) ne pose
+le modèle que si la version est vide ou le nomme en mots entiers — sinon seule
+la marque est corrigée, le modèle reste « Autres ». `canonical` et `key`
+reçoivent donc la version en plus de la marque et du modèle ;
+`taxonomy.derive` et `naming.label` la leur passent.
+
+**Vérifié en vrai** sur `adscope` (52 956+ annonces), après `pg_dump` dans
+`~/adscope-backups/`, `recanonize.py --all` (2 annonces recanonisées) et
+relance de `fr.adscope.api` :
+
+| id | avant | après |
+|---|---|---|
+| 7478 | Chevrolet Corvette Base Camaro Coupé 6.2 V8 453ch 8AT | Chevrolet Base Camaro Coupé 6.2 V8 453ch 8AT |
+| 7791 | Chevrolet Corvette 1969 Camaro Camaro SS | Chevrolet 1969 Camaro Camaro SS |
+
+`brand=Chevrolet&model=Corvette` : 57 → **55** (34 `Chevrolet/Corvette` + 21
+`Corvette/Autres` confirmées par une version vide ; les 2 Camaro restent
+`Chevrolet/Autres`). Les 21 vraies Corvette sans version gardent « Chevrolet
+Corvette » sans changement.
+
+Tests : `api/tests/test_taxonomy.py` (4 neufs — version vide, version qui
+confirme, version qui contredit, mots entiers seulement),
+`api/tests/test_naming.py` (1 neuf, 1 réécrit sur son ancienne assertion
+fausse), `api/tests/test_search.py` (1 neuf — le filtre de famille). 450 → 456,
+tous prouvés en cassant la ligne qu'ils nomment.

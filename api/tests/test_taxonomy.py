@@ -57,6 +57,45 @@ def test_an_alias_without_a_model_leaves_the_model_alone():
     assert canonical("Buic", "Autres") == ("Buick", "Autres")
 
 
+# Fait rougir `if not conditional or _version_confirms(version, posed_model)` :
+# une version vide ne contredit personne, l'alias pose le modèle comme avant —
+# c'est le cas de 21 des 23 « Corvette / Autres ».
+def test_the_conditional_alias_poses_the_model_on_an_empty_version():
+    assert canonical("Corvette", "Autres", "") == ("Chevrolet", "Corvette")
+    assert canonical("Corvette", "Autres", None) == ("Chevrolet", "Corvette")
+
+
+# Fait rougir `_version_confirms` dans le sens qui confirme : une version qui
+# nomme le modèle visé en mots entiers le pose, même détaillée.
+def test_the_conditional_alias_poses_the_model_a_version_confirms():
+    assert canonical("Corvette", "Autres", "Corvette C6 6.0 V8") == (
+        "Chevrolet", "Corvette"
+    )
+
+
+# Fait rougir `conditional = rule.get("vers_modele_sous_reserve_de_version")` et
+# `_version_confirms` dans le sens qui contredit : leboncoin range aussi les
+# Camaro dans le seau « Corvette / Autres » (zéro Chevrolet/Camaro en base). Un
+# modèle faux (« Corvette ») est pire qu'un modèle absent — l'alias ne pose
+# plus que la marque, le modèle reste « Autres ».
+def test_the_conditional_alias_does_not_pose_a_model_the_version_contradicts():
+    assert canonical("Corvette", "Autres", "Base_Camaro Coupé 6.2 V8 453ch 8AT") == (
+        "Chevrolet", "Autres"
+    )
+    assert canonical("Corvette", "Autres", "1969 Camaro Camaro SS") == (
+        "Chevrolet", "Autres"
+    )
+
+
+# Fait rougir `target = [fold(w) ...]` et l'égalité de `_version_confirms` :
+# mots entiers, jamais une sous-chaîne — « Corvette C6 » ne doit pas laisser
+# croire qu'un modèle qui ne serait que « C6 » confirme « Corvette ».
+def test_the_version_confirmation_matches_whole_words_only():
+    assert canonical("Corvette", "Autres", "Corvettiste 6.0 V8") == (
+        "Chevrolet", "Autres"
+    )
+
+
 # Fait rougir `fold(v)` dans `key` : c'est la clé qui va en base et que les
 # filtres comparent, et elle est pliée des deux côtés.
 def test_the_key_is_the_canonical_form_folded():
