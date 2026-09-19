@@ -103,3 +103,19 @@ def model(value):
     if known is not None:
         return known
     return " ".join(w.upper() if _DIGIT.search(w) else w for w in tidy.split(" "))
+
+
+def inferred(key):
+    """L'écriture d'affichage d'un modèle **déduit** de la version.
+
+    `model` rend la forme observée quand il ne connaît pas le pli — c'est la
+    règle du lot 1, et elle suppose qu'on a une forme observée. D'un modèle
+    déduit on n'a que la clé repliée (« auris », « classe c », « s-max ») :
+    la rendre telle quelle mettrait « Toyota auris » en tête d'un libellé.
+    D'où la capitale initiale de chaque mot **avant** de repasser par `model`,
+    qui garde le dernier mot : l'exception du fichier si elle existe
+    (« megane » → « Mégane », « s-max » → « S-Max »), sinon la règle du
+    chiffre. `title()` et non `capitalize()`, pour que le trait d'union
+    compte comme une frontière de mot.
+    """
+    return None if key is None else model(str(key).title())

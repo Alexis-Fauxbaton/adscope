@@ -6,7 +6,7 @@ voir `.superpowers/recherche-lot1.md`) : leboncoin écrit « Bmw », « Citroen 
 """
 
 from adscope_api import spelling
-from adscope_api.spelling import brand, fold, model
+from adscope_api.spelling import brand, fold, inferred, model
 
 
 # Fait rougir `_SPACES.sub(" ", without_marks.lower()).strip()` dans `fold`.
@@ -82,3 +82,33 @@ def test_nothing_written_stays_nothing():
     assert brand(None) is model(None) is None
     assert brand("   ") is model("  ") is None
     assert model("  Classe   A ") == "Classe A"
+
+
+# Fait rougir `model(str(key).title())` dans `inferred` : d'un modèle déduit on
+# n'a que la clé repliée. Rendue telle quelle, « Toyota auris » ouvrirait un
+# libellé en minuscules.
+def test_a_deduced_model_key_gets_its_capitals_back():
+    assert inferred("auris") == "Auris"
+    assert inferred("classe c") == "Classe C"
+    assert inferred("range rover") == "Range Rover"
+
+
+# Fait rougir `title()` plutôt que `capitalize()` : le trait d'union est une
+# frontière de mot, et « s-max » doit rendre « S-Max », pas « S-max ».
+def test_the_hyphen_is_a_word_boundary_for_a_deduced_key():
+    assert inferred("grandland x") == "Grandland X"
+    assert inferred("s-max") == "S-Max"
+
+
+# Fait rougir le passage par `model` : l'exception du fichier et la règle du
+# chiffre s'appliquent à un modèle déduit comme à un modèle observé.
+def test_a_deduced_key_still_goes_through_the_table_and_the_rule():
+    assert inferred("megane") == "Mégane"
+    assert inferred("c3") == "C3"
+    assert inferred("156") == "156"
+
+
+# Fait rougir `None if key is None` : `naming.label` appelle cette fonction
+# sur un modèle qui peut n'avoir pas été déduit.
+def test_no_deduced_model_stays_nothing():
+    assert inferred(None) is None
