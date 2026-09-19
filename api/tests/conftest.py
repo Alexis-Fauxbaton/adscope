@@ -12,6 +12,7 @@ from adscope_api import usage
 from adscope_api.auth import hash_key, new_key
 from adscope_api.db import create_all, get_session
 from adscope_api.main import app
+from adscope_api.model_vocabulary import CACHE
 from adscope_api.models import Base, License
 from adscope_api.sessions import now_utc
 
@@ -29,6 +30,11 @@ def engine():
 def session(engine):
     Base.metadata.drop_all(engine)
     create_all(engine)
+    # Le vocabulaire des modèles est tenu en mémoire pour tout le processus
+    # (`model_vocabulary.CACHE`, dix minutes). Le processus de test, lui, refait
+    # la base à chaque scénario : sans cet oubli, `observations.record`
+    # déduirait avec le vocabulaire du test précédent.
+    CACHE.forget()
     factory = sessionmaker(engine, expire_on_commit=False)
     with factory() as s:
         yield s

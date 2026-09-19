@@ -7,15 +7,20 @@ de deux façons, et le « Mercedes-Benz » que La Centrale écrit seule.
 """
 
 from adscope_api import spelling
-from adscope_api.taxonomy import canonical, derive, key, search_text, version_names_model
+from adscope_api.inference import KnownModels
+from adscope_api.mentions import version_names_model
+from adscope_api.taxonomy import (
+    canonical, derive, inferred_model, key, search_text,
+)
 
 
 class Row:
-    """Ce que `derive` connaît d'une annonce : cinq attributs, pas un ORM."""
+    """Ce que `derive` connaît d'une annonce : six attributs, pas un ORM."""
 
     def __init__(self, brand=None, model=None, version=None):
         self.brand, self.model, self.version = brand, model, version
         self.canon_brand = self.canon_model = self.search_text = None
+        self.canon_model_source = None
 
 
 # Fait rougir `canon_brand, canon_model = spelled_brand(brand), spelled_model(model)`
@@ -57,7 +62,7 @@ def test_an_alias_without_a_model_leaves_the_model_alone():
     assert canonical("Buic", "Autres") == ("Buick", "Autres")
 
 
-# Fait rougir `if not conditional or _version_confirms(version, posed_model)` :
+# Fait rougir `if not conditional or version_confirms(version, posed_model)` :
 # une version vide ne contredit personne, l'alias pose le modèle comme avant —
 # c'est le cas de 21 des 23 « Corvette / Autres ».
 def test_the_conditional_alias_poses_the_model_on_an_empty_version():
@@ -65,7 +70,7 @@ def test_the_conditional_alias_poses_the_model_on_an_empty_version():
     assert canonical("Corvette", "Autres", None) == ("Chevrolet", "Corvette")
 
 
-# Fait rougir `_version_confirms` dans le sens qui confirme : une version qui
+# Fait rougir `version_confirms` dans le sens qui confirme : une version qui
 # nomme le modèle visé en mots entiers le pose, même détaillée.
 def test_the_conditional_alias_poses_the_model_a_version_confirms():
     assert canonical("Corvette", "Autres", "Corvette C6 6.0 V8") == (
@@ -74,7 +79,7 @@ def test_the_conditional_alias_poses_the_model_a_version_confirms():
 
 
 # Fait rougir `conditional = rule.get("vers_modele_sous_reserve_de_version")` et
-# `_version_confirms` dans le sens qui contredit : leboncoin range aussi les
+# `version_confirms` dans le sens qui contredit : leboncoin range aussi les
 # Camaro dans le seau « Corvette / Autres » (zéro Chevrolet/Camaro en base). Un
 # modèle faux (« Corvette ») est pire qu'un modèle absent — l'alias ne pose
 # plus que la marque, le modèle reste « Autres ».
@@ -87,7 +92,7 @@ def test_the_conditional_alias_does_not_pose_a_model_the_version_contradicts():
     )
 
 
-# Fait rougir `target = [fold(w) ...]` et l'égalité de `_version_confirms` :
+# Fait rougir `target = [fold(w) ...]` et l'égalité de `version_confirms` :
 # mots entiers, jamais une sous-chaîne — « Corvette C6 » ne doit pas laisser
 # croire qu'un modèle qui ne serait que « C6 » confirme « Corvette ».
 def test_the_version_confirmation_matches_whole_words_only():
@@ -167,7 +172,7 @@ def test_derive_lays_the_folded_key_on_a_listing():
     assert row.search_text == "citroen ds3 ds 3 1.6 bluehdi"
 
 
-# Fait rougir `return before != (brand, model, text)` : `recanonize.py` compte
+# Fait rougir `return before != after` : `recanonize.py` compte
 # ce qu'il a changé, et rejoué sur une base à jour il ne change rien.
 def test_derive_says_when_it_changed_nothing():
     row = Row("Renault", "Clio", None)
@@ -175,8 +180,8 @@ def test_derive_says_when_it_changed_nothing():
     assert derive(row) is False
 
 
-# Fait rougir `return bool(_words(version)) and _mentions(version, model)` sur
-# la branche vide : au contraire de `_version_confirms`, une version muette ne
+# Fait rougir `return bool(_words(version)) and mentions(version, model)` sur
+# la branche vide : au contraire de `version_confirms`, une version muette ne
 # nomme rien — la ligne de santé des données ne doit pas compter un modèle
 # absent comme un modèle contredit.
 def test_an_empty_version_names_no_model():
@@ -184,7 +189,7 @@ def test_an_empty_version_names_no_model():
     assert version_names_model(None, "scenic") is False
 
 
-# Fait rougir `_mentions(version, model)` dans le sens qui nomme : une version
+# Fait rougir `mentions(version, model)` dans le sens qui nomme : une version
 # qui porte le modèle en mots entiers le nomme.
 def test_a_version_that_spells_a_model_names_it():
     assert version_names_model("Grande Punto Evo 1.3 Multijet", "punto evo") is True
@@ -194,3 +199,96 @@ def test_a_version_that_spells_a_model_names_it():
 # qu'une sous-chaîne du modèle ne le nomme pas.
 def test_a_version_that_only_shares_a_substring_does_not_name_the_model():
     assert version_names_model("Corvettiste 6.0 V8", "corvette") is False
+
+
+def vocabulary(**by_brand):
+    return KnownModels(
+        by_brand={b: frozenset(m) for b, m in by_brand.items()},
+        qualifiers=frozenset({"1.4", "2.0", "197", "break"}),
+    )
+
+
+# Fait rougir `source = None if model in (None, fold(UNKNOWN)) else FROM_SITE` :
+# la colonne dit d'où vient le modèle canonique, et le cas ordinaire est « du
+# site » — 48 000 annonces sur 53 000.
+def test_a_model_given_by_the_site_is_marked_as_coming_from_the_site():
+    row = Row("Citroen", "Xsara", "Xsara 2.0 HDi90")
+    derive(row, vocabulary(citroen=["xsara"]))
+    assert (row.canon_model, row.canon_model_source) == ("xsara", "site")
+
+
+# Fait rougir `model, source = inferred, FROM_VERSION` : c'est tout le lot.
+# Le seau « Autres » se comble par la version, et la colonne le dit.
+def test_a_model_deduced_from_the_version_is_marked_as_such():
+    row = Row("Citroen", "Autres", "Xsara 2.0 HDi90 Exclusive 5p")
+    derive(row, vocabulary(citroen=["xsara"]))
+    assert (row.canon_model, row.canon_model_source) == ("xsara", "version")
+
+
+# Fait rougir `if source is None` : la déduction ne comble que le vide. Un
+# modèle donné par le site n'est jamais remplacé — c'est la règle cardinale du
+# lot, et l'erreur des deux Camaro affichées « Corvette ».
+def test_the_deduction_never_replaces_a_model_the_site_gave():
+    row = Row("Citroen", "C3 Picasso", "C3 1.6 HDi110 FAP Exclusive")
+    derive(row, vocabulary(citroen=["c3", "c3 picasso"]))
+    assert (row.canon_model, row.canon_model_source) == ("c3 picasso", "site")
+
+
+# Fait rougir `if ... known is not None` : sans vocabulaire, rien ne se déduit.
+# C'est ce qui permet à `taxonomy` de rester pur là où personne n'a de base
+# sous la main.
+def test_without_a_vocabulary_nothing_is_deduced():
+    row = Row("Citroen", "Autres", "Xsara 2.0 HDi90 Exclusive 5p")
+    derive(row)
+    assert (row.canon_model, row.canon_model_source) == ("autres", None)
+
+
+# Fait rougir la branche `if inferred is not None` : une version qui ne nomme
+# aucun modèle connu laisse le seau « Autres » et une provenance nulle — c'est
+# ainsi que `data_health` compte ce qui résiste.
+def test_a_version_that_names_nothing_leaves_the_model_unset():
+    row = Row("Citroen", "Autres", "Grand C4 SpaceTourer BlueHDi 130ch")
+    derive(row, vocabulary(citroen=["c4"]))
+    assert (row.canon_model, row.canon_model_source) == ("autres", None)
+
+
+# Fait rougir l'ajout d'`inferred` à `search_text` : le modèle déduit peut
+# s'écrire autrement que la version qui l'a livré — la version dit « Rav 4 »,
+# le modèle est « RAV4 ». Sans lui, `?q=rav4` ne trouverait pas une annonce
+# qu'on affiche pourtant « Toyota RAV4 ».
+def test_the_deduced_model_joins_the_search_text():
+    row = Row("Toyota", "Autres", "Rav 4 197 Hybride Collection AWD CVT")
+    derive(row, vocabulary(toyota=["rav4"]))
+    assert "rav4" in row.search_text.split()
+
+
+# Fait rougir l'ajout de `source` au couple comparé dans `derive` : une annonce
+# dont seule la provenance change a bien changé, et `recanonize.py` doit la
+# compter.
+def test_a_change_of_provenance_alone_counts_as_a_change():
+    row = Row("Citroen", "Autres", "Xsara 2.0 HDi90 Exclusive 5p")
+    row.canon_brand, row.canon_model = "citroen", "xsara"
+    row.search_text = search_text("Citroen", "Autres", "Xsara 2.0 HDi90 Exclusive 5p",
+                                  "xsara")
+    assert derive(row, vocabulary(citroen=["xsara"])) is True
+
+
+# La règle cardinale, tenue jusqu'ici : la déduction n'écrit que la couche
+# canonique. Marque, modèle et version observés ne bougent pas d'un caractère,
+# et l'empreinte véhicule n'est pas même effleurée.
+def test_the_deduction_never_touches_the_observed_fields():
+    row = Row("Land Rover", "Autres", "Range Rover 3.0 P550e")
+    derive(row, vocabulary(**{"land rover": ["range rover"]}))
+    assert (row.brand, row.model, row.version) == (
+        "Land Rover", "Autres", "Range Rover 3.0 P550e"
+    )
+
+
+# Fait rougir `canon_model if canon_model_source == FROM_VERSION else None` :
+# `market_items` et `feed_query` lisent cette fonction pour savoir quoi passer
+# à `label`, et un modèle du site n'est pas une déduction. `label` se garde
+# aussi de son côté — deux verrous pour un fait, et celui-ci se prouve ici.
+def test_only_a_model_deduced_from_the_version_is_given_back_as_deduced():
+    assert inferred_model("xsara", "version") == "xsara"
+    assert inferred_model("xsara", "site") is None
+    assert inferred_model("autres", None) is None

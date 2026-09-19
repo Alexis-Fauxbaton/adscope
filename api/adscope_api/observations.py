@@ -21,6 +21,7 @@ from .fingerprint import fingerprint
 from .models import Listing, PricePoint
 from .intake import ObservationIn
 from . import publication
+from .model_vocabulary import CACHE
 from .taxonomy import derive
 from .usage import bump
 
@@ -119,8 +120,11 @@ def record(session, observation: ObservationIn, source: str, license_=None,
     if any(value is not None for value in details):
         listing.fingerprint = fingerprint(*details)
     # Sur ce que l'annonce porte *après* la mise à jour, non sur l'observation
-    # seule : muette sur le modèle, elle garde celui qu'on savait.
-    derive(listing)
+    # seule : muette sur le modèle, elle garde celui qu'on savait. Le
+    # vocabulaire des modèles connus vient du cache — une requête par
+    # observation rejouerait un agrégat sur 53 000 lignes sept mille fois par
+    # jour ; il se recharge au plus toutes les dix minutes.
+    derive(listing, CACHE.get(session, now))
 
     listing.last_seen = max(listing.last_seen, now)
     listing.observations += 1

@@ -35,6 +35,9 @@ def to_old_shape(session):
     session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS fuel"))
     session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS gearbox"))
     session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS department"))
+    session.execute(
+        text("ALTER TABLE listings DROP COLUMN IF EXISTS canon_model_source")
+    )
     session.execute(text("DROP TABLE IF EXISTS schema_migrations"))
 
 
@@ -357,3 +360,23 @@ def test_the_listings_already_recorded_keep_an_empty_fuel_gearbox_department(ses
         "SELECT site_id, fuel, gearbox, department FROM listings"
     )).all()
     assert rows == [("87103336930", None, None, None)]
+
+
+# La provenance du modèle canonique arrive sur une base qui porte 53 142
+# annonces : la colonne s'ajoute vide. La migration ne déduit rien — c'est
+# `scripts/recanonize.py --all` qui la remplit, par lots.
+def test_migration_adds_the_canon_model_source_column(session):
+    to_old_shape(session)
+    assert "canon_model_source" not in columns(session, "listings")
+    apply_migrations(session.connection())
+    assert "canon_model_source" in columns(session, "listings")
+
+
+def test_the_listings_already_recorded_keep_an_empty_canon_model_source(session):
+    to_old_shape(session)
+    with_history(session)
+    apply_migrations(session.connection())
+    rows = session.execute(
+        text("SELECT site_id, canon_model_source FROM listings")
+    ).all()
+    assert rows == [("87103336930", None)]

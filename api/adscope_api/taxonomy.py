@@ -16,51 +16,20 @@ test le tient.
 nom propre du véhicule.
 """
 
-import re
-
+from .inference import infer_model
+from .mentions import version_confirms
 from .spelling import ALIASES, brand as spelled_brand, fold, model as spelled_model
 
 # Le seau « je ne sais pas » des sites. Il reste dans les colonnes canoniques —
-# c'est un fait de classement, et 4 762 annonces le portent — mais il ne
+# c'est un fait de classement, et 4 801 annonces le portent — mais il ne
 # s'affiche jamais et ne se retire jamais d'une version.
 UNKNOWN = "Autres"
 NO_VEHICLE = "Véhicule non précisé"
 
-# Le souligné de leboncoin est un séparateur de mots, comme `naming._WORDS`.
-_ALIAS_WORDS = re.compile(r"[\s_]+")
-
-
-def _words(text) -> list[str]:
-    return [fold(w) for w in _ALIAS_WORDS.split(text or "") if w]
-
-
-def _mentions(version, model) -> bool:
-    """`version` nomme-t-elle `model`, en mots entiers (replié, souligné =
-    espace), jamais une sous-chaîne — sinon « Corvette C6 » mordrait dans un
-    modèle qui ne serait que « C6 »."""
-    words, target = _words(version), _words(model)
-    span = len(target)
-    return any(words[i:i + span] == target for i in range(len(words) - span + 1))
-
-
-def _version_confirms(version, posed_model) -> bool:
-    """La condition de `vers_modele_sous_reserve_de_version` : vide, ou
-    `posed_model` présent en mots entiers.
-
-    Une version qui ne dit rien ne contredit personne. Une version qui dit
-    autre chose (« Camaro » pour l'alias qui pose « Corvette ») ne le confirme
-    pas.
-    """
-    return not _words(version) or _mentions(version, posed_model)
-
-
-def version_names_model(version, model) -> bool:
-    """`version` nomme-t-elle `model`, en mots entiers. Vide, elle ne nomme
-    rien — à la différence de `_version_confirms`, qui sert l'alias et laisse
-    passer une version silencieuse. Sert
-    `data_health_queries.version_names_another_model` : la version qui nomme
-    un autre modèle connu de la marque que celui déclaré."""
-    return bool(_words(version)) and _mentions(version, model)
+# D'où vient `canon_model` (`listings.canon_model_source`) : du site, ou déduit
+# de la version (`inference.py`). NULL = modèle non précisé, ni donné ni déduit.
+FROM_SITE = "site"
+FROM_VERSION = "version"
 
 
 def canonical(brand, model, version=None):
@@ -70,7 +39,7 @@ def canonical(brand, model, version=None):
     « Corvette / Autres » devient « Chevrolet / Corvette », une hypothétique
     « Corvette / Stingray » garderait son modèle. Quand le fichier marque
     l'alias `vers_modele_sous_reserve_de_version`, poser le modèle exige en
-    plus que la version ne le contredise pas (`_version_confirms`) : les
+    plus que la version ne le contredise pas (`mentions.version_confirms`) : les
     Camaro que leboncoin range aussi dans le seau « Corvette / Autres » gagnent
     la marque, jamais le modèle — un modèle faux est pire qu'un modèle absent.
     """
@@ -81,7 +50,7 @@ def canonical(brand, model, version=None):
         posed_model = rule.get("vers_modele")
         if posed_model and canon_model in (None, UNKNOWN):
             conditional = rule.get("vers_modele_sous_reserve_de_version", False)
-            if not conditional or _version_confirms(version, posed_model):
+            if not conditional or version_confirms(version, posed_model):
                 canon_model = posed_model
     return canon_brand, canon_model
 
@@ -97,16 +66,19 @@ def key(brand, model, version=None):
     return tuple(None if v is None else fold(v) for v in canonical(brand, model, version))
 
 
-def search_text(brand, model, version) -> str:
+def search_text(brand, model, version, inferred=None) -> str:
     """Les mots sur lesquels `?q=` cherche : observés *et* canoniques, pliés.
 
     Dédoublonnés dans l'ordre d'apparition — « Corvette / Autres » et
     « Chevrolet / Corvette » se retrouvent ainsi toutes deux sur `q=corvette`,
-    et le modèle « Ds3 » sur `q=ds3` comme sur `q=ds 3`.
+    et le modèle « Ds3 » sur `q=ds3` comme sur `q=ds 3`. Le modèle déduit s'y
+    ajoute pour la même raison : la version porte bien ses mots, mais pas
+    forcément son découpage — un modèle déduit « ds 3 » vient d'une version
+    qui peut écrire « DS3 ».
     """
     canon_brand, canon_model = canonical(brand, model, version)
     words = {}
-    for value in (brand, model, version, canon_brand, canon_model):
+    for value in (brand, model, version, canon_brand, canon_model, inferred):
         # Le souligné de leboncoin est un séparateur de mots, comme dans
         # `naming._WORDS` : sans lui, 3 350 annonces porteraient « exclusive_c4 »
         # pour un mot, et `?q=_` en rendrait 3 350 au lieu de rien.
@@ -115,16 +87,40 @@ def search_text(brand, model, version) -> str:
     return " ".join(words)
 
 
-def derive(listing) -> bool:
-    """Pose les trois colonnes dérivées sur une annonce ; dit si ça a changé.
+def inferred_model(canon_model, canon_model_source):
+    """Le modèle **déduit** d'une annonce, ou `None` s'il vient du site.
+
+    `market_items` et `feed_query` en ont besoin pour composer le libellé, et
+    partent l'un d'une ligne SQL, l'autre d'un objet ORM : la condition tient
+    ici plutôt qu'écrite deux fois.
+    """
+    return canon_model if canon_model_source == FROM_VERSION else None
+
+
+def derive(listing, known=None) -> bool:
+    """Pose les colonnes dérivées sur une annonce ; dit si ça a changé.
 
     Le seul endroit qui les écrit : `observations.record` à l'arrivée d'une
     observation, `scripts/recanonize.py` sur l'existant et à chaque évolution
-    de la table. Ne connaît de l'annonce que cinq noms d'attributs — rien de
+    de la table. Ne connaît de l'annonce que six noms d'attributs — rien de
     l'ORM.
+
+    La déduction ne comble que le vide : un modèle donné par le site (ou posé
+    par un alias de marque) n'est jamais remplacé, et sans vocabulaire
+    (`known is None`) rien n'est déduit du tout. Elle n'écrit que cette
+    couche : `brand`, `model`, `version` et `fingerprint` ne bougent pas.
     """
     brand, model = key(listing.brand, listing.model, listing.version)
-    text = search_text(listing.brand, listing.model, listing.version)
-    before = (listing.canon_brand, listing.canon_model, listing.search_text)
-    listing.canon_brand, listing.canon_model, listing.search_text = brand, model, text
-    return before != (brand, model, text)
+    source = None if model in (None, fold(UNKNOWN)) else FROM_SITE
+    inferred = None
+    if source is None and known is not None:
+        inferred = infer_model(brand, listing.version, known)
+        if inferred is not None:
+            model, source = inferred, FROM_VERSION
+    text = search_text(listing.brand, listing.model, listing.version, inferred)
+    after = (brand, model, source, text)
+    before = (listing.canon_brand, listing.canon_model,
+              listing.canon_model_source, listing.search_text)
+    (listing.canon_brand, listing.canon_model,
+     listing.canon_model_source, listing.search_text) = after
+    return before != after

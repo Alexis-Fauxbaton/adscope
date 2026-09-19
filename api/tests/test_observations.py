@@ -311,3 +311,61 @@ def test_a_corrected_postal_code_overwrites_the_previous_one(session):
                      now=NOW + timedelta(days=1))
     session.commit()
     assert listing.postal_code == "69003"
+
+
+def taught(session, now):
+    """Le corpus minimal qui apprend « Xsara » à Citroën, écrit par la voie
+    ordinaire — des observations, comme le balayage en produit."""
+    for n in range(3):
+        record(session, obs(site_id=f"x{n}", brand="Citroen", model="Xsara",
+                            version="Xsara 2.0 HDi90 Exclusive 5p"),
+               source="crawler", now=now)
+        for brand, model in (("Peugeot", "307"), ("Renault", "Laguna"),
+                             ("Opel", "Astra")):
+            record(session, obs(site_id=f"{model}{n}", brand=brand, model=model,
+                                version=f"{model} 2.0 HDi 110ch"),
+                   source="crawler", now=now)
+    session.commit()
+
+
+# Fait rougir `derive(listing, CACHE.get(session, now))` dans `record` : la
+# déduction se fait à l'écriture, sur ce que l'annonce porte après la mise à
+# jour — pas seulement lors d'un rattrapage.
+def test_an_observation_without_a_model_gets_one_deduced_from_its_version(session):
+    taught(session, NOW)
+    listing = record(session, obs(site_id="autre", brand="Citroen", model="Autres",
+                                  version="Xsara 2.0 HDi90 Exclusive 5p"),
+                     source="crawler", now=NOW + timedelta(minutes=11))
+    session.commit()
+    assert (listing.canon_model, listing.canon_model_source) == ("xsara", "version")
+
+
+# Fait rougir la même ligne sur la règle cardinale : la déduction n'écrit que
+# la couche canonique. Les champs observés et l'empreinte véhicule ne bougent
+# pas — `fingerprint.py` a sa parité JS/Python à tenir.
+def test_the_deduction_leaves_the_observed_fields_and_the_fingerprint_alone(session):
+    taught(session, NOW)
+    listing = record(session, obs(site_id="autre", brand="Citroen", model="Autres",
+                                  version="Xsara 2.0 HDi90 Exclusive 5p"),
+                     source="crawler", now=NOW + timedelta(minutes=11))
+    session.commit()
+    from adscope_api.fingerprint import fingerprint
+    assert listing.model == "Autres"
+    assert listing.fingerprint == fingerprint(
+        "Citroen", "Autres", "Xsara 2.0 HDi90 Exclusive 5p", 2018, 62686
+    )
+
+
+# Fait rougir `CACHE.get(session, now)` — l'instant **injecté**, jamais lu à
+# l'horloge : le vocabulaire chargé avant que la Xsara n'existe reste servi
+# pendant dix minutes, et l'annonce écrite à la neuvième ne se déduit pas
+# encore. C'est le prix assumé du cache, et il se mesure sans attendre.
+def test_the_vocabulary_is_the_one_of_the_last_ten_minutes(session):
+    record(session, obs(site_id="seed", brand="Citroen", model="Xsara",
+                        version="Xsara 2.0 HDi90"), source="crawler", now=NOW)
+    taught(session, NOW + timedelta(minutes=1))
+    listing = record(session, obs(site_id="autre", brand="Citroen", model="Autres",
+                                  version="Xsara 2.0 HDi90 Exclusive 5p"),
+                     source="crawler", now=NOW + timedelta(minutes=9))
+    session.commit()
+    assert (listing.canon_model, listing.canon_model_source) == ("autres", None)

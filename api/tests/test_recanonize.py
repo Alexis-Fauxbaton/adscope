@@ -104,3 +104,52 @@ def test_an_interrupted_run_leaves_the_batches_already_done(session):
     script.recanonize(session, batch=4)
     session.rollback()
     assert sum(1 for r in rows(session) if r.search_text) == 6
+
+
+def with_a_deducible_other(session):
+    """Le corpus minimal où la déduction a de quoi travailler : trois Xsara
+    classées par le site, trois autres modèles suivis de « 2.0 » pour que ce
+    mot compte comme une motorisation — et une « Autres » à combler."""
+    session.add_all([
+        Listing(site="lbc", site_id=f"x{n}", first_seen=NOW, last_seen=NOW,
+                observations=1, brand="Citroen", model="Xsara",
+                version="Xsara 2.0 HDi90 Exclusive 5p")
+        for n in range(3)
+    ] + [
+        Listing(site="lbc", site_id=f"{model}{n}", first_seen=NOW, last_seen=NOW,
+                observations=1, brand=brand, model=model,
+                version=f"{model} 2.0 HDi 110ch")
+        for brand, model in (("Peugeot", "307"), ("Renault", "Laguna"),
+                             ("Opel", "Astra"))
+        for n in range(3)
+    ] + [
+        Listing(site="lbc", site_id="autre", first_seen=NOW, last_seen=NOW,
+                observations=1, brand="Citroen", model="Autres",
+                version="Xsara 2.0 HDi90 Exclusive 5p")
+    ])
+    session.commit()
+
+
+def only(session, site_id):
+    return session.scalars(select(Listing).where(Listing.site_id == site_id)).one()
+
+
+# Fait rougir `derive(listing, known)` : sans le vocabulaire, le rattrapage
+# pose la couche canonique du lot 1 et laisse les « Autres » tels quels.
+def test_it_deduces_the_model_of_the_listings_the_site_left_unclassified(session):
+    with_a_deducible_other(session)
+    script.recanonize(session)
+    row = only(session, "autre")
+    assert (row.canon_model, row.canon_model_source) == ("xsara", "version")
+    assert row.model == "Autres"
+
+
+# Fait rougir `known = load(session)` placé **avant** la boucle : relu par lot,
+# le vocabulaire absorberait les déductions du lot précédent — l'auto-renforcement
+# que le lot s'interdit. Un lot de 1 met chaque annonce dans son propre lot.
+def test_replaying_by_tiny_batches_deduces_no_more_than_one_pass(session):
+    with_a_deducible_other(session)
+    script.recanonize(session, batch=1)
+    script.recanonize(session, only_missing=False, batch=1)
+    rows_ = session.scalars(select(Listing)).all()
+    assert sum(1 for r in rows_ if r.canon_model_source == "version") == 1
