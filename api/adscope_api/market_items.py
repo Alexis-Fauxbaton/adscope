@@ -16,6 +16,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from .naming import label
+from .taxonomy import inferred_model
 from .region import of_department as region_of_department
 from .schemas import SellerType
 from .urls import build as build_url
@@ -58,7 +59,9 @@ def item_of(row) -> dict:
     return {
         "site": row.site, "site_id": row.site_id, "url": build_url(row.site, row.site_id),
         "brand": row.brand, "model": row.model, "version": row.version,
-        "label": label(row.brand, row.model, row.version), "year": row.year,
+        "label": label(row.brand, row.model, row.version,
+                       inferred_model(row.canon_model, row.canon_model_source)),
+        "year": row.year,
         "mileage": row.mileage, "price": row.price,
         "fuel": row.fuel, "gearbox": row.gearbox, "department": row.department,
         "region": region_of_department(row.department),

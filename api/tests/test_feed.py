@@ -193,3 +193,17 @@ def test_the_feed_serves_the_same_label_as_the_market(session, key):
     follow_it(session, key, listing)
     items = feed_for(session, resolve(session, key), 7, NOW)
     assert items[0]["label"] == "Chevrolet Corvette 6.2 V8 659ch 3LZ Z06 AT8"
+
+
+# Fait rougir `inferred_model(listing.canon_model, listing.canon_model_source)`
+# dans `feed_query._feed_item` : le suivi emploie le modèle déduit comme le
+# marché, et sous son écriture officielle — « Mégane », pas « Megane ».
+def test_the_feed_label_uses_the_deduced_model_like_the_market_does(session, key):
+    listing = car(session, "lbl", brand="Renault", model="Autres")
+    listing.version = "Megane 1.5 dCi 110ch Business"
+    listing.canon_brand, listing.canon_model = "renault", "megane"
+    listing.canon_model_source = "version"
+    session.commit()
+    follow_it(session, key, listing)
+    items = feed_for(session, resolve(session, key), 7, NOW)
+    assert items[0]["label"] == "Renault Mégane 1.5 dCi 110ch Business"

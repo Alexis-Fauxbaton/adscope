@@ -16,7 +16,7 @@ faute de quoi « C3 » mordrait dans « C3500 ».
 
 import re
 
-from .spelling import fold
+from .spelling import fold, inferred as spelled_inferred
 from .taxonomy import NO_VEHICLE, UNKNOWN, canonical
 
 # Le souligné de leboncoin est un séparateur de mots : 3 350 versions sur les
@@ -106,9 +106,20 @@ def _rebrand(canon_brand, canon_model):
     return " ".join([canon_brand, *model_words[len(brand_words):]])
 
 
-def label(brand, model, version) -> str:
-    """Marque, modèle, version — sans « Autres » et sans redite."""
+def label(brand, model, version, inferred=None) -> str:
+    """Marque, modèle, version — sans « Autres » et sans redite.
+
+    Un modèle **déduit** (`inference.infer_model`, clé repliée) s'emploie
+    exactement comme un modèle donné par le site : il prend sa place en tête
+    sous son écriture officielle, et la version cesse de le répéter — « Land
+    Rover / Autres / Range Rover Evoque 2.0 D 150ch R-Dynamic » donne « Land
+    Rover Range Rover Evoque 2.0 D 150ch R-Dynamic », jamais « … Range Rover
+    Evoque Range Rover Evoque … ». Il ne comble que le vide : un modèle donné
+    par le site n'est jamais remplacé.
+    """
     canon_brand, canon_model = canonical(brand, model, version)
+    if inferred and canon_model in (None, UNKNOWN):
+        canon_model = spelled_inferred(inferred)
     head = [p for p in (canon_brand, canon_model) if p and p != UNKNOWN]
     if len(head) == 2 and fold(head[0]) == fold(head[1]):
         head = head[:1]

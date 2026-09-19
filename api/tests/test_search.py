@@ -14,6 +14,7 @@ from adscope_api import spelling
 from adscope_api.auth import resolve
 from adscope_api.market_items import item_of
 from adscope_api.market_query import market_page
+from adscope_api.model_vocabulary import load
 from adscope_api.models import Listing, PricePoint
 from adscope_api.taxonomy import derive
 
@@ -229,3 +230,47 @@ def test_the_route_carries_the_search_parameter(client, key, session):
     body = client.get("/v1/market", params={"q": "FERRARI"}, headers=auth(key)).json()
     assert body["total"] == 1
     assert body["items"][0]["label"] == "Ferrari 458 Italia"
+
+
+def corpus_that_teaches_megane(session):
+    """Ce qu'il faut en base pour que « Megane » soit un modèle connu de Renault
+    et « 1.5 » une motorisation : trois Megane classées par le site, et trois
+    autres modèles suivis du même mot."""
+    for n in range(3):
+        car(session, f"m{n}", brand="Renault", model="Megane",
+            version="Megane 1.5 dCi 110ch Business")
+        for brand, model in (("Peugeot", "307"), ("Citroen", "Xsara"),
+                             ("Opel", "Astra")):
+            car(session, f"{model}{n}", brand=brand, model=model,
+                version=f"{model} 1.5 dCi 110ch")
+
+
+# Fait rougir `derive(row, known)` sur la couche canonique d'une annonce sans
+# modèle : le filtre exact `?model=` sert désormais les annonces au modèle
+# déduit, sans qu'une ligne de `search.family` ait à changer — c'est la clé
+# canonique qui a bougé, pas le filtre.
+def test_the_exact_model_filter_serves_a_listing_whose_model_was_deduced(session, key):
+    corpus_that_teaches_megane(session)
+    deduced = car(session, "autre", brand="Renault", model="Autres",
+                  version="Megane 1.5 dCi 110ch Business")
+    derive(deduced, load(session))
+    session.commit()
+    total, rows = market_page(session, resolve(session, key), NOW,
+                              brand="Renault", model="Mégane")
+    assert total == 4
+    assert "autre" in {row.site_id for row in rows}
+
+
+# Fait rougir `inferred_model(row.canon_model, row.canon_model_source)` dans
+# `market_items.item_of` : l'item rendu affiche le modèle déduit comme un
+# modèle du site, et la version cesse de le répéter.
+def test_the_item_label_uses_the_deduced_model(session, key):
+    corpus_that_teaches_megane(session)
+    deduced = car(session, "autre", brand="Renault", model="Autres",
+                  version="Megane 1.5 dCi 110ch Business")
+    derive(deduced, load(session))
+    session.commit()
+    _total, rows = market_page(session, resolve(session, key), NOW, q="business")
+    item = item_of(next(row for row in rows if row.site_id == "autre"))
+    assert item["label"] == "Renault Mégane 1.5 dCi 110ch Business"
+    assert item["model"] == "Autres"

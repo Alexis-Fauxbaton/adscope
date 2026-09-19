@@ -230,3 +230,36 @@ def test_a_brand_that_is_only_a_text_prefix_not_a_whole_word_is_kept():
     assert label("Renault", "Renaultsport Clio", "Renaultsport Clio 200 CVS") == (
         "Renault Renaultsport Clio 200 CVS"
     )
+
+
+# Fait rougir `canon_model = spelled_inferred(inferred)` dans `label` : un
+# modèle déduit s'emploie comme un modèle donné par le site — écriture
+# officielle en tête, et la version cesse de le répéter. C'est le cas que le
+# brief pose en exemple.
+def test_a_deduced_model_takes_its_place_without_repeating_itself():
+    assert label("Land Rover", "Autres",
+                 "Range Rover Evoque 2.0 D 150ch R-Dynamic",
+                 "range rover evoque") == (
+        "Land Rover Range Rover Evoque 2.0 D 150ch R-Dynamic"
+    )
+
+
+# Fait rougir `canon_model in (None, UNKNOWN)` : un modèle donné par le site
+# ne se remplace jamais, même si une déduction traîne dans l'appel.
+def test_a_model_given_by_the_site_is_never_replaced_by_a_deduction():
+    assert label("Citroen", "C3", "C3 1.4 HDi70", "saxo") == "Citroën C3 1.4 HDi70"
+
+
+# Fait rougir `spelled_inferred` plutôt que la clé brute : « Toyota auris »
+# n'est pas un libellé.
+def test_the_deduced_model_is_written_the_way_it_is_displayed():
+    assert label("Renault", "Autres", "Megane 1.5 dCi 110ch Business",
+                 "megane") == "Renault Mégane 1.5 dCi 110ch Business"
+    assert label("Toyota", "Autres", "Rav 4 197 Hybride Collection AWD",
+                 "rav4") == "Toyota RAV4 197 Hybride Collection AWD"
+
+
+# Fait rougir le défaut `inferred=None` : sans déduction, le libellé du lot 1
+# ne bouge pas d'un caractère.
+def test_without_a_deduction_the_label_is_the_one_of_lot_one():
+    assert label("Ferrari", "Autres", None) == "Ferrari"

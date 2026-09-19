@@ -65,6 +65,7 @@ def _core(license_, now, *, brand, model, q, seller_type, min_age_days, dropped,
     query = (
         select(
             Listing.site, Listing.site_id, Listing.brand, Listing.model, Listing.version,
+            Listing.canon_model, Listing.canon_model_source,
             Listing.year, Listing.mileage, last_price.c.price,
             Listing.fuel, Listing.gearbox, Listing.department, Listing.seller_type,
             Listing.seller_name, Listing.published_at, age.label("age_days"),
