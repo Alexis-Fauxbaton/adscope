@@ -29,6 +29,15 @@ la mesure (`.superpowers/recherche-lot3a.md`, `-lot3b.md`) :
    commencent par un millésime, dont 81 Peugeot **2008** que la garde 1 trouve
    d'abord (le saut ne joue que si rien n'a été reconnu en tête) ; et aucune
    version du corpus ne redit un modèle déjà connu.
+5. **Un mot purement numérique après un modèle du fichier le prolonge sans le
+   changer** — décision d'Alexis du 2026-09-20 : « XM **4.4** V8 748ch »,
+   « Purosangue **6.5** V12 » restent XM et Purosangue. Restreint aux modèles
+   de `modeles_crees` (`known_models.numeric_heads`) : le vocabulaire *appris*
+   des sites n'y a pas droit, c'est là que la mesure plaçait le risque
+   (`.superpowers/recherche-lot3b.md`, §6.1). Une cylindrée ou une puissance
+   s'écrit en chiffres seuls (« 4.4 », « 350 ») ; un code moteur qui mêle
+   lettres et chiffres (« 53e », « 218da ») n'est pas concerné, et reste refusé
+   comme avant.
 
 La fonction est **pure et déterministe** : mêmes version, année et vocabulaire
 → même résultat. Le vocabulaire se bâtit dans `model_vocabulary.py`.
@@ -42,6 +51,10 @@ from .spelling import fold
 # Le souligné de leboncoin est un séparateur de mots, comme `naming._WORDS`.
 _WORDS = re.compile(r"[\s_]+")
 _MODEL_YEAR = re.compile(r"^(19|20)\d\d$")
+# Une cylindrée (« 4.4 », « 6.5 ») ou une puissance écrite en chiffres seuls
+# (« 136 », « 350 ») — jamais un code moteur qui mêle lettres et chiffres
+# (« 53e », « 218da »), celui-là reste hors de portée de cette règle.
+_NUMERIC = re.compile(r"^\d+([.,]\d+)?$")
 
 
 @dataclass(frozen=True)
@@ -58,12 +71,17 @@ class KnownModels:
     `year_max` : (marque, tête) → l'année au-delà de laquelle la tête ne prouve
     plus rien. Un Xsara Picasso ne se vend pas neuf après 2010, et « Picasso »
     seul redeviendrait ambigu avec le C4 Picasso.
+    `numeric_heads` : (marque, tête) présentes ici ont le droit de voir un mot
+    purement numérique les suivre sans que ce mot ne les change — seules les
+    têtes de `modeles_crees` y entrent (`model_catalog.with_catalog`), jamais
+    celles apprises des sites.
     """
 
     by_brand: dict
     qualifiers: frozenset
     renames: dict = field(default_factory=dict)
     year_max: dict = field(default_factory=dict)
+    numeric_heads: frozenset = field(default_factory=frozenset)
 
     def of(self, brand_key) -> frozenset:
         return self.by_brand.get(brand_key, frozenset())
@@ -108,7 +126,7 @@ def span(words, start, ply) -> int:
     return 0
 
 
-def _named(words, start, known, qualifiers):
+def _named(brand_key, words, start, known, known_models):
     """La tête reconnue à partir de `start`, ou `None` si rien n'est sûr.
 
     Tous les candidats partent du même mot : leurs plis sont donc préfixes
@@ -116,6 +134,13 @@ def _named(words, start, known, qualifiers):
     l'emporte sur « C3 » sans qu'aucune ambiguïté ne subsiste. Deux modèles
     distincts ne peuvent pas égaler la même suite de mots, la règle « s'il en
     reste deux, on renonce » n'a donc pas de cas à traiter ici.
+
+    Le mot qui suit doit être un qualificatif mesuré — **sauf** s'il est
+    purement numérique et que `best` est une tête de `modeles_crees` : décision
+    d'Alexis du 2026-09-20, restreinte au fichier (`numeric_heads`). Le plus
+    long l'ayant déjà emporté avant cette garde, un modèle numérique lui-même
+    (« 512 ») ou dont un autre modèle du fichier commence par les mêmes mots
+    (« Série 2 » / « Série 2 ActiveTourer ») n'en est jamais affecté.
     """
     spans = {m: n for m in known if (n := span(words, start, m.replace(" ", "")))}
     if not spans:
@@ -123,8 +148,11 @@ def _named(words, start, known, qualifiers):
     best = max(spans, key=lambda m: spans[m])
     after = start + spans[best]
     after += span(words, after, best.replace(" ", ""))
-    if after < len(words) and words[after] not in qualifiers:
-        return None
+    if after < len(words) and words[after] not in known_models.qualifiers:
+        numeric_ok = ((brand_key, best) in known_models.numeric_heads
+                      and _NUMERIC.match(words[after]))
+        if not numeric_ok:
+            return None
     return best
 
 
@@ -134,9 +162,9 @@ def infer_model(brand_key, version, known_models, year=None):
     known = known_models.of(brand_key)
     if start >= len(words) or not known:
         return None
-    found = _named(words, start, known, known_models.qualifiers)
+    found = _named(brand_key, words, start, known, known_models)
     if found is None and _MODEL_YEAR.match(words[start]) and start + 1 < len(words):
-        found = _named(words, start + 1, known, known_models.qualifiers)
+        found = _named(brand_key, words, start + 1, known, known_models)
     if found is None:
         return None
     return known_models.resolved(brand_key, found, year)

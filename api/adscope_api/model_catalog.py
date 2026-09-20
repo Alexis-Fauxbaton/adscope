@@ -13,6 +13,10 @@ Trois apports, trois sections du fichier :
   comme un modèle déclaré par un site : jamais à la place de celui-ci, jamais
   dans l'empreinte. `tete` dit la forme que la version écrit quand ce n'est pas
   le nom du modèle, `annee_max` pose une condition sur l'année du véhicule.
+  Décision d'Alexis du 2026-09-20 : un mot **purement numérique** qui suit une
+  de ces têtes la prolonge sans la changer (« XM 4.4 » reste XM) — restreint à
+  ces têtes-ci, jamais au vocabulaire appris des sites (`numeric_heads`,
+  `inference.infer_model`).
 - **`carrosseries` et `finitions`** — les mots qui suivent un modèle sans en
   désigner un autre, là où la mesure du lot 3a ne les atteint pas (elle exige
   quatre couples marque/modèle, et « Spider » ne suit que la 488). Ils
@@ -65,15 +69,43 @@ def _words():
 
 
 def _model_aliases():
-    """(marque canonique, modèle déclaré) → l'écriture du modèle canonique."""
-    return {(fold(rule["marque"]), fold(rule["de"])): rule["vers"]
+    """(marque canonique, modèle déclaré) → (écriture du modèle canonique,
+    année maximale ou `None`).
+
+    L'année maximale est la même condition que celle d'un modèle créé, posée
+    sur un modèle **déclaré** cette fois : les 14 Citroën « Picasso » que La
+    Centrale déclare ne deviennent des Xsara Picasso que jusqu'en 2010, pour
+    la même raison qu'une tête « Picasso » déduite — au-delà, le C4 Picasso
+    existe aussi. Absente du fichier, la condition vaut `None` : l'alias
+    s'applique toujours, comme les trois autres du lot 3b.
+    """
+    return {(fold(rule["marque"]), fold(rule["de"])): (rule["vers"], rule.get("annee_max"))
             for rule in DATA["alias_modeles"]}
+
+
+def _alias_heads():
+    """(marque, tête déclarée repliée) → (modèle cible replié, année max),
+    pour que la tête d'un alias de modèle reste une tête reconnue de la
+    déduction.
+
+    `model_vocabulary.load` bâtit le vocabulaire sur `taxonomy.key`, qui
+    applique déjà `alias_modeles` : une fois « Grandland X » fondu dans le
+    seau « Grandland », le mot « x » ne suit plus jamais « grandland » assez
+    souvent pour rester un qualificatif mesuré, et la tête à deux mots
+    « grandland x » disparaît du vocabulaire de la déduction — perdant la
+    seule annonce « Autres » dont la version commence ainsi. La réinjecter ici
+    restaure exactement le comportement d'avant l'alias. **Jamais** versée
+    dans `numeric_heads` : la décision 1 ne vaut que pour `modeles_crees`.
+    """
+    return {(brand, head): (fold(model), limit)
+            for (brand, head), (model, limit) in _model_aliases().items()}
 
 
 CREATED = _created()
 HEADS = _heads()
 WORDS = _words()
 MODEL_ALIASES = _model_aliases()
+ALIAS_HEADS = _alias_heads()
 
 
 def written_heads(model_key) -> frozenset:
@@ -81,7 +113,8 @@ def written_heads(model_key) -> frozenset:
     return HEADS.get(model_key, frozenset())
 
 
-def with_catalog(known: KnownModels, *, created=None, words=None) -> KnownModels:
+def with_catalog(known: KnownModels, *, created=None, words=None,
+                  alias_heads=None) -> KnownModels:
     """Le vocabulaire des sites, augmenté du fichier. Rend un nouvel objet.
 
     Tenu à part de `model_vocabulary.vocabulary` — qui, lui, ne connaît que ce
@@ -91,14 +124,22 @@ def with_catalog(known: KnownModels, *, created=None, words=None) -> KnownModels
     quand même : « Picasso » **est** un modèle La Centrale, et c'est justement
     pour cela qu'il faut le renommer en « Xsara Picasso » sous condition
     d'année plutôt que le laisser voisiner avec le C4 Picasso.
+
+    `alias_heads` (`_alias_heads`) rejoue la même mécanique pour la tête d'un
+    `alias_modeles` : sans elle, un alias appliqué **avant** le comptage du
+    vocabulaire (`model_vocabulary.load` passe par `taxonomy.key`) peut faire
+    disparaître une tête à plusieurs mots que la déduction reconnaissait
+    seule — jamais dans `numeric_heads`, la décision 1 ne vaut que pour
+    `modeles_crees`.
     """
     created = CREATED if created is None else created
     words = WORDS if words is None else words
+    alias_heads = ALIAS_HEADS if alias_heads is None else alias_heads
     by_brand = defaultdict(set)
     for brand, models in known.by_brand.items():
         by_brand[brand] |= set(models)
     renames, year_max = dict(known.renames), dict(known.year_max)
-    for (brand, head), (model, limit) in created.items():
+    for (brand, head), (model, limit) in {**alias_heads, **created}.items():
         by_brand[brand].add(head)
         if model != head:
             renames[(brand, head)] = model
@@ -109,4 +150,5 @@ def with_catalog(known: KnownModels, *, created=None, words=None) -> KnownModels
         qualifiers=known.qualifiers | words,
         renames=renames,
         year_max=year_max,
+        numeric_heads=known.numeric_heads | frozenset(created.keys()),
     )
