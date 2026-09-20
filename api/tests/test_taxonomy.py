@@ -157,6 +157,14 @@ def test_search_text_is_already_folded():
     assert search_text("Citroën", "C3", None) == "citroen c3"
 
 
+# Fait rougir `canonical(brand, model, version, year)` dans `search_text` :
+# `?q=xsara picasso` doit trouver les 14 « Picasso » déclarés dès que l'année
+# les range dans le bon seau, sans perdre le mot observé « picasso ».
+def test_search_text_carries_a_declared_models_year_condition():
+    words = set(search_text("Citroen", "Picasso", "2.0 HDI", year=2003).split())
+    assert {"xsara", "picasso"} <= words
+
+
 # Fait rougir `.replace("_", " ")` dans `search_text` : le souligné de leboncoin
 # est un séparateur de mots, comme pour `naming._WORDS`. Sans lui, 3 350
 # annonces porteraient « exclusive_c4 » pour un mot, et `?q=_` en rendrait
@@ -316,6 +324,44 @@ def test_two_sites_two_names_for_one_model_make_one_bucket():
 def test_an_alias_never_takes_a_word_away_from_the_search():
     text = search_text("Ferrari", "812 Superfast", "812 V12 6.5 800ch")
     assert "superfast" in text.split() and "812" in text.split()
+
+
+# Fait rougir `if year_max is None or (year is not None and year <= year_max)`
+# dans son sens passant : les 14 Citroën « Picasso » déclarés par La Centrale
+# ne rejoignent le seau Xsara Picasso que sous condition d'année, comme la
+# tête déduite du même nom.
+def test_a_declared_model_alias_under_its_year_condition_is_applied():
+    assert canonical("Citroen", "Picasso", year=2007) == ("Citroën", "Xsara Picasso")
+
+
+# Fait rougir la même ligne dans son sens bloquant : au-delà, l'alias ne pose
+# rien — un modèle inchangé plutôt qu'un modèle faux, la même prudence que
+# `inference.KnownModels.resolved`.
+def test_a_declared_model_alias_beyond_its_year_condition_is_not_applied():
+    assert canonical("Citroen", "Picasso", year=2013) == ("Citroën", "Picasso")
+
+
+# Fait rougir `year is not None` : une année manquante ne remplit aucune
+# condition, dans `canonical` comme dans `inference`.
+def test_a_declared_model_alias_needs_a_year_to_apply_its_condition():
+    assert canonical("Citroen", "Picasso") == ("Citroën", "Picasso")
+
+
+# Fait rougir `for v in canonical(brand, model, version, year)` dans `key` :
+# c'est la clé qui va en base, et `search.family` doit trouver les 14
+# déclarés sous le même seau que les 118 déduits.
+def test_the_key_carries_a_declared_models_year_condition_too():
+    assert key("Citroen", "Picasso", year=2007) == ("citroen", "xsara picasso")
+    assert key("Citroen", "Picasso") == ("citroen", "picasso")
+
+
+# Fait rougir `key(listing.brand, listing.model, listing.version, listing.year)`
+# dans `derive` : une annonce réelle porte bien son année jusqu'à l'alias.
+def test_derive_applies_a_declared_models_year_condition():
+    row = Row("Citroen", "Picasso", "2.0 HDI", year=2003)
+    assert derive(row) is True
+    assert (row.canon_brand, row.canon_model) == ("citroen", "xsara picasso")
+    assert row.canon_model_source == "site"
 
 
 # Fait rougir `infer_model(brand, listing.version, known, listing.year)` : sans

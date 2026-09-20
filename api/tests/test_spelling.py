@@ -121,5 +121,5 @@ def test_no_deduced_model_stays_nothing():
 def test_a_created_model_keeps_the_spelling_the_file_gives_it():
     assert inferred("gle") == "GLE"
     assert inferred("dbx") == "DBX"
-    assert inferred("cee\'d") == "Cee\'d"
+    assert inferred("ceed") == "Ceed"
     assert inferred("xsara picasso") == "Xsara Picasso"

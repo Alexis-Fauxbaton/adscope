@@ -10,11 +10,12 @@ from adscope_api.inference import KnownModels, infer_model
 
 
 def known(qualifiers=("break", "1.4", "1.6", "2.0"), renames=None, year_max=None,
-          **by_brand):
+          numeric_heads=None, **by_brand):
     return KnownModels(
         by_brand={b: frozenset(m) for b, m in by_brand.items()},
         qualifiers=frozenset(qualifiers),
         renames=renames or {}, year_max=year_max or {},
+        numeric_heads=frozenset(numeric_heads or ()),
     )
 
 
@@ -233,3 +234,51 @@ def test_a_version_that_repeats_the_model_still_names_it():
 def test_after_a_repetition_the_next_word_is_still_judged():
     table = known(qualifiers=["5.7"], dodge=["challenger"])
     assert infer_model("dodge", "Challenger Challenger Hellcat", table) is None
+
+
+# ------------------------------------------ décisions d'Alexis du 2026-09-20 ----
+
+# Fait rougir `numeric_ok = ((brand_key, best) in known_models.numeric_heads
+# and _NUMERIC.match(words[after]))` dans son sens passant : une cylindrée ou
+# une puissance écrite en chiffres seuls prolonge une tête du fichier sans la
+# changer. 16 BMW « XM 4.4 V8 748ch » en dépendent.
+def test_a_purely_numeric_word_after_a_catalog_head_extends_it():
+    table = known(qualifiers=[], bmw=["xm"], numeric_heads={("bmw", "xm")})
+    assert infer_model("bmw", "XM 4.4 V8 748ch", table) == "xm"
+
+
+# Fait rougir la même ligne dans son sens bloquant : la restriction porte sur
+# `numeric_heads`, pas sur `known` — un modèle appris des sites n'a jamais ce
+# droit. C'est là que la mesure du lot 3b plaçait le risque (9 contradictions
+# sur 1 090 déductions supplémentaires, sans cette restriction).
+def test_a_purely_numeric_word_after_a_site_learned_model_still_forbids_it():
+    table = known(qualifiers=[], mercedes=["classe ml"])
+    assert infer_model("mercedes", "Classe ML 320 Classic", table) is None
+
+
+# Fait rougir `_NUMERIC.match` : un code moteur qui mêle lettres et chiffres
+# (« 53e », « 218da ») n'est pas purement numérique, la garde continue de le
+# refuser même pour une tête du fichier.
+def test_an_engine_code_mixing_letters_and_digits_is_not_purely_numeric():
+    table = known(qualifiers=[], mercedes=["gle"], numeric_heads={("mercedes", "gle")})
+    assert infer_model("mercedes", "GLE 53e AMG 449ch", table) is None
+
+
+# Piège tenu par un test, celui qu'Alexis a nommé : un modèle lui-même
+# purement numérique. « 512 » ne doit pas se perdre parce que le mot qui le
+# suit est, lui aussi, un chiffre.
+def test_a_purely_numeric_model_itself_still_resolves():
+    table = known(qualifiers=[], ferrari=["512"], numeric_heads={("ferrari", "512")})
+    assert infer_model("ferrari", "512 5.0 M", table) == "512"
+
+
+# Second piège nommé : le plus long gagne toujours, y compris quand le mot qui
+# suit le plus court est lui-même numérique. « Série 2 » et « Série 2
+# ActiveTourer » partagent leurs deux premiers mots — la garde du mot suivant
+# ne joue qu'après que le plus long a déjà été choisi.
+def test_the_longest_model_still_wins_even_with_a_numeric_word_after_the_shorter_one():
+    table = known(qualifiers=[], bmw=["serie 2", "serie 2 activetourer"],
+                  numeric_heads={("bmw", "serie 2"), ("bmw", "serie 2 activetourer")})
+    assert infer_model("bmw", "Série 2 ActiveTourer 218 Luxury", table) == \
+        "serie 2 activetourer"
+    assert infer_model("bmw", "Série 2 218 Luxury", table) == "serie 2"

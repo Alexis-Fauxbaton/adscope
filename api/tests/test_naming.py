@@ -271,3 +271,14 @@ def test_without_a_deduction_the_label_is_the_one_of_lot_one():
 def test_the_version_stops_repeating_a_model_it_writes_otherwise():
     assert label("Citroen", "Autres", "Base_Picasso 2.0 HDi90", "xsara picasso") == \
         "Citroën Xsara Picasso Base 2.0 HDi90"
+
+
+# Fait rougir `canonical(brand, model, version, year)` dans `label` — décision
+# d'Alexis du 2026-09-20 : le libellé d'un « Picasso » **déclaré** doit
+# s'accorder avec le seau où l'annonce a été rangée, pas avec l'écriture brute
+# du site.
+def test_a_declared_models_label_follows_its_year_condition():
+    assert label("Citroen", "Picasso", "2.0 HDI", year=2003) == (
+        "Citroën Xsara Picasso 2.0 HDI"
+    )
+    assert label("Citroen", "Picasso", "2.0 HDI", year=2015) == "Citroën Picasso 2.0 HDI"
