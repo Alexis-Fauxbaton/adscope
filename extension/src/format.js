@@ -29,6 +29,15 @@ ADS.format = {
       .filter(Boolean).join(' ') || `${n} jours`
   },
 
+  // Une durée écrite en toutes lettres, avec son accord. Le panneau affichait
+  // « Prix relevé · 1 jours » et « après 1 jours en ligne » : l'accord se
+  // recollait au point d'appel, donc il s'oubliait. Il se tient ici, une fois,
+  // avec le séparateur de milliers que `number` pose — « 1 810 jours ».
+  // Zéro reste au singulier, comme le français le veut : « 0 jour ».
+  days(n) {
+    return `${ADS.format.number(n)} jour${n > 1 ? 's' : ''}`
+  },
+
   ago(n) {
     if (n <= 0) return "aujourd'hui"
     if (n === 1) return 'hier'

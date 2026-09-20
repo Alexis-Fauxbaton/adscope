@@ -4,7 +4,7 @@ globalThis.ADS = globalThis.ADS || {}
 // c'est ce qui a réglé « trop compact, trop empilé ».
 ADS.cards = (() => {
   const { el } = ADS.node
-  const { spell, number } = ADS.format
+  const { spell, days } = ADS.format
   const UNDATED = 'date absente de la page'
 
   const day = (v) => new Date(v).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -32,7 +32,7 @@ ADS.cards = (() => {
     // compte de jours se vérifie, la date le fonde, le type de vendeur dit à
     // qui l'on parle.
     const sub = [
-      undated ? null : `${number(s.onlineDays)} jours`,
+      undated ? null : days(s.onlineDays),
       listing.publishedAt ? `mise en ligne le ${day(listing.publishedAt)}` : null,
       `vendeur ${listing.sellerType === 'pro' ? 'professionnel' : 'particulier'}`,
     ].filter(Boolean)
@@ -80,23 +80,38 @@ ADS.cards = (() => {
   // dit ce qu'on a, et que la suite viendra sans rien demander à personne.
   const waiting = (r) => {
     const seen = r.observations || (r.price_history || []).length
-    const days = r.tracked_days || 0
+    const seenDays = r.tracked_days || 0
     const card = el('div', 'adscope-card adscope-card--soft')
     card.append(el('p', null,
-      `${seen} relevé${plural(seen)} ${days > 0 ? `en ${days} jour${plural(days)}` : "aujourd'hui"}` +
+      `${seen} relevé${plural(seen)} ${seenDays > 0 ? `en ${days(seenDays)}` : "aujourd'hui"}` +
       " — la courbe apparaîtra d'elle-même."))
     card.append(...legend(r))
     return card
   }
 
+  // Deux relevés, ou un prix qui a bougé. En deçà il n'y a pas de courbe : il y
+  // a un point et beaucoup de vide, et la carte pâle le dit mieux.
+  const model = ({ remote: r, signals: s, site, displayed, now }) => {
+    const history = r.price_history || []
+    const moved = history.some((p, i) => i && p.price !== history[i - 1].price)
+    if (history.length < 2 && !moved) return null
+    const claim = site.claim(s, displayed)
+    return ADS.curve.plot({
+      publishedAt: r.first_seen || now,
+      now,
+      history,
+      claimDays: claim ? claim.days : null,
+    })
+  }
+
   const curve = (ctx, state) => {
     if (!ctx.remote) return []
     if (unseen(ctx.remote, ctx.now)) return [first(state)]
-    const model = ADS.plot.model(ctx)
-    if (!model) return [waiting(ctx.remote)]
+    const m = model(ctx)
+    if (!m) return [waiting(ctx.remote)]
     const card = el('div', 'adscope-card')
-    card.append(el('p', 'adscope-title', `Prix relevé · ${model.days} jours`), ADS.plot.draw(model))
-    const said = ADS.note.window(model)
+    card.append(el('p', 'adscope-title', `Prix relevé · ${days(m.days)}`), ADS.plot.box(m))
+    const said = ADS.note.window(m)
     if (said) card.append(el('p', 'adscope-said', said))
     card.append(...legend(ctx.remote))
     return [card]

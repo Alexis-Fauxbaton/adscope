@@ -5,7 +5,7 @@ globalThis.ADS = globalThis.ADS || {}
 // Aucune ne se fabrique un contenu : sans donnée, elle n'existe pas.
 ADS.sections = (() => {
   const { el } = ADS.node
-  const { number, money, ago } = ADS.format
+  const { money, ago, days } = ADS.format
 
   // En dessous, un catalogue n'en est pas un : deux annonces vues ne disent
   // rien d'un marchand, et les additionner le ferait croire.
@@ -81,13 +81,13 @@ ADS.sections = (() => {
     const body = [
       s.onlineDays == null
         ? fact("La page ne porte aucune date de mise en ligne : adscope n'en invente pas.")
-        : fact(`En ligne depuis ${number(s.onlineDays)} jours, mise en ligne le ${day(listing.publishedAt)}.`),
+        : fact(`En ligne depuis ${days(s.onlineDays)}, mise en ligne le ${day(listing.publishedAt)}.`),
       bump(ctx),
       r && r.tracked_days != null
-        ? fact(`Suivie par adscope depuis ${number(r.tracked_days)} jours, ${seen} relevé${plural(seen)}.`)
+        ? fact(`Suivie par adscope depuis ${days(r.tracked_days)}, ${seen} relevé${plural(seen)}.`)
         : null,
     ].filter(Boolean)
-    const age = s.onlineDays == null ? 'date absente de la page' : `${number(s.onlineDays)} jours en ligne`
+    const age = s.onlineDays == null ? 'date absente de la page' : `${days(s.onlineDays)} en ligne`
     return {
       key: 'car', tone: 'blue', icon: ADS.icons.car, title: 'Cette voiture',
       short: seen ? `${age}, ${seen} observé${plural(seen)}` : age,
@@ -99,7 +99,7 @@ ADS.sections = (() => {
   // chose qu'en avoir vu bouger et qu'aucun ne descende.
   const drops = (s) => {
     if (s.price_drop_listings) {
-      const after = s.price_drop_after_days == null ? '' : ` après ${number(s.price_drop_after_days)} jours en ligne`
+      const after = s.price_drop_after_days == null ? '' : ` après ${days(s.price_drop_after_days)} en ligne`
       return `${s.price_drop_listings} de ses annonces ont baissé${after}.`
     }
     return s.price_changed_listings
@@ -121,7 +121,7 @@ ADS.sections = (() => {
       const share = percent(s.over_a_month_share)
       body.push(fact(`${share} en ligne depuis plus d'un mois (${s.over_a_month} sur ${s.aged}).`))
     }
-    if (s.median_age_days != null) body.push(fact(`Ancienneté médiane : ${number(s.median_age_days)} jours.`))
+    if (s.median_age_days != null) body.push(fact(`Ancienneté médiane : ${days(s.median_age_days)}.`))
     body.push(fact(drops(s)))
     const met = `Ses annonces qu'adscope a croisées ces ${s.window_days} derniers jours`
     body.push(el('p', 'adscope-reserve', `${met} : son catalogue réel nous est inconnu.`))

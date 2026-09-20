@@ -3,7 +3,7 @@ globalThis.ADS = globalThis.ADS || {}
 // Compose les libellés affichés. Deux origines qui ne se mélangent jamais :
 // `s` vient de la page ouverte, `r` du suivi mutualisé renvoyé par l'API.
 ADS.view = (() => {
-  const { duration, ago, money } = ADS.format
+  const { duration, spell, ago, money } = ADS.format
 
   // Les seuils se lisent sur `price_gap_days`, mesuré sur la série complète —
   // l'API pose un point par jour sur les annonces qu'elle revoit, même si elle
@@ -68,7 +68,9 @@ ADS.view = (() => {
   // Le garde-fou d'honnêteté du panneau, en une ligne : depuis quand on
   // regarde, et à quelle cadence — la même que `checked` calcule pour `tracking`,
   // seule la ligne qui la porte a changé.
-  const legend = (r) => (r && r.tracked_days != null ? `Suivie depuis ${duration(r.tracked_days)}${checked(r, true)}` : '')
+  // En toutes lettres : c'est une phrase du panneau, pas une pastille. « Suivie
+  // depuis 1 j » y passait pour une coquille, et « 1 jours » en aurait été une.
+  const legend = (r) => (r && r.tracked_days != null ? `Suivie depuis ${spell(r.tracked_days)}${checked(r, true)}` : '')
 
   const tracking = (r) => {
     const rows = []

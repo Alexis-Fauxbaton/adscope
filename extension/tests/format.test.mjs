@@ -35,6 +35,22 @@ test("spell() reporte un reste de douze mois sur l'année, jamais ne l'affiche",
   assert.equal(format.spell(1825), '5 ans')
 })
 
+// Le panneau écrivait « Prix relevé · 1 jours » et « après 1 jours en ligne » :
+// l'accord était recollé au point d'appel, donc oublié. Rouge sur le
+// `jour${n > 1 ? 's' : ''}` de `days` dans src/format.js — un `s` inconditionnel
+// rend « 1 jours », pas de `s` du tout rend « 2 jour ».
+test('une durée en toutes lettres accorde son pluriel', () => {
+  assert.equal(format.days(0), '0 jour')
+  assert.equal(format.days(1), '1 jour')
+  assert.equal(format.days(2), '2 jours')
+})
+
+// Rouge sur le `ADS.format.number(n)` de `days` : sans lui, « 1810 jours » se
+// lirait d'un bloc là où le panneau cite un nombre qu'on vérifie.
+test('une durée en toutes lettres coupe ses milliers', () => {
+  assert.equal(format.days(1810), '1 810 jours')
+})
+
 // Propriété générale, sur toute la plage d'ancienneté qu'une annonce
 // traverse : ni l'une ni l'autre fonction ne doit jamais rendre « 12 mois »,
 // quel que soit le jour exact où le reste de 30 jours franchit ce seuil.
