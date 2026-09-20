@@ -42,7 +42,14 @@ doublon multi-plateformes.
 | C · Listing | flèche de baisse sur la pastille — **livré**. La barre de tri/filtre a été retirée : elle ne triait que la page chargée et parasitait la page hôte | — |
 | D · Site adscope v0 | `web/`, servi par l'API sous `/app` : **Mes suivis** (baisses, seuils 30/60/90 j, disparitions, sur 24 h ou 7 j) et **Le marché** (toute la base : famille, ancienneté, baisse, pro/particulier) — **livré**, connexion par clé en attendant le lot Comptes | — |
 | E · Republication | empreinte rare **et** annonce disparue → « même véhicule » | `disappeared_at` alimenté, donc revisites qui tournent |
+| F · Alertes — **décidé le 2026-09-20** | recherches enregistrées (un jeu de filtres du marché, nommé) · règles : nouvelle annonce dans la recherche, baisse sur une annonce ancienne, mouvement sur un suivi · **un email par matin**, pas un par événement | lot 4 relu (le format des filtres) ; l'envoi réel attend le fournisseur d'email, d'ici là une boîte d'envoi locale |
 | Store puis Render | inchangé, en dernier | — |
+
+**Pourquoi le lot F** : le panneau seul, Castorus le donne gratuitement. Ce qui se facture est le
+sourcing — le marché filtré, les suivis — et un marchand n'ouvre pas une page chaque matin de
+lui-même. Modèle visé : extension gratuite (acquisition, et chaque utilisateur enrichit la
+base), site payant. Avant Stripe : cinq marchands, deux semaines, gratuit — s'ils rouvrent le
+site sans relance, le prix passe.
 
 ## Programme « recherche filtrée » — décidé le 2026-09-18, un lot à la fois, revue d'Alexis entre chaque
 
@@ -65,7 +72,19 @@ boîte, département (et la région, déduite du département). Lot 3 : sur 4 87
 « Autres », 1 086 ont un vrai modèle (déduit de la version — 3a —, puis d'après la liste des
 modèles que les sites n'ont pas, validée par Alexis — 3b). Restent 3 500 annonces sans aucune
 version : seul le titre pourrait les résoudre (ancien « 3b », devenu 3c, non décidé).
-Reste le **lot 4** : les filtres dans le site.
+**Lot 4 livré le 2026-09-20, en attente de la revue d'Alexis** : filtres du marché avec
+compteurs, cascades marque → modèle et région → département, fourchettes, départements nommés.
+Le même jour : popup v2 (validée « good enough », à revoir aux tests finaux) et panneau
+La Centrale remonté en tête de la colonne principale (placement retenu par Alexis).
+
+**Lot E mesuré le 2026-09-20** (`.superpowers/lot-e-mesure.md`) : la règle « succession » —
+mêmes caractéristiques, km égal ou à peine supérieur, même département, même vendeur si pro,
+ancienne annonce disparue avant la mise en ligne de la nouvelle, candidat unique — ne se trompe
+que sur 0,26 % d'annonces forcément différentes (0 % chez les pros). Mais zéro cas réel : 11
+disparitions confirmées, toutes sur des annonces d'avant le stockage du département. **Ne pas
+coder avant une nouvelle mesure, vers le 1er octobre.** La Centrale n'a aucune détection de
+disparition (la file de revisite ne connaît que leboncoin) : lot à part, qui demande une fiche
+supprimée sauvegardée par Alexis.
 
 **Décision du 2026-09-20 — un modèle déclaré par un site n'est pas replié.** La règle « un mot
 de carrosserie se rattache au modèle de base » (GLE Coupé → GLE) ne vaut que pour la déduction
