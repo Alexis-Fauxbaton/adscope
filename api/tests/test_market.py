@@ -12,11 +12,12 @@ from conftest import auth
 NOW = datetime(2026, 9, 18, 9, 0, tzinfo=timezone.utc)
 
 
-def car(session, site_id, *, brand="Renault", model="Clio", year=2015, version=None,
-        site="lbc", seller_type=None, seller_name=None, published=None,
+def car(session, site_id, *, brand="Renault", model="Clio", year=2015, mileage=None,
+        version=None, site="lbc", seller_type=None, seller_name=None, published=None,
         disappeared_at=None, fuel=None, gearbox=None, department=None, prices=()):
     row = Listing(site=site, site_id=site_id, first_seen=NOW, last_seen=NOW,
-                  observations=1, brand=brand, model=model, year=year, version=version,
+                  observations=1, brand=brand, model=model, year=year, mileage=mileage,
+                  version=version,
                   seller_type=seller_type, seller_name=seller_name, published_at=published,
                   disappeared_at=disappeared_at, fuel=fuel, gearbox=gearbox,
                   department=department)
@@ -374,3 +375,151 @@ def test_an_unrecognizable_region_filter_value_is_a_422(client, key):
     assert client.get(
         "/v1/market", params={"region": "atlantide"}, headers=auth(key)
     ).status_code == 422
+
+
+# Les six fourchettes : `price_min`/`price_max` (dernier prix relevé),
+# `year_min`/`year_max`, `mileage_min`/`mileage_max`. `price` (dernier prix
+# relevé) exige un point de prix — `car(prices=[(NOW, N, False)])` en pose un.
+
+
+# Fait rougir `column >= low` dans `market_ranges.clauses` pour `price`, via
+# `price_min` : une annonce exactement à la borne reste dedans, une moins
+# chère en sort.
+def test_price_min_keeps_the_boundary_and_drops_what_is_cheaper(client, key, session):
+    car(session, "cheap", prices=[(NOW, 9999, False)])
+    car(session, "exact", prices=[(NOW, 10000, False)])
+    body = client.get(
+        "/v1/market", params={"price_min": 10000}, headers=auth(key)
+    ).json()
+    assert [i["site_id"] for i in body["items"]] == ["exact"]
+
+
+# Fait rougir `column <= high` dans `market_ranges.clauses` pour `price`, via
+# `price_max` : une annonce exactement à la borne reste dedans, une plus
+# chère en sort.
+def test_price_max_keeps_the_boundary_and_drops_what_is_pricier(client, key, session):
+    car(session, "exact", prices=[(NOW, 10000, False)])
+    car(session, "dear", prices=[(NOW, 10001, False)])
+    body = client.get(
+        "/v1/market", params={"price_max": 10000}, headers=auth(key)
+    ).json()
+    assert [i["site_id"] for i in body["items"]] == ["exact"]
+
+
+# Les deux bornes ensemble : seule l'annonce dans la fourchette passe.
+def test_price_min_and_max_together(client, key, session):
+    car(session, "cheap", prices=[(NOW, 5000, False)])
+    car(session, "mid", prices=[(NOW, 10000, False)])
+    car(session, "dear", prices=[(NOW, 15000, False)])
+    body = client.get(
+        "/v1/market", params={"price_min": 8000, "price_max": 12000}, headers=auth(key)
+    ).json()
+    assert [i["site_id"] for i in body["items"]] == ["mid"]
+
+
+def test_year_min_keeps_the_boundary_and_drops_what_is_older(client, key, session):
+    car(session, "old", year=2014)
+    car(session, "exact", year=2015)
+    body = client.get("/v1/market", params={"year_min": 2015}, headers=auth(key)).json()
+    assert [i["site_id"] for i in body["items"]] == ["exact"]
+
+
+def test_year_max_keeps_the_boundary_and_drops_what_is_newer(client, key, session):
+    car(session, "exact", year=2015)
+    car(session, "new", year=2016)
+    body = client.get("/v1/market", params={"year_max": 2015}, headers=auth(key)).json()
+    assert [i["site_id"] for i in body["items"]] == ["exact"]
+
+
+def test_year_min_and_max_together(client, key, session):
+    car(session, "old", year=2010)
+    car(session, "mid", year=2015)
+    car(session, "new", year=2020)
+    body = client.get(
+        "/v1/market", params={"year_min": 2013, "year_max": 2017}, headers=auth(key)
+    ).json()
+    assert [i["site_id"] for i in body["items"]] == ["mid"]
+
+
+def test_mileage_min_keeps_the_boundary_and_drops_what_is_lower(client, key, session):
+    car(session, "low", mileage=49999)
+    car(session, "exact", mileage=50000)
+    body = client.get("/v1/market", params={"mileage_min": 50000}, headers=auth(key)).json()
+    assert [i["site_id"] for i in body["items"]] == ["exact"]
+
+
+def test_mileage_max_keeps_the_boundary_and_drops_what_is_higher(client, key, session):
+    car(session, "exact", mileage=50000)
+    car(session, "high", mileage=50001)
+    body = client.get("/v1/market", params={"mileage_max": 50000}, headers=auth(key)).json()
+    assert [i["site_id"] for i in body["items"]] == ["exact"]
+
+
+def test_mileage_min_and_max_together(client, key, session):
+    car(session, "low", mileage=10000)
+    car(session, "mid", mileage=50000)
+    car(session, "high", mileage=90000)
+    body = client.get(
+        "/v1/market", params={"mileage_min": 30000, "mileage_max": 70000}, headers=auth(key)
+    ).json()
+    assert [i["site_id"] for i in body["items"]] == ["mid"]
+
+
+# Fait rougir `market_ranges.parse` : `min > max` est un 422, jamais un
+# filtre muet qui ne rend jamais rien — un par fourchette.
+def test_price_min_greater_than_price_max_is_a_422(client, key):
+    assert client.get(
+        "/v1/market", params={"price_min": 20000, "price_max": 10000}, headers=auth(key)
+    ).status_code == 422
+
+
+def test_year_min_greater_than_year_max_is_a_422(client, key):
+    assert client.get(
+        "/v1/market", params={"year_min": 2020, "year_max": 2010}, headers=auth(key)
+    ).status_code == 422
+
+
+def test_mileage_min_greater_than_mileage_max_is_a_422(client, key):
+    assert client.get(
+        "/v1/market", params={"mileage_min": 90000, "mileage_max": 10000}, headers=auth(key)
+    ).status_code == 422
+
+
+# Combinaison des fourchettes avec les autres filtres du marché — prouve que
+# `market_query.core` les compose en « et », comme le reste.
+def test_price_range_combines_with_q(client, key, session):
+    car(session, "1", model="Clio", prices=[(NOW, 10000, False)])
+    car(session, "2", model="Clio", prices=[(NOW, 20000, False)])
+    car(session, "3", model="208", prices=[(NOW, 10000, False)])
+    body = client.get(
+        "/v1/market", params={"q": "clio", "price_max": 15000}, headers=auth(key)
+    ).json()
+    assert [i["site_id"] for i in body["items"]] == ["1"]
+
+
+def test_price_range_combines_with_brand(client, key, session):
+    car(session, "1", brand="Renault", prices=[(NOW, 10000, False)])
+    car(session, "2", brand="Peugeot", prices=[(NOW, 10000, False)])
+    body = client.get(
+        "/v1/market", params={"brand": "Renault", "price_max": 15000}, headers=auth(key)
+    ).json()
+    assert [i["site_id"] for i in body["items"]] == ["1"]
+
+
+def test_price_range_combines_with_fuel(client, key, session):
+    car(session, "1", fuel="diesel", prices=[(NOW, 10000, False)])
+    car(session, "2", fuel="essence", prices=[(NOW, 10000, False)])
+    body = client.get(
+        "/v1/market", params={"fuel": "diesel", "price_max": 15000}, headers=auth(key)
+    ).json()
+    assert [i["site_id"] for i in body["items"]] == ["1"]
+
+
+def test_price_range_combines_with_region(client, key, session):
+    car(session, "1", department="75", prices=[(NOW, 10000, False)])  # Île-de-France
+    car(session, "2", department="13", prices=[(NOW, 10000, False)])  # PACA
+    body = client.get(
+        "/v1/market", params={"region": "ile-de-france", "price_max": 15000}, headers=auth(key)
+    ).json()
+    assert [i["site_id"] for i in body["items"]] == ["1"]
+

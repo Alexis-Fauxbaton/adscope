@@ -33,11 +33,14 @@ def _escaped(word) -> str:
     return word
 
 
-def family(query, brand_column, model_column, brand, model):
+def family(query, brand_column, model_column, brand, model, exclude=frozenset()):
+    """`exclude` saute l'un des deux filtres sans changer la clé qu'on en
+    tire : `facet_query.py` s'en sert pour compter la facette « brands » sans
+    son propre filtre `brand`, tout en gardant `model` s'il est posé."""
     brand_key, model_key = key(brand, model)
-    if brand:
+    if brand and "brand" not in exclude:
         query = query.where(brand_column == brand_key)
-    if model:
+    if model and "model" not in exclude:
         query = query.where(model_column == model_key)
     return query
 

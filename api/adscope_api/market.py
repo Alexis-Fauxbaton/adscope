@@ -5,7 +5,9 @@ Le contrat et les calculs vivent dans `market_query.py` (agrégé en SQL, sur
 les 47 000 annonces) et `feed_query.py` (en Python, sur ce qu'une licence
 suit) ; ce module ne fait que les monter en routes, comme `main.py` le fait
 pour le reste — `market.py` est le seul routeur à en porter deux, pour tenir
-les deux sous les 150 lignes.
+les deux sous les 150 lignes. `department`/`region` (`market_filters.py`) et
+les six fourchettes (`market_ranges.py`) sont partagés avec
+`market_facets.py`, qui accepte les mêmes filtres.
 """
 
 from datetime import datetime, timezone
@@ -15,59 +17,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from .auth import require_license
 from .db import get_session
-from .department import normalize as normalize_department
 from .feed_query import FeedOut, feed_for
+from .market_filters import combined as combined_departments
 from .market_items import MarketOut, item_of
 from .market_query import market_page
-from .region import departments_of as region_departments
+from .market_ranges import parse as parse_ranges
 from .schemas import SellerType
 from .vocab import Fuel, Gearbox
 
 router = APIRouter()
-
-
-# `department` n'est pas un vocabulaire fermé (une centaine de codes, plus les
-# DOM et la Corse) : validé au format, comme à l'entrée (`intake._department_code`)
-# — pas tronqué, jamais deviné. Une valeur qui n'y ressemble pas est un 422 :
-# un filtre muet qui ne rend jamais rien serait pire qu'une erreur.
-def _departments(values: list[str] | None) -> list[str] | None:
-    if values is None:
-        return None
-    normalized = [normalize_department(v) for v in values]
-    if None in normalized:
-        raise HTTPException(status_code=422, detail="department inconnu")
-    return normalized
-
-
-# `region`, à l'inverse, *est* un vocabulaire fermé (les dix-huit de
-# `region.REGIONS`) : un identifiant qui n'y figure pas est un 422, jamais un
-# filtre muet. Traduit en départements avant d'atteindre `market_page`, qui
-# n'a jamais entendu parler de région.
-def _region_departments(values: list[str] | None) -> list[str] | None:
-    if values is None:
-        return None
-    departments: set[str] = set()
-    for value in values:
-        found = region_departments(value)
-        if found is None:
-            raise HTTPException(status_code=422, detail="région inconnue")
-        departments.update(found)
-    return sorted(departments)
-
-
-# `department` et `region` ensemble filtrent en « et » : seuls les
-# départements demandés qui tombent aussi dans une région demandée passent.
-# Aucun des deux donné : pas de filtre (`None`). Un seul donné : lui seul.
-# Les deux, sans recoupement : liste vide, `market_query._core` doit alors ne
-# rien rendre plutôt que d'ignorer le filtre (voir son commentaire).
-def _combined_departments(department: list[str] | None, region: list[str] | None) -> list[str] | None:
-    dept = _departments(department)
-    reg = _region_departments(region)
-    if dept is None:
-        return reg
-    if reg is None:
-        return dept
-    return sorted(set(dept) & set(reg))
 
 
 @router.get("/v1/market", response_model=MarketOut)
@@ -79,6 +37,12 @@ def get_market(
     gearbox: list[Gearbox] | None = Query(default=None),
     department: list[str] | None = Query(default=None),
     region: list[str] | None = Query(default=None),
+    price_min: int | None = Query(default=None, ge=0),
+    price_max: int | None = Query(default=None, ge=0),
+    year_min: int | None = Query(default=None, ge=0),
+    year_max: int | None = Query(default=None, ge=0),
+    mileage_min: int | None = Query(default=None, ge=0),
+    mileage_max: int | None = Query(default=None, ge=0),
     min_age_days: int | None = Query(default=None, ge=0),
     dropped: bool | None = None,
     sort: Literal["age_desc", "drop_desc", "recent"] = "age_desc",
@@ -86,9 +50,11 @@ def get_market(
     session=Depends(get_session), license_=Depends(require_license),
 ):
     now = datetime.now(timezone.utc)
+    bounds = parse_ranges(price_min, price_max, year_min, year_max, mileage_min, mileage_max)
     total, rows = market_page(
         session, license_, now, brand=brand, model=model, q=q, seller_type=seller_type,
-        fuel=fuel, gearbox=gearbox, department=_combined_departments(department, region),
+        fuel=fuel, gearbox=gearbox, department=combined_departments(department, region),
+        bounds=bounds,
         min_age_days=min_age_days, dropped=dropped, sort=sort, limit=limit, offset=offset,
     )
     return {"total": total, "items": [item_of(row) for row in rows]}
