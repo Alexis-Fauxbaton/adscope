@@ -122,7 +122,7 @@ Ventilation (sur les 158 annonces impliquées) :
 | **Particulier** | 158 | 47 343 | 0,33 % (33 / 10 000) |
 | **Professionnel** | 0 | 14 112 | 0 % |
 | Particulier + km rond | 124 | 34 744 | 0,36 % (36 / 10 000) |
-| Particulier + km non rond | 34 | 12 599 | 0,27 % (27 / 10 000) |
+| Particulier + km non rond | 34 | 12 596 | 0,27 % (27 / 10 000) |
 
 Deux faits nets :
 - **Zéro collision côté pro** : le couplage pro↔pro par `seller_id` identique est un
@@ -224,6 +224,116 @@ succession).
     — 0 paire produite, faute de données, pas faute de logique. Refaire cette mesure
     dans 3–4 semaines, une fois `department` réparé et le gisement de disparitions
     dix fois plus large, avant de trancher définitivement.
+
+---
+
+## Contre-vérification (2026-09-20)
+
+Relecture de chaque requête de l'annexe contre `api/adscope_api/models.py`,
+`disappearance.py`, `publication.py`, `revisit.py`, puis ré-exécution en
+lecture seule (`SET default_transaction_read_only = on;`) de toutes les
+requêtes portant un chiffre cité dans le corps du rapport (a, b, c, d, e, la
+variante diagnostique de b, l'échantillon f et ses prix).
+
+**Tous les chiffres cités se reproduisent à l'identique** : 61 466 annonces
+(54 871 lbc / 6 595 lc), 11 `disappeared_at` / 96 `absent_since` seul, tous le
+2026‑09‑19, `department` nul sur les 107 candidates ; entonnoir b
+603 570 → 775 → 12 → 0 → 0 → 0 ; entonnoir c 5 267 520 → 2 287 → 81 → 0 → 0 → 0 ;
+variante diagnostique (département suspendu) 775 → 12 → 3 → 1 ; taux de
+collision 104 paires brutes → 79 uniques, 158 annonces impliquées, 124 km
+rond / 34 non rond, 0 pro / 158 particulier, sur dénominateurs 61 455 / 41 358
+/ 20 094 / 14 112 / 47 343 ; distribution des écarts 93 paires réparties
+39/30/15/7/2/0, dont 17 dans la fenêtre stricte de succession ; les 5 lignes
+et les 10 prix de l'échantillon f. Aucune erreur de logique trouvée dans les
+requêtes : le `b.id > a.id` de la requête d empêche bien le double comptage
+A/B et B/A qu'on redoutait ; la CTE `deg`/`uniq_pairs` calcule correctement
+l'unicité (degré = nombre de candidats, pas nombre d'observations) ; le
+traitement des nuls (`canon_brand`/`canon_model` via l'égalité qui rend NULL
+donc faux, `year`/`department` via `IS NOT NULL` explicite, `fuel`/`gearbox`
+via l'échappatoire « l'un des deux NULL ») correspond exactement à la règle
+demandée ; le fuseau de session est `Europe/Paris`, cohérent avec les
+horodatages affichés, sans effet sur les `date()` utilisés en a.
+
+Vérification supplémentaire faite pour la section d : sur les 79 paires de
+collision retenues, **aucune n'implique une annonce « en attente »**
+(`absent_since` non nul, `disappeared_at` nul) — la réserve que l'auteur
+notait lui-même dans ses "concerns" (population incluant potentiellement des
+annonces au statut incertain) n'a donc eu aucun effet sur le chiffre 0,26 % :
+requête `WHERE a_abs IS NOT NULL OR b_abs IS NOT NULL` sur les 79 paires
+→ 0 ligne.
+
+**Deux corrections apportées :**
+
+1. **Erreur mineure, sans effet sur les taux affichés** — tableau de la
+   section d : la population « Particulier + km non rond » était donnée à
+   12 599, la valeur exacte est **12 596** (47 343 particuliers = 34 744 km
+   rond + 12 596 km non rond + 3 avec `mileage` nul, oubliés dans le calcul
+   initial). Le taux affiché (0,27 %) est inchangé au centième près
+   (34/12 596 = 0,270 % contre 34/12 599 = 0,270 %). Tableau corrigé
+   ci-dessus.
+
+2. **Correction substantielle** — le rapport attribue l'absence de recul de
+   La Centrale (section a, et points 3 et 7 de la conclusion) à sa jeunesse
+   dans le crawl (« n'arrive en volume que les 19–20/09 »). C'est vrai mais
+   incomplet : **La Centrale ne produira jamais de `disappeared_at` ni
+   `absent_since` avec le code actuel, quel que soit le temps laissé au
+   crawler.** `revisit.py` définit `ADDRESS = {"lbc": _lbc}` — seul `lbc` a un
+   constructeur d'adresse de revisite ; `due()` retourne une liste vide pour
+   `site="lc"` (`build = ADDRESS.get(site); if build is None: return []`),
+   donc aucune fiche La Centrale n'est jamais mise en file de revisite, et
+   `disappearance.observe()` — le seul point d'écriture de `absent_since`/
+   `disappeared_at` — n'est donc jamais appelé pour ce site. Le commentaire de
+   `revisit.py` le dit explicitement : « La Centrale n'y figure pas : sa
+   signature d'absence n'a pas été confirmée sur une vraie disparition ». Ce
+   n'est donc pas un verrou temporel (attendre) mais un **second verrou de
+   code**, au même rang que le département manquant, et qui touche 6 595
+   annonces (10,7 % du gisement). Le point 7 de la conclusion (« laisser
+   tourner le crawler... plusieurs semaines ») ne vaut que pour lbc ; sans
+   développement (activer une adresse de revisite pour lc, hors périmètre de
+   cette mesure), la mesure restera à jamais lbc-seule.
+
+**Tentative de réfutation de l'échantillon (f).** Le rapport ne retient et
+n'étiquette aucune paire « certaine » ou « probable » — les 5 lignes
+présentées sont déjà toutes verdict « douteuse », donc il n'y a rien à
+réfuter à ce niveau. Pour aller plus loin que le rapport, les champs `fuel`,
+`gearbox` et `version` (non utilisés dans la requête diagnostique de f) ont
+été relus pour les 10 annonces citées : `fuel` et `gearbox` sont NULL des
+deux côtés dans les 5 paires (le critère 1 les a laissées passer par
+l'échappatoire « l'un des deux NULL », pas par une vraie égalité de carburant
+ou de boîte). Le texte libre `version`, lui, contredit directement deux des
+cinq paires :
+- VW Golf 2018 (`3258071053`→`3225973274`) : A n'a pas de `version`
+  enregistrée, B porte « Confortline_Golf 1.6 TDI 115ch FAP Confortline
+  DSG7 5p » — un diesel à boîte auto. Rien ne prouve que A soit ce véhicule,
+  mais rien ne l'exclut non plus (A n'a qu'une observation, sans détail) ;
+  au mieux neutre, pas une confirmation.
+- Renault Clio 2020 (`3262620650`→`3262684396`) : A porte « RS Line_Clio 1.3
+  TCe 130ch FAP RS Line EDC » (essence, boîte auto EDC), B porte « Clio 1.6
+  E-Tech 140ch Intens » (motorisation hybride, finition différente) — deux
+  moteurs et deux finitions incompatibles. Ce n'est **pas** la même voiture,
+  indépendamment de la coexistence déjà relevée par le rapport.
+
+Ces deux lectures renforcent le verdict « douteuse » déjà posé par le
+rapport ; elles ne le contredisent pas et ne promeuvent aucune paire vers
+« probable » ou « certaine ». La paire VW Golf 2021 (`3261203212`→
+`3263103099`) a, à l'inverse, une `version` strictement identique des deux
+côtés (« Golf 1.5 TSI ACT OPF 130ch Life ») — mais `first_seen = last_seen`
+pour les deux annonces, à une minute d'écart le 06/09 au matin : ce sont deux
+fiches vues une seule fois, dans le même passage de balayage de liste, donc
+par construction deux annonces distinctes visibles simultanément, pas une
+succession. Le verdict « douteuse » du rapport tient pour les 5 paires.
+
+**Verdict sur la fiabilité de la règle** : les chiffres tiennent, le calcul
+du taux de collision est sain (79/61 455 paires, 0,26 %, méthodologie
+correcte), et l'analyse du gisement dans le corps du rapport est honnête sur
+son point faible principal (le département). Mais deux verrous de données
+bloquent la mesure aujourd'hui, pas un seul : le département manquant sur
+les candidates (déjà identifié) et l'absence structurelle de revisite pour
+La Centrale (ajouté ici). Tant que ces deux verrous ne sont pas levés, la
+règle reste **non éprouvée sur un cas réel** — le taux de collision dit
+qu'elle ne produira probablement pas beaucoup de faux positifs le jour où
+elle aura des candidates à examiner, mais ça reste une mesure de précision
+indirecte, pas un test sur une vraie republication.
 
 ---
 
