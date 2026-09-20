@@ -1,112 +1,61 @@
 globalThis.ADS = globalThis.ADS || {}
 
-// La surface principale sur une fiche : l'annonce, son ancienneté réelle en
-// sujet, sa courbe, ce que le site affiche de son côté, et le suivi mutualisé.
-// Rien n'est calculé ici — le content script a lu la page, l'API a tenu le
-// relevé ; cette fenêtre n'est qu'un constat posé sur la table.
+// Ce que la page ne montre pas d'une fiche, en une ligne — et le seul geste.
+//
+// La fenêtre portait l'âge en gros, la courbe de prix, le relevé des
+// observations, le suivi et le vendeur : tout cela date d'avant le panneau, qui
+// le pose désormais dans la page, sous les yeux du lecteur. Le répéter ici
+// n'ajoutait rien et coûtait deux identités visuelles. Reste le résumé qu'on
+// cite de mémoire — « 15 jours en ligne · prix inchangé depuis le 19 sept. ».
 ADS.fiche = (() => {
-  const { el, tag, row, fill } = ADS.dom
-  const { money, number, spell } = ADS.format
+  const { el } = ADS.dom
+  const { spell, money } = ADS.format
 
-  // En jours, toujours, pour tout ce qui se compare : « 1 mois » couvrirait de
-  // 31 à 60 jours, et c'est précisément l'écart qu'on discute.
-  const days = (n) => `${number(n)} j`
+  const day = (v) => new Date(v).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
 
-  const stamp = (v) =>
-    new Date(v).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+  // Sans date sur la page, aucun âge n'est énoncé : le dire est le constat,
+  // en fabriquer un serait exactement ce que le produit combat.
+  const age = (card) =>
+    card.onlineDays == null ? 'date absente de la page' : `${spell(card.onlineDays)} en ligne`
 
-  // Le type de vendeur ferme la ligne : pour un particulier, aucun bloc de
-  // statistiques ne suivra, et rien d'autre ne le dirait.
-  const specs = (c) =>
-    [
-      c.price == null ? null : money(c.price),
-      c.mileage == null ? null : `${number(c.mileage)} km`,
-      c.year == null ? null : String(c.year),
-      c.sellerType === 'pro' ? 'professionnel' : 'particulier',
-    ].filter(Boolean).join(' · ')
+  // Depuis quand le prix affiché tient : la plus ancienne observation qui le
+  // porte sans interruption. Lu sur le relevé, jamais déduit d'un compte de
+  // jours — « depuis le 19 sept. » se cite dans une négociation, « depuis 48 j »
+  // se recalcule à chaque fois qu'on le prononce.
+  const held = (h) => {
+    let at = h[h.length - 1].at
+    for (let i = h.length - 1; i > 0 && h[i - 1].price === h[i].price; i--) at = h[i - 1].at
+    return at
+  }
 
-  // Ce que valent les observations qui portent la courbe : depuis quand on
-  // regarde, combien de fois, et quand pour la dernière. « Stable depuis deux
-  // mois » ne dit rien sans elles.
-  const tracking = (r) => {
-    if (!r) return []
-    const rows = []
-    if (r.tracked_days != null) {
-      const views = r.observations ? ` · ${r.observations} vue${r.observations > 1 ? 's' : ''}` : ''
-      rows.push({ label: 'Suivie depuis', value: days(r.tracked_days) + views })
+  // Ce que le relevé mutualisé ajoute, et lui seul : le prix a-t-il cédé depuis
+  // qu'on le regarde, et depuis quand celui-ci tient. Sans relevé, rien — une
+  // stabilité que personne n'a observée ne s'affirme pas.
+  const price = (r) => {
+    if (!r) return null
+    if (r.price_delta_since_first < 0) {
+      return `prix baissé de ${money(r.price_delta_since_first)} depuis le ${day(r.first_seen)}`
     }
-    if (r.last_seen) rows.push({ label: 'Dernière vérification', value: stamp(r.last_seen) })
-    if (r.stable_days != null) rows.push({ label: 'Prix stable depuis', value: days(r.stable_days) })
-    return rows
+    const history = r.price_history || []
+    return history.length ? `prix inchangé depuis le ${day(held(history))}` : null
   }
 
-  // La contradiction est celle que le site nomme : la fenêtre ne fait que la
-  // rattacher à la bande rouge, qu'aucune légende n'expliquerait autrement.
-  const claim = (c) => {
-    if (!c.claim) return []
-    const head = tag('div', 'claim-head')
-    head.append(tag('span', 'claim-label', c.claim.label), tag('span', 'claim-says', `« ${c.claim.says} »`))
-    return [head, tag('p', 'claim-note', `${c.claim.note} — c'est la bande rouge. Le reste de l'axe, le site ne le montre pas.`)]
-  }
+  const line = (card, signals) => [age(card), price(signals)].filter(Boolean).join(' · ')
 
-  // Le survol est une affaire de souris : au clavier, aucun point de la courbe
-  // ne serait atteignable. Le relevé dit les mêmes valeurs en toutes lettres,
-  // replié pour ne pas encombrer, et la tabulation l'ouvre.
-  const observation = (p) => ({
-    label: new Date(p.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
-    value: money(p.price),
-    mark: p.change ? 'changement' : 'vérification',
-  })
-
-  const hover = (p) => {
-    el('readout').textContent = p
-      ? `${new Date(p.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} · ${money(p.price)}`
-      : ''
-  }
-
-  const show = (card, signals, now = new Date()) => {
-    el('fiche-title').textContent = card.title || 'Annonce'
-    el('fiche-specs').textContent = specs(card)
-    // La durée d'abord, en clair ; le compte de jours à côté, pour qu'on puisse
-    // le citer. « 4 ans 11 mois » se retient, « 1 810 j » se vérifie. Et quand
-    // aucune date ne porte cet âge, la fenêtre refuse de l'épeler : elle le dit
-    // en petit et se tait, comme la courbe se contente de hachure.
-    const undated = card.onlineDays == null
-    el('age').className = undated ? 'age age--undated' : 'age'
-    el('age-main').textContent = undated ? 'date absente de la page' : spell(card.onlineDays)
-    el('age-days').textContent = undated ? '' : `${number(card.onlineDays)} j`
-    el('age-days').hidden = undated
-
-    const model = ADS.curve.plot({
-      // Sans mise en ligne, l'axe part de la première observation : la prendre
-      // à aujourd'hui écraserait sur un seul jour tout ce qu'on a vu avant.
-      publishedAt: card.publishedAt || (signals && signals.first_seen) || now,
-      now,
-      firstSeen: signals && signals.first_seen,
-      price: card.price,
-      history: (signals && signals.price_history) || [],
-      claimDays: card.claim ? card.claim.days : null,
-    })
-    el('plot').replaceChildren(ADS.chart.draw(model, hover))
-    el('axis-start').textContent = model.axis.start
-    el('axis-end').textContent = model.axis.end
-    el('readout').textContent = ''
-
-    // La phrase datée de la hachure ne se négocie pas : elle a sa ligne sous
-    // l'axe, large ou étroite, où aucun montant ne vient s'écrire par-dessus.
-    el('hatch').textContent = model.blind ? model.blind.text : ''
-    el('hatch').hidden = !model.blind
-    fill('points-rows', model.points.map((p) => row(observation(p))))
-    el('points').hidden = !model.points.length
-    fill('claim', claim(card))
-    // Le suivi mutualisé, nommé : ce qui suit ne se lit pas sur la page, il ne
-    // vient que de nous être vu plusieurs fois.
-    const seen = tracking(signals)
-    fill('tracking', seen.length ? [tag('p', 'label', 'Suivi adscope'), ...seen.map(row)] : [])
+  // Le suivi est un fait du serveur : le bouton ne se déclare suivi qu'une fois
+  // la demande acceptée, et c'est l'appelant qui rejoue le rendu avec l'état
+  // que le serveur a rendu.
+  const show = (card, signals, act) => {
+    el('fiche-line').textContent = line(card, signals)
+    const on = !!(signals && signals.followed)
+    const button = el('follow')
+    button.textContent = on ? 'Suivie' : 'Suivre'
+    button.className = on ? 'follow follow--on' : 'follow'
+    button.onclick = on ? null : act
     el('fiche').hidden = false
   }
 
-  return { show, specs, tracking }
+  return { show, line, price }
 })()
 
 if (typeof module !== 'undefined') module.exports = ADS.fiche

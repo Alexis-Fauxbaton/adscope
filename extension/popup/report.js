@@ -69,15 +69,6 @@ ADS.report = (() => {
 
   const rows = (s) => (s.kind === 'detail' ? detail(s) : listing(s))
 
-  // Le résumé d'une page de résultats : ce qui a été lu, ce qui dépasse le
-  // seuil d'ancienneté du site, ce qui est en alerte. Les deux derniers sont
-  // les seuls chiffres qui décident d'ouvrir une annonce ou de passer.
-  const summary = (s) => [
-    { label: 'Annonces lues', value: String(s.listings), bad: !s.listings },
-    { label: "Au-delà du seuil d'ancienneté", value: String(s.old ?? 0) },
-    { label: 'En alerte', value: String(s.alerts ?? 0), bad: Boolean(s.alerts) },
-  ]
-
   const trouble = (s) => {
     if (!s.payload) return { text: 'La page ne contient pas le bloc de données attendu — la structure du site a changé.' }
     if (!s.listings) return { text: 'Données présentes mais aucune annonce reconnue.' }
@@ -110,7 +101,7 @@ ADS.report = (() => {
     bad: Boolean(quota) && bytes / quota > 0.9,
   })
 
-  return { rows, summary, trouble, occupancy }
+  return { rows, trouble, occupancy }
 })()
 
 if (typeof module !== 'undefined') module.exports = ADS.report

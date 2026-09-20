@@ -1,70 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { detail, open, signals, stats } from './popup-dom.mjs'
-
-test('sur une fiche de marchand, la popup demande et montre ce qu’on a vu', async () => {
-  const { nodes, asked } = await open({ status: detail(), cached: signals() })
-  assert.equal(asked[0], 'http://api/v1/sellers/lbc/73911')
-  assert.equal(nodes['seller-box'].hidden, false)
-  assert.equal(nodes['seller-title'].textContent, 'Ce vendeur — ENTREPOT 222')
-  assert.match(nodes.seller.text, /11 annonces de ce vendeur vues par adscope/)
-  assert.match(nodes.seller.text, /Médiane d'ancienneté/)
-})
-
-// La portée n'est pas une note de bas de page : elle est lue avant les
-// chiffres, sinon le lecteur prend l'échantillon pour le catalogue.
-test('la fenêtre affiche la portée du relevé avec ses chiffres', async () => {
-  const { nodes } = await open({ status: detail() })
-  assert.match(nodes.seller.text, /30 derniers jours/)
-  assert.match(nodes.seller.text, /catalogue réel nous est inconnu/)
-})
-
-test('un particulier ne déclenche aucune demande et aucun bloc', async () => {
-  const { nodes, asked } = await open({
-    status: detail({ sellerType: 'private', sellerId: null, sellerName: null }),
-  })
-  assert.equal(asked.length, 0)
-  assert.equal(nodes['seller-box'].hidden, true)
-})
-
-test('une page de résultats ne parle pas de vendeur', async () => {
-  const { nodes, asked } = await open({
-    status: { kind: 'listing', site: 'lbc', url: '/voitures', payload: true, listings: 24, pro: 18, badges: 24, sent: 24, old: 6, alerts: 2 },
-  })
-  assert.equal(asked.length, 0)
-  assert.equal(nodes['seller-box'].hidden, true)
-})
-
-// Un vendeur que la base ne connaît pas encore : la popup se tait plutôt que
-// d'afficher un bloc vide.
-test('un vendeur inconnu laisse la fenêtre inchangée', async () => {
-  const { nodes } = await open({
-    status: detail(), answer: async () => ({ ok: false, status: 404 }),
-  })
-  assert.equal(nodes['seller-box'].hidden, true)
-})
-
-test('la note du petit échantillon arrive jusqu’à la fenêtre', async () => {
-  const { nodes } = await open({
-    status: detail(),
-    answer: async () => ({ ok: true, json: async () => stats({ listings: 3, aged: 3, over_a_month: 1, over_a_month_share: 0.333, median_age_days: 12 }) }),
-  })
-  assert.match(nodes.seller.text, /3 annonces/)
-})
-
-// Fait rougir le passage de `showSeller` par le relais du service worker
-// (`ask({ type: 'seller', ... })`, dans popup/popup.js) plutôt qu'un `fetch`
-// propre à la popup : sans licence configurée, la demande doit partir quand
-// même — en cookie de session, comme `src/lookup.js` que `sw.js` appelle pour
-// elle — et non plus se taire faute de clé.
-test('sans clé de licence, la section « Ce vendeur » part quand même', async () => {
-  const { asked, nodes } = await open({ status: detail(), licenseKey: '' })
-  assert.equal(asked[0], 'http://api/v1/sellers/lbc/73911')
-  assert.equal(nodes['seller-box'].hidden, false)
-})
+import { detail, open, signals } from './popup-dom.mjs'
 
 // Rouge sur `window.open` dans le handler `el('open-app').onclick` de
-// popup/popup.js : sans lui, le bouton ne fait rien.
+// popup/account.js : sans lui, le bouton ne fait rien.
 test('le bouton « Ouvrir adscope » ouvre l’app du site dans un nouvel onglet', async () => {
   const { nodes, opened } = await open({ status: detail(), apiBase: 'http://api' })
   nodes['open-app'].onclick()
@@ -80,7 +19,7 @@ test('une adresse d’API mal formée ne déclenche aucune ouverture', async () 
 })
 
 // Un humain ne voit plus jamais de clé : la popup lit `/v1/me` par le service
-// worker, jamais une clé stockée — c'est `showAccount` dans popup.js.
+// worker, jamais une clé stockée — c'est `showAccount` dans popup/account.js.
 test('popup déconnectée propose de se connecter, sans montrer de compte', async () => {
   const { nodes } = await open({ status: detail(), me: { ok: false } })
   assert.equal(nodes['open-app'].textContent, 'Se connecter')
@@ -100,4 +39,36 @@ test('une clé de machine ne fait pas passer la popup pour un compte connecté',
   const { nodes } = await open({ status: detail(), me: { ok: true, email: null, label: 'crawl' } })
   assert.equal(nodes.account.hidden, true)
   assert.equal(nodes['open-app'].textContent, 'Se connecter')
+})
+
+// Le lot de la refonte : la fenêtre ne répète plus ce que le panneau montre
+// déjà dans la page. Rouge sur la liste de `<script>` de popup/popup.html et
+// sur `showFiche` de popup/popup.js — y remettre la courbe, le relevé ou le
+// vendeur ferait reparaître ce qu'on a retiré.
+test('la fenêtre ne redit ni la courbe, ni le relevé, ni le vendeur', async () => {
+  const { nodes, messages } = await open({ status: detail(), cached: signals() })
+  for (const gone of ['plot', 'points', 'points-rows', 'seller', 'seller-box', 'claim', 'hatch', 'tracking']) {
+    assert.equal(nodes[gone], undefined, gone)
+  }
+  // Et rien n'est demandé au vendeur : la section n'existe plus.
+  assert.deepEqual(messages.filter((m) => m.type === 'seller'), [])
+})
+
+// Elle ne parle pas non plus d'une page de résultats : ses pastilles le disent
+// déjà carte par carte. Rouge sur le `status.kind !== 'detail'` de popup.js.
+test('hors d’une fiche, la fenêtre renvoie aux sites couverts', async () => {
+  const { nodes } = await open({
+    status: { kind: 'listing', site: 'lc', url: '/listing', payload: true, listings: 23, pro: 21, badges: 23, sent: 23, old: 9, alerts: 4 },
+  })
+  assert.equal(nodes.fiche.hidden, true)
+  assert.equal(nodes.empty.hidden, false)
+  assert.match(nodes.empty.text, /leboncoin/)
+  assert.match(nodes.empty.text, /La Centrale/)
+})
+
+test('sans page analysée, la fenêtre nomme les sites pris en charge', async () => {
+  const { nodes } = await open({ status: undefined })
+  assert.equal(nodes.fiche.hidden, true)
+  assert.equal(nodes.empty.hidden, false)
+  assert.match(nodes.empty.text, /annonce voiture/)
 })

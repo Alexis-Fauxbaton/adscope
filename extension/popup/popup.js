@@ -1,5 +1,5 @@
-const { rows, trouble, occupancy, summary } = ADS.report
-const { el, row, hint, fill, note } = ADS.dom
+const { rows, trouble, occupancy } = ADS.report
+const { el, row, hint, note } = ADS.dom
 
 // La fenêtre ne connaît aucun site : elle demande au registre le nom de celui
 // que le diagnostic désigne, et la liste de ceux qu'on couvre.
@@ -8,10 +8,12 @@ const named = (id) => (ADS.sites.all().find((s) => s.id === id) || {}).name || '
 const listed = (names) =>
   names.length > 1 ? `${names.slice(0, -1).join(', ')} ou ${names[names.length - 1]}` : names[0] || ''
 
+// Hors d'une fiche, la fenêtre n'a rien à résumer : ce qu'une page de résultats
+// porte, ses pastilles le disent déjà carte par carte.
 const showEmpty = () => {
   const where = listed(ADS.sites.all().map((s) => s.name))
   el('empty').textContent =
-    `Aucune page analysée. Ouvre une liste de résultats ou une annonce voiture sur ${where}, puis rouvre cette fenêtre.`
+    `Ouvre une annonce voiture sur ${where} : le relevé s'affiche dans la page, et son résumé ici.`
   el('empty').hidden = false
 }
 
@@ -23,27 +25,8 @@ const diagnose = (status) => {
   if (text) box.append(hint(text, bad))
 }
 
-// Ce que la fiche ouverte ne dit pas : ce qu'adscope a vu de ce marchand. La
-// demande est elle-même la mesure d'usage — rien d'autre n'est collecté.
-//
-// Relayée par le service worker, comme `/v1/me` et le cache : lui seul choisit
-// Bearer ou cookie de session (`ADS.lookup.seller`, par `ADS.auth`), la popup
-// n'a plus de clé à porter ni de destination à vérifier avant d'envoyer.
-const showSeller = async (status) => {
-  if (!status.sellerId) return
-  const res = await ask({ type: 'seller', site: status.site, sellerId: status.sellerId })
-  const block = ADS.seller.block(res && res.ok ? res.stats : null)
-  if (!block) return
-  el('seller-title').textContent = block.title
-  // La portée avant les chiffres : elle dit de quelle population ils sortent.
-  const nodes = [ADS.dom.tag('div', 'lead', block.lead), hint(block.scope), ...block.rows.map(row)]
-  if (block.note) nodes.push(hint(block.note))
-  fill('seller', nodes)
-  el('seller-box').hidden = false
-}
-
-// Le cache est tenu par le service worker : lui seul sait ce qu'il contient, et
-// lui seul garde l'historique de prix que la courbe trace.
+// Le cache, le suivi et l'API sont tenus par le service worker : lui seul sait
+// ce qu'il contient, et lui seul choisit Bearer ou cookie de session.
 const ask = (msg) => chrome.runtime.sendMessage(msg).catch(() => null)
 
 const tracked = async (status) => {
@@ -62,6 +45,17 @@ el('cache-clear').onclick = async () => {
   note('cache-note', 'ok', 'Cache vidé. Les signaux reviendront de l’API à la prochaine page.')
 }
 
+// Suivre depuis la fenêtre : le même geste que dans le panneau, et la même
+// route — le service worker, jamais un appel propre à la popup. Le bouton ne
+// bascule qu'après la réponse : un suivi qui n'a pas pris ne se dit pas pris.
+const showFiche = (status, signals) => {
+  const follow = async () => {
+    const res = await ask({ type: 'follow', site: status.site, siteId: status.pickedId })
+    if (res && res.ok) showFiche(status, { ...(signals || {}), followed: true })
+  }
+  ADS.fiche.show(status.card, signals, follow)
+}
+
 chrome.storage.local.get(['licenseKey', 'apiBase', 'status']).then(async (stored) => {
   ADS.account.init(stored)
   // Avant tout le reste : ce qui empêche l'extension de travailler, et le geste
@@ -71,9 +65,7 @@ chrome.storage.local.get(['licenseKey', 'apiBase', 'status']).then(async (stored
   ADS.account.showAccount(await ask({ type: 'me' }))
   const status = stored.status
   diagnose(status)
-  if (!status) return showEmpty()
+  if (!status || status.kind !== 'detail' || !status.card) return showEmpty()
   el('site').textContent = named(status.site)
-  if (status.kind !== 'detail') return fill('summary-rows', summary(status).map(row)), (el('summary').hidden = false)
-  if (status.card) ADS.fiche.show(status.card, await tracked(status))
-  showSeller(status)
+  showFiche(status, await tracked(status))
 })

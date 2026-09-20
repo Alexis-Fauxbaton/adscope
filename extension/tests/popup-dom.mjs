@@ -56,13 +56,9 @@ export const signals = (over = {}) => ({
   ...over,
 })
 
-export const stats = (over = {}) => ({
-  site: 'lbc', seller_id: '73911', seller_name: 'ENTREPOT 222',
-  listings: 11, aged: 11, window_days: 30, over_a_month: 3,
-  over_a_month_share: 0.273, median_age_days: 7, price_changed_listings: 0,
-  price_drop_listings: 0, price_drop_rate: null, price_drop_after_days: null,
-  ...over,
-})
+// Ce que `/v1/me` rend au bouton « Tester la connexion » — la seule route que
+// la fenêtre appelle encore par `fetch`, depuis src/config.js.
+export const licence = (over = {}) => ({ label: 'Garage Dupont', expires_at: null, ...over })
 
 export const card = (over = {}) => ({
   title: 'Peugeot 208 phase 2 · 1.2 PureTech', price: 12900, mileage: 3574, year: 2020,
@@ -77,21 +73,24 @@ export const detail = (over = {}) => ({
   card: card(), ...over,
 })
 
+// L'ordre des balises `<script>` de popup.html : chaque module trouve au
+// chargement ceux dont il se sert.
 const FILES = [
   ['../src/', 'sites.js'], ['../src/', 'sites/read.js'],
   ['../src/', 'sites/leboncoin.js'], ['../src/', 'sites/lacentrale.js'],
   ['../src/', 'format.js'], ['../src/', 'health.js'],
-  ['../popup/', 'dom.js'], ['../popup/', 'config.js'], ['../popup/', 'report.js'], ['../popup/', 'seller.js'],
-  ['../src/', 'curve.js'], ['../popup/', 'labels.js'], ['../popup/', 'chart.js'], ['../popup/', 'fiche.js'],
-  ['../popup/', 'account.js'], ['../popup/', 'alerts.js'], ['../popup/', 'popup.js'],
+  ['../popup/', 'dom.js'], ['../popup/', 'config.js'], ['../popup/', 'report.js'],
+  ['../popup/', 'fiche.js'], ['../popup/', 'account.js'], ['../popup/', 'alerts.js'],
+  ['../popup/', 'popup.js'],
 ]
 
 // La fenêtre telle qu'elle s'ouvre : le stockage rend le dernier diagnostic, le
-// service worker rend le cache, et `answer` joue l'API sur le vendeur.
+// service worker rend le cache et le suivi, et `answer` joue l'API pour le
+// seul appel direct qui reste — le test de connexion.
 export const open = async ({
   status,
   cached = null,
-  answer = async () => ({ ok: true, json: async () => stats() }),
+  answer = async () => ({ ok: true, json: async () => licence() }),
   apiBase = 'http://api',
   licenseKey = 'adsc_' + 'a'.repeat(32),
   granted = true,
@@ -101,10 +100,13 @@ export const open = async ({
   // Les problèmes que le service worker rapporte à `{ type: 'health' }` —
   // aucun par défaut, comme une extension en bon état.
   problems = [],
+  // Ce que le service worker répond à `{ type: 'follow' }` — accepté par
+  // défaut, comme une API qui enregistre le suivi demandé.
+  followed = { ok: true },
 } = {}) => {
   const nodes = {}
   // Les sections écrites masquées dans popup.html : c'est l'état de départ.
-  for (const id of ['seller-box', 'fiche', 'summary', 'claim', 'hatch', 'empty', 'points', 'alerts']) {
+  for (const id of ['fiche', 'empty', 'alerts']) {
     nodes[id] = new El()
     nodes[id].hidden = true
   }
@@ -126,15 +128,7 @@ export const open = async ({
         if (msg.type === 'cached') return { ok: true, signals: cached ? { [status.pickedId]: cached } : {} }
         if (msg.type === 'me') return me
         if (msg.type === 'health') return { ok: true, problems }
-        // Ce que `sw.js` rend pour `{ type: 'seller' }` : relayé à `ADS.lookup.seller`,
-        // par `ADS.auth` — c'est cette route réseau, pas un `fetch` de la popup, que
-        // `answer` simule ici, comme le fait le service worker réel.
-        if (msg.type === 'seller') {
-          const url = `${apiBase}/v1/sellers/${msg.site}/${msg.sellerId}`
-          asked.push(url)
-          const res = await answer(url, {})
-          return { ok: true, stats: res.ok ? await res.json() : null }
-        }
+        if (msg.type === 'follow') return followed
         return { entries: 0, bytes: 0, quota: 1000 }
       },
     },

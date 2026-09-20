@@ -147,7 +147,7 @@ test('aucun module partagé ne nomme un site', () => {
   const names = shared.map((f) => f.split('/').pop())
   // La garde couvre les trois surfaces : le tronc, la fenêtre, et l'outil de
   // lecture qui vit parmi les modules de site sans en nommer aucun.
-  for (const f of ['sites.js', 'view.js', 'popup.js', 'seller.js', 'read.js', 'sw.js']) {
+  for (const f of ['sites.js', 'view.js', 'popup.js', 'fiche.js', 'read.js', 'sw.js']) {
     assert.ok(names.includes(f), `${f} échappe à la garde`)
   }
   for (const f of shared) {
