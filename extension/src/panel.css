@@ -6,6 +6,10 @@
   /* La page hôte n'entre pas : ni sa fonte, ni ses marges, ni ses couleurs. */
   all: initial;
   display: block;
+  /* `all: initial` rend le `box-sizing` à `content-box` : le panneau mesurait
+     100 % de sa colonne PLUS ses 40 px de marge intérieure, et débordait
+     d'autant — franc dans une colonne étroite, le tracé sortant de sa carte. */
+  box-sizing: border-box;
   width: 100%;
   max-width: 620px;
   margin: 20px 0;
@@ -24,7 +28,7 @@
 
 /* Les descendants héritent de la racine et de rien d'autre. Les nœuds de dessin
    sont laissés de côté : `all` recouvre `fill` et `stroke`, et une règle CSS
-   l'emporte sur un attribut de présentation — le tracé disparaîtrait. */
+   l'emporte sur un attribut de présentation. */
 .adscope-panel :where(div, p, span, button, a, b) {
   all: unset;
   display: revert;
@@ -34,8 +38,8 @@
 .adscope-head-row { display: flex; align-items: center; gap: 12px; margin: 0 4px 12px; }
 .adscope-head { color: #9aa0ae; font-size: 12.5px; font-weight: 500; margin: 0; }
 
-/* Le seul geste du panneau. Il porte l'accent de la mesure d'adscope, jamais
-   l'orangé : suivre une annonce ne dit rien de ce que le site cache. */
+/* Le seul geste du panneau : l'accent de la mesure d'adscope, jamais l'orangé —
+   suivre une annonce ne dit rien de ce que le site cache. */
 .adscope-follow {
   margin-left: auto;
   padding: 7px 14px;
@@ -92,7 +96,11 @@
   white-space: nowrap;
 }
 
-.adscope-plot { display: block; width: 100%; height: auto; }
+/* Le tracé est dessiné en pixels d'écran : ses attributs `width`/`height`
+   portent la largeur mesurée et le `viewBox` la suit — échelle 1, donc un corps
+   de 12,5 px reste 12,5 px à 300 comme à 620. Aucune largeur en CSS. */
+.adscope-plot-box { display: block; }
+.adscope-plot { display: block; max-width: 100%; height: auto; }
 .adscope-window { fill: #fdf0e4; }
 .adscope-window-label { fill: #b75e12; font-size: 11.5px; font-weight: 700; }
 .adscope-line { fill: none; stroke: #4f46e5; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
@@ -104,15 +112,7 @@
 .adscope-open-head { display: flex; align-items: center; gap: 14px; margin: 0 0 22px; }
 .adscope-open-head .adscope-title { margin: 0; }
 
-.adscope-round {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 44px;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-}
+.adscope-round { display: flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; border-radius: 50%; }
 .adscope-round--blue { background: #e9ecfd; color: #4f46e5; }
 .adscope-round--green { background: #e3f3eb; color: #17845a; }
 .adscope-round--grey { background: #eceef3; color: #6b7180; }
@@ -136,10 +136,9 @@
 .adscope-reserve { font-size: 12.5px; line-height: 1.5; color: #9aa0ae; margin: 16px 0 0; }
 
 /* Palier compact : la colonne où le site pose le panneau, pas seulement le
-   mobile — La Centrale en donnait déjà 404 px à 1440 de viewport. Le chiffre
-   héros et le padding cèdent, le tracé de la courbe se resserre à 110 px. */
+   mobile. Le chiffre héros et le padding cèdent ; le tracé, lui, garde ses
+   corps de texte et se contente d'une abscisse plus courte. */
 @container (max-width: 480px) {
   .adscope-card { padding: 16px; }
   .adscope-hero { font-size: 34px; }
-  .adscope-plot { height: 110px; }
 }

@@ -86,3 +86,60 @@ test('un relevé moins fréquent redit « chaque semaine » sous la courbe', () 
     assert.equal(w.panel().querySelector('.adscope-fine').textContent, 'Suivie depuis 3 mois · vérifiée chaque semaine')
   })
 })
+
+const plot = (w) => w.panel().querySelector('.adscope-plot')
+const box = (w) => w.panel().querySelector('.adscope-plot-box')
+const at = (w, width) => {
+  box(w).clientWidth = width
+  ADS.plot.fit(w.panel())
+  return plot(w)
+}
+
+// Le texte d'un SVG rétrécit avec son `viewBox` : dans une colonne de 300 px,
+// « 3 990 » et les dates de l'axe devenaient microscopiques. Le tracé se
+// dessine donc dans un repère en pixels d'écran — `viewBox` et `width` portent
+// la même largeur, l'échelle vaut 1, et un corps de 12,5 px reste 12,5 px.
+// Rouge sur le `frame(width)` de src/panel-curve.js : un cadre figé à 572
+// rendrait un rapport `viewBox`/`width` différent de 1 à chaque autre largeur.
+test("le tracé se dessine à l'échelle 1, quelle que soit la colonne", () => {
+  fiche((w) => {
+    w.arrive({ [ID]: SIGNALS })
+    for (const width of [300, 400, 620]) {
+      const svg = at(w, width)
+      assert.equal(svg.getAttribute('width'), String(width), `${width} px`)
+      assert.equal(svg.getAttribute('viewBox'), `0 0 ${width} 210`, `${width} px`)
+    }
+  })
+})
+
+// Avant toute mesure — la carte n'est pas encore dans la page —, le tracé est
+// dessiné à la largeur de la maquette, et jamais sous le plancher. Rouge sur le
+// `draw(m, width = WIDE)` de src/panel-curve.js, et sur le `Math.max(NARROW, …)`
+// de son `frame` : l'un tient le défaut, l'autre le plancher.
+test('sans largeur mesurée, le tracé prend celle de la maquette', () => {
+  fiche((w) => {
+    w.arrive({ [ID]: SIGNALS })
+    assert.equal(plot(w).getAttribute('width'), '572')
+    // Et une colonne absurde ne rétrécit pas au-delà du plancher.
+    assert.equal(at(w, 80).getAttribute('width'), '180')
+  })
+})
+
+// À l'étroit, ce sont les libellés qui cèdent, jamais leur corps : les deux
+// bornes de l'axe restent écrites — elles disent ce que la courbe couvre —, et
+// les dates de changement s'effacent quand il n'y a plus la place. Rouge sur le
+// `fits` de src/panel-labels.js tel que `write` l'emploie : l'encombrement se
+// calcule sur le repère réel, donc il ne rend pas le même verdict à 300 px
+// qu'à 620.
+test("à l'étroit, un libellé cède sa place plutôt que sa taille", () => {
+  fiche((w) => {
+    w.arrive({ [ID]: SIGNALS })
+    const axis = (width) =>
+      at(w, width).children.filter((n) => n.getAttribute('class') === 'adscope-axis').map((n) => n.textContent)
+    const wide = axis(620)
+    const narrow = axis(300)
+    assert.deepEqual(wide, ['11 mai 2026', 'auj.', '14 juin', '20 juil.'])
+    assert.ok(narrow.includes('11 mai 2026') && narrow.includes('auj.'), narrow.join(' · '))
+    assert.ok(narrow.length < wide.length, `${narrow.join(' · ')} contre ${wide.join(' · ')}`)
+  })
+})

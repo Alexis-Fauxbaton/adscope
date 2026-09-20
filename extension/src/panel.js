@@ -85,6 +85,10 @@ ADS.panel = (() => {
       ...deck(ctx, root.getAttribute(OPEN), toggle),
       el('p', 'adscope-foot', FOOT),
     )
+    // Le tracé se dessine en pixels d'écran, et sa largeur ne se connaît
+    // qu'une fois la carte posée : on mesure, puis on redessine à la place
+    // trouvée. Sans quoi son texte rétrécirait avec la colonne.
+    ADS.plot.fit(root)
   }
 
   return { render }
