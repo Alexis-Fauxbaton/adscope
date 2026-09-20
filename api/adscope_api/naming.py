@@ -107,7 +107,7 @@ def _rebrand(canon_brand, canon_model):
     return " ".join([canon_brand, *model_words[len(brand_words):]])
 
 
-def label(brand, model, version, inferred=None) -> str:
+def label(brand, model, version, inferred=None, year=None) -> str:
     """Marque, modèle, version — sans « Autres » et sans redite.
 
     Un modèle **déduit** (`inference.infer_model`, clé repliée) s'emploie
@@ -122,8 +122,13 @@ def label(brand, model, version, inferred=None) -> str:
     Picasso, « Smart » pour une Fortwo —, c'est ce nom-là qu'il faut retirer de
     la queue, et `model_catalog` le dit : sinon « Citroën Xsara Picasso Base
     Picasso 2.0 HDi90 ».
+
+    `year` ne sert qu'à un alias de modèle **déclaré** sous condition d'année
+    (« Picasso » → Xsara Picasso jusqu'en 2010, décision d'Alexis du
+    2026-09-20) : sans lui, l'affichage désaccorderait avec le seau où
+    l'annonce a été rangée.
     """
-    canon_brand, canon_model = canonical(brand, model, version)
+    canon_brand, canon_model = canonical(brand, model, version, year)
     written = ()
     if inferred and canon_model in (None, UNKNOWN):
         canon_model = spelled_inferred(inferred)

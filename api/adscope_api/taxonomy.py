@@ -33,7 +33,7 @@ FROM_SITE = "site"
 FROM_VERSION = "version"
 
 
-def canonical(brand, model, version=None):
+def canonical(brand, model, version=None, year=None):
     """(marque, modèle) sous l'écriture d'affichage, alias appliqués.
 
     L'alias remplace le modèle seulement quand le site n'en donne pas : une
@@ -48,7 +48,11 @@ def canonical(brand, model, version=None):
     nomment la même voiture différemment n'en font qu'un seau. leboncoin
     classe 24 annonces en « 812 Superfast », La Centrale 3 en « 812 » ; le nom
     court l'emporte. Il s'applique au modèle **déclaré**, après l'alias de
-    marque puisqu'il se lit sur la marque canonique.
+    marque puisqu'il se lit sur la marque canonique. Certains portent une
+    condition d'année (`annee_max`, décision d'Alexis du 2026-09-20) : les 14
+    Citroën « Picasso » que La Centrale déclare ne deviennent des Xsara
+    Picasso que jusqu'en 2010, comme la tête déduite du même nom — une année
+    manquante ne remplit pas la condition, exactement comme dans `inference`.
     """
     canon_brand, canon_model = spelled_brand(brand), spelled_model(model)
     rule = ALIASES.get(fold(brand))
@@ -60,10 +64,14 @@ def canonical(brand, model, version=None):
             if not conditional or version_confirms(version, posed_model):
                 canon_model = posed_model
     renamed = MODEL_ALIASES.get((fold(canon_brand), fold(canon_model)))
-    return canon_brand, canon_model if renamed is None else renamed
+    if renamed is not None:
+        target, year_max = renamed
+        if year_max is None or (year is not None and year <= year_max):
+            canon_model = target
+    return canon_brand, canon_model
 
 
-def key(brand, model, version=None):
+def key(brand, model, version=None, year=None):
     """La clé de rapprochement : la forme canonique **repliée**.
 
     C'est ce que `listings.canon_brand` / `canon_model` portent et ce que
@@ -71,10 +79,11 @@ def key(brand, model, version=None):
     côtés. L'orthographe affichée ne se stocke pas : elle se recalcule par
     `naming.label`, et la changer ne change aucun seau.
     """
-    return tuple(None if v is None else fold(v) for v in canonical(brand, model, version))
+    return tuple(None if v is None else fold(v)
+                 for v in canonical(brand, model, version, year))
 
 
-def search_text(brand, model, version, inferred=None) -> str:
+def search_text(brand, model, version, inferred=None, year=None) -> str:
     """Les mots sur lesquels `?q=` cherche : observés *et* canoniques, pliés.
 
     Dédoublonnés dans l'ordre d'apparition — « Corvette / Autres » et
@@ -84,7 +93,7 @@ def search_text(brand, model, version, inferred=None) -> str:
     forcément son découpage — un modèle déduit « ds 3 » vient d'une version
     qui peut écrire « DS3 ».
     """
-    canon_brand, canon_model = canonical(brand, model, version)
+    canon_brand, canon_model = canonical(brand, model, version, year)
     words = {}
     for value in (brand, model, version, canon_brand, canon_model, inferred):
         # Le souligné de leboncoin est un séparateur de mots, comme dans
@@ -123,14 +132,14 @@ def derive(listing, known=None) -> bool:
     (au-delà, le C4 Picasso existe aussi). Une annonce sans année ne remplit
     aucune condition, et ne reçoit donc pas ces modèles-là.
     """
-    brand, model = key(listing.brand, listing.model, listing.version)
+    brand, model = key(listing.brand, listing.model, listing.version, listing.year)
     source = None if model in (None, fold(UNKNOWN)) else FROM_SITE
     inferred = None
     if source is None and known is not None:
         inferred = infer_model(brand, listing.version, known, listing.year)
         if inferred is not None:
             model, source = inferred, FROM_VERSION
-    text = search_text(listing.brand, listing.model, listing.version, inferred)
+    text = search_text(listing.brand, listing.model, listing.version, inferred, listing.year)
     after = (brand, model, source, text)
     before = (listing.canon_brand, listing.canon_model,
               listing.canon_model_source, listing.search_text)

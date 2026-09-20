@@ -77,6 +77,7 @@ def _feed_item(listing, followed_at, since_days, since, now) -> dict:
         "label": label(
             listing.brand, listing.model, listing.version,
             inferred_model(listing.canon_model, listing.canon_model_source),
+            listing.year,
         ),
         "year": listing.year, "mileage": listing.mileage,
         "price": listing.prices[-1].price if listing.prices else None,
