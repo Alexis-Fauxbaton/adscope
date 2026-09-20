@@ -59,6 +59,23 @@ carburant, boîte et département ne sont pas stockés.
 | 3 · Les « Autres » | modèle **déduit du titre au passage**, comparé à la liste des modèles connus de la marque ; **on stocke le modèle déduit, jamais le titre**. Déterministe et prudent : une seule correspondance sans ambiguïté, sinon « modèle non précisé ». Ne remplace jamais un modèle donné par le site. **Reste hors de l'empreinte véhicule.** Précision mesurée d'abord sur les annonces dont le modèle est connu |
 | 4 · Recherche filtrée | cascade marque → modèle avec compteurs, fourchettes prix / année / km, carburant, boîte, département, puis nos filtres (ancienneté, baisse, pro / particulier) |
 
+**État au 2026-09-20.** Lots 1, 2 et 3 livrés, relus par Alexis. Lot 1 : recherche texte
+tolérante, libellés sans répétition, orthographe officielle des marques. Lot 2 : carburant,
+boîte, département (et la région, déduite du département). Lot 3 : sur 4 875 annonces au modèle
+« Autres », 1 086 ont un vrai modèle (déduit de la version — 3a —, puis d'après la liste des
+modèles que les sites n'ont pas, validée par Alexis — 3b). Restent 3 500 annonces sans aucune
+version : seul le titre pourrait les résoudre (ancien « 3b », devenu 3c, non décidé).
+Reste le **lot 4** : les filtres dans le site.
+
+**Décision du 2026-09-20 — un modèle déclaré par un site n'est pas replié.** La règle « un mot
+de carrosserie se rattache au modèle de base » (GLE Coupé → GLE) ne vaut que pour la déduction
+des « Autres ». Six modèles déclarés par les sites auraient pu être rattachés (Peugeot Expert
+Combi → Expert 33, Citroën Nemo Combi → Nemo 30, Toyota Proace Combi 2, Ferrari 458 Spider 3,
+SF90 Spider 1, Mini Cabriolet 1) : Alexis a dit non. S'il change d'avis : six lignes d'alias de
+modèle dans `shared/vehicle-aliases.json`, puis `api/scripts/recanonize.py --all`. Ne jamais en
+faire une règle automatique : « Hyundai Coupé », « Bentley Coupé », « Fiat 124 Spider » portent
+le mot dans leur nom.
+
 **Alerte « la date a disparu »** (décidée le même jour) : le produit repose sur la date de
 première publication que les sites laissent dans leur page (`first_publication_date`,
 `creationDate`, `firstOnlineDate`). C'est le point fragile, bien plus que les identifiants. Une
