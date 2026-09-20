@@ -6,6 +6,7 @@ import { renderFollows } from './follows.js'
 import { renderLogin } from './login.js'
 import { renderMarket } from './market.js'
 import { EMPTY_FILTERS } from './query.js'
+import { filtersFromHash, splitHash } from './url-state.js'
 
 const ROUTES = [['#/suivis', 'Mes suivis'], ['#/marche', 'Le marché']]
 
@@ -21,8 +22,12 @@ const state = {
   onAuthError: () => { montrerConnexion() },
 }
 
+// Le fragment porte la route *et* les filtres (`#/marche?brand=…`) : la route
+// se lit avant le point d'interrogation, sinon aucune page ne se reconnaîtrait
+// dès qu'un filtre est posé.
 function route() {
-  return ROUTES.some(([href]) => href === location.hash) ? location.hash : ROUTES[0][0]
+  const { route: courante } = splitHash(location.hash)
+  return ROUTES.some(([href]) => href === courante) ? courante : ROUTES[0][0]
 }
 
 async function deconnecter() {
@@ -58,6 +63,10 @@ function vue() {
   // Changer de vue remet la pagination à zéro : « Voir plus » compte des
   // annonces, pas des visites.
   state.items = []
+  // Les filtres se relisent dans l'URL à chaque affichage : c'est ce qui fait
+  // marcher le bouton retour du navigateur, puisque revenir en arrière émet
+  // `hashchange` et repasse ici.
+  state.filters = filtersFromHash(location.hash)
   if (route() === '#/marche') renderMarket(zone, state)
   else renderFollows(zone, state)
 }

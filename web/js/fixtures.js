@@ -2,8 +2,11 @@
 // réseau ni licence. C'est aussi ce qui permet de dessiner l'écran pendant que
 // les routes se livrent en parallèle.
 
-import { DEMO_NOW, FOLLOW_ROWS, MARKET_ROWS, isoDaysBefore } from './fixtures-data.js'
-import { demoLabel, matchesQuery } from './fixtures-search.js'
+import { DEMO_NOW, FOLLOW_ROWS, isoDaysBefore } from './fixtures-data.js'
+import { DEMO_REGIONS, facetsOf } from './fixtures-facets.js'
+import { matches } from './fixtures-filter.js'
+import { MARKET_ROWS } from './fixtures-rows.js'
+import { demoLabel } from './fixtures-search.js'
 
 export const THRESHOLDS = [30, 60, 90]
 
@@ -31,7 +34,24 @@ function baseItem(row, index) {
   }
 }
 
-const MARKET = MARKET_ROWS.map(baseItem)
+// Carburant, boîte et lieu ne vivent que sur les lignes du marché : les
+// colonnes 10 à 12 de `MARKET_ROWS`. `FOLLOW_ROWS` y range autre chose (le
+// suivi), d'où deux lectures et non une seule.
+function marketItem(row, index) {
+  const item = baseItem(row, index)
+  const [fuel, gearbox, department] = row.slice(10)
+  const [region, regionLabel] = DEMO_REGIONS[department] || []
+  return {
+    ...item,
+    fuel: fuel || null,
+    gearbox: gearbox || null,
+    department: department || null,
+    region: region || null,
+    region_label: regionLabel || null,
+  }
+}
+
+const MARKET = MARKET_ROWS.map(marketItem)
 
 // Le plus haut seuil d'ancienneté franchi *pendant* la fenêtre : au début de la
 // fenêtre l'annonce ne l'avait pas encore atteint, à la fin elle l'a dépassé.
@@ -78,22 +98,6 @@ export function feed({ since_days: sinceDays = 7 } = {}) {
   return { items }
 }
 
-function matches(item, params) {
-  const brand = params.get('brand')
-  const model = params.get('model')
-  const q = params.get('q')
-  const sellerType = params.get('seller_type')
-  const minAge = Number(params.get('min_age_days') || 0)
-  // Filtres exacts, comparés à la forme canonique — ici celle des fixtures.
-  if (brand && item.brand.toLowerCase() !== brand.toLowerCase()) return false
-  if (model && item.model.toLowerCase() !== model.toLowerCase()) return false
-  if (q && !matchesQuery(item, q)) return false
-  if (sellerType && item.seller_type !== sellerType) return false
-  if (item.age_days < minAge) return false
-  if (params.get('dropped') === 'true' && item.price_delta_since_first >= 0) return false
-  return true
-}
-
 const ORDERS = {
   age_desc: (a, b) => b.age_days - a.age_days,
   drop_desc: (a, b) => a.price_delta_since_first - b.price_delta_since_first,
@@ -106,6 +110,10 @@ export function market(params) {
   const offset = Number(params.get('offset') || 0)
   const limit = Number(params.get('limit') || 50)
   return { total: kept.length, items: kept.slice(offset, offset + limit) }
+}
+
+export function facets(params) {
+  return facetsOf(MARKET, params)
 }
 
 export function me() {

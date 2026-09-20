@@ -1,0 +1,70 @@
+/* Le panneau « Plus de filtres » et la feuille plein écran du mobile.
+   Séparé de `filters.css`, qui tient la rangée toujours visible : deux
+   surfaces, deux fichiers, chacun sous la limite de lignes du dépôt. */
+
+/* ── le panneau replié ── */
+.panneau{margin-top:14px; padding:28px 30px 24px}
+.panneau-tete{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:26px}
+.panneau-t{font-size:17px; font-weight:800; letter-spacing:-.02em}
+.panneau-x{font-size:13.5px; font-weight:700; color:var(--faible)}
+.panneau-x:hover{color:var(--douce)}
+.panneau-grille{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:30px 40px}
+.sec-large{grid-column:1 / -1}
+.sec-t{font-size:13px; font-weight:700; color:var(--douce); margin-bottom:13px}
+.sec-n{font-size:12.5px; line-height:1.55; color:var(--grise); margin-top:11px}
+/* Dans une section, un groupe de boutons se serre sur son contenu : étiré
+   sur toute la largeur, « Avec baisse » se lirait comme un bouton d'action. */
+.sec .seg{display:inline-flex}
+.sec .faux ~ .sec-n{color:#B4243A}
+
+.duo{display:flex; align-items:center; gap:11px}
+.champ-n{border-radius:14px; padding:11px 14px; min-width:0; flex:1 1 0}
+.champ-n::-webkit-outer-spin-button,.champ-n::-webkit-inner-spin-button{appearance:none; margin:0}
+.champ-n{appearance:textfield}
+.duo-t{color:var(--grise); flex:0 0 auto}
+.duo-u{font-size:13.5px; font-weight:600; color:var(--faible); flex:0 0 auto}
+.duo.faux .champ-n{box-shadow:inset 0 0 0 1.5px rgba(180,36,58,.45)}
+.duo-l{display:flex; gap:16px; flex-wrap:wrap}
+.duo-l .combo{flex:1 1 150px}
+.duo-l .combo-b{min-width:0}
+
+.opts{display:flex; flex-wrap:wrap; gap:9px}
+.opt{
+  display:inline-flex; align-items:center; gap:9px; background:var(--gris-pale);
+  border-radius:999px; padding:9px 15px; font-size:13.5px; font-weight:600;
+  color:var(--douce);
+}
+.opt.on{background:var(--accent-pale); color:var(--accent-encre); font-weight:700}
+.opt-n{font-size:12.5px; font-weight:600; color:var(--grise)}
+.opt.on .opt-n{color:var(--accent-encre); opacity:.6}
+
+.panneau-pied{display:flex; align-items:center; justify-content:space-between; margin-top:30px}
+.panneau-effacer{font-size:13.5px; font-weight:700; color:var(--faible)}
+.panneau-effacer:hover{color:var(--douce); text-decoration:underline}
+.panneau-voir{display:none}
+
+.vide-f{display:flex; flex-direction:column; align-items:flex-start; gap:14px}
+.vide-f .tout-effacer{padding:0; color:var(--accent); text-decoration:none}
+
+/* ── étroit : la feuille plein écran ── */
+@media (max-width:720px){
+  .panneau{
+    position:fixed; inset:0; z-index:60; margin:0; border-radius:0;
+    padding:22px 18px 0; overflow-y:auto; box-shadow:none;
+  }
+  .panneau-grille{grid-template-columns:1fr; gap:26px}
+  /* La barre reste au bas de l'écran pendant qu'on fait défiler : elle a
+     besoin d'un fond plein, sinon le contenu passe dessous en transparence. */
+  .panneau-pied{
+    position:sticky; bottom:0; background:var(--carte); z-index:1;
+    margin:26px -18px 0; padding:16px 18px 22px; gap:16px;
+  }
+  /* Un fondu au-dessus de la barre : la section coupée se lit alors comme
+     « ça continue », et non comme un contrôle tronqué. */
+  .panneau-pied::before{
+    content:''; position:absolute; left:0; right:0; bottom:100%; height:24px;
+    background:linear-gradient(to top,var(--carte),rgba(255,255,255,0));
+  }
+  .panneau-voir{display:block; flex:1 1 auto; text-align:center}
+  .panneau-effacer{flex:0 0 auto}
+}

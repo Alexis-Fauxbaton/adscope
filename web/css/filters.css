@@ -1,0 +1,100 @@
+/* Les filtres du marché. Même registre que le reste (app consumer, cartes
+   blanches, aucun filet) avec une règle en plus, parce qu'une page de filtres
+   est l'endroit où l'on retombe le plus vite dans le compact et l'empilé :
+   peu de contrôles visibles à la fois, et de l'air entre chacun. */
+
+.sr{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+}
+
+/* ── la rangée toujours visible ── */
+.zone-f{margin:26px 0 0}
+.filtres{display:flex; flex-direction:column; gap:22px; padding:26px 28px}
+.filtres-r{display:flex; align-items:flex-end; gap:18px; flex-wrap:wrap}
+.filtres-r2{align-items:center; gap:24px}
+.filtres-fin{margin-left:auto}
+.bloc{display:flex; flex-direction:column; gap:9px; min-width:0}
+.bloc-l,.combo-l{
+  font-size:12px; font-weight:700; color:var(--grise);
+  letter-spacing:.01em; display:block;
+}
+.bloc-q{flex:1 1 240px}
+.filtres .champ{border-radius:14px; padding:11px 15px}
+
+/* ── une liste de choix avec ses compteurs ── */
+.combo{position:relative; display:flex; flex-direction:column; gap:9px}
+.combo-b{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  background:var(--gris-pale); border-radius:14px; padding:11px 15px;
+  font-size:14.5px; font-weight:600; color:var(--encre);
+  min-width:168px; text-align:left;
+}
+.combo-b.on{background:var(--accent-pale); color:var(--accent-encre); font-weight:700}
+.combo-b:disabled{color:var(--grise); font-weight:600; cursor:default}
+.combo-b:focus-visible,.plus-f:focus-visible,.opt:focus-visible,
+.pastille:focus-visible,.raccourci:focus-visible,.seg-b:focus-visible{
+  outline:2px solid var(--accent); outline-offset:2px;
+}
+.combo-v{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.combo-chev,.plus-chev{
+  width:12px; height:12px; flex:0 0 12px;
+  background:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.75 6 7.75 9 4.75' fill='none' stroke='%236B7180' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center;
+}
+.plus-f.on .plus-chev{transform:rotate(180deg)}
+.combo-pop{
+  position:absolute; top:calc(100% + 8px); left:0; z-index:40;
+  min-width:max(100%,264px); background:var(--carte); border-radius:18px;
+  box-shadow:0 14px 38px rgba(16,20,40,.16); padding:10px;
+}
+.combo-f{
+  width:100%; background:var(--gris-pale); border:0; border-radius:12px;
+  padding:9px 13px; font-size:14px; margin-bottom:8px;
+}
+.combo-f:focus{outline:2px solid var(--accent); outline-offset:1px}
+.combo-list{list-style:none; margin:0; padding:0; max-height:272px; overflow:auto}
+.combo-o{
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:9px 12px; border-radius:12px; font-size:14.5px; cursor:pointer;
+}
+.combo-o.actif{background:var(--gris-pale)}
+.combo-o.on{color:var(--accent-encre); font-weight:700}
+.combo-t{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.combo-n{font-size:12.5px; font-weight:600; color:var(--grise); flex:0 0 auto}
+.combo-rien{padding:10px 12px; font-size:14px; color:var(--faible)}
+
+/* ── la porte du panneau ── */
+.plus-f{
+  display:inline-flex; align-items:center; gap:9px; background:var(--gris-pale);
+  border-radius:999px; padding:10px 17px; font-size:13.5px; font-weight:700;
+  color:var(--douce); white-space:nowrap;
+}
+.plus-f.on{background:var(--accent-pale); color:var(--accent-encre)}
+
+/* ── raccourcis et pastilles, sous la rangée ── */
+.raccourcis,.pastilles{
+  display:flex; flex-wrap:wrap; align-items:center; gap:9px; margin:18px 2px 0;
+}
+.raccourcis-l{font-size:13px; font-weight:600; color:var(--grise); margin-right:5px}
+.raccourci{
+  background:var(--carte); box-shadow:var(--ombre); border-radius:999px;
+  padding:8px 15px; font-size:13.5px; font-weight:600; color:var(--douce);
+}
+.raccourci:hover{color:var(--encre)}
+.pastille{
+  display:inline-flex; align-items:center; gap:9px; background:var(--accent-pale);
+  color:var(--accent-encre); border-radius:999px; padding:8px 13px 8px 15px;
+  font-size:13.5px; font-weight:700;
+}
+.pastille-x{font-size:16px; line-height:1; opacity:.5}
+.pastille:hover .pastille-x{opacity:1}
+.tout-effacer{font-size:13.5px; font-weight:700; color:var(--faible); padding:8px 6px}
+.tout-effacer:hover{color:var(--douce); text-decoration:underline}
+
+/* ── étroit : la rangée se réduit à la recherche et au bouton « Filtres » ── */
+@media (max-width:720px){
+  .filtres{padding:20px; gap:16px}
+  .filtres-r{align-items:flex-end; gap:12px}
+  .bloc-q{flex:1 1 140px}
+  .combo-pop{min-width:min(100vw - 52px,300px)}
+}

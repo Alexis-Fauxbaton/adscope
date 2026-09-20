@@ -1,12 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  EMPTY_FILTERS, MAX_LIMIT, debounce, familyInputPatch, familyLabel, marketQuery,
-} from '../js/query.js'
+import { EMPTY_FILTERS, MAX_LIMIT, debounce, familyLabel, marketQuery } from '../js/query.js'
 
 const q = (filters, page) => String(marketQuery(filters, page))
 
-// Rouge sur chacun des `if (…)` de `marketQuery` dans js/query.js : un
+// Rouge sur chacun des `if (…)` de `filterParams` dans js/query.js : un
 // paramètre vide envoyé (`brand=`, `seller_type=`) est une demande que le
 // marchand n'a pas faite, et que l'API n'a aucune raison d'interpréter.
 test('un filtre vide ne s’écrit pas dans la requête', () => {
@@ -74,55 +72,16 @@ test('une famille se réaffiche telle qu’elle se saisit', () => {
   assert.equal(familyLabel({ brand: 'Citroën', model: '' }), 'Citroën')
 })
 
-// Rouge sur le `q ? params.set(…)` de `marketQuery` dans js/query.js : sans
-// lui, la saisie libre du marchand ne partirait jamais vers l'API.
+// Rouge sur le `q ? params.set(…)` de `filterParams` dans js/query.js : sans
+// lui, la saisie libre du marchand ne partirait jamais vers l'API. Et depuis
+// le lot 4 elle se combine à tout le reste au lieu de l'effacer.
 test('q part dans la requête, rogné, et se combine aux autres filtres', () => {
   assert.equal(q({ ...EMPTY_FILTERS, q: '  citroën c3  ' }), 'q=citro%C3%ABn+c3&limit=20')
   assert.equal(
-    q({ ...EMPTY_FILTERS, q: 'clio', minAgeDays: 60 }),
-    'q=clio&min_age_days=60&limit=20',
+    q({ ...EMPTY_FILTERS, q: 'clio', brand: 'Renault', minAgeDays: 60 }),
+    'q=clio&brand=Renault&min_age_days=60&limit=20',
   )
   assert.equal(q({ ...EMPTY_FILTERS, q: '   ' }), 'limit=20')
-})
-
-const FAMILLES = [{ brand: 'Renault', model: 'Clio' }, { brand: 'Citroën', model: 'C3' }]
-
-// Rouge sur le `match` de `familyInputPatch` dans js/query.js : une saisie
-// qui reprend exactement une famille connue doit filtrer par marque/modèle
-// exacts, pas par texte — et elle efface toute recherche `q` en cours.
-test('une saisie qui reprend une famille connue devient un filtre exact', () => {
-  assert.deepEqual(
-    familyInputPatch('Renault Clio', FAMILLES),
-    { brand: 'Renault', model: 'Clio', q: '' },
-  )
-  // Insensible à la casse et aux accents, comme la recherche texte.
-  assert.deepEqual(
-    familyInputPatch('renault clio', FAMILLES),
-    { brand: 'Renault', model: 'Clio', q: '' },
-  )
-  assert.deepEqual(
-    familyInputPatch('citroen c3', FAMILLES),
-    { brand: 'Citroën', model: 'C3', q: '' },
-  )
-})
-
-// Rouge sur le `return { brand: '', model: '', q: trimmed(text) }` de
-// `familyInputPatch` : la saisie libre (« land rover », qu'aucune famille
-// déclarée ne recouvre) doit partir telle quelle dans `q`, jamais coupée en
-// mots — c'est le bug daté du 2026-09-18 que ce lot corrige.
-test('une saisie libre part dans q sans être découpée, et désélectionne la famille', () => {
-  assert.deepEqual(
-    familyInputPatch('land rover', FAMILLES),
-    { brand: '', model: '', q: 'land rover' },
-  )
-  // Même en tapant le début d'une famille connue : rien ne se cumule tant
-  // que la saisie n'est pas la famille exacte.
-  assert.deepEqual(
-    familyInputPatch('Renault Cli', FAMILLES),
-    { brand: '', model: '', q: 'Renault Cli' },
-  )
-  // Un champ vidé n'a plus ni famille ni recherche.
-  assert.deepEqual(familyInputPatch('', FAMILLES), { brand: '', model: '', q: '' })
 })
 
 // Rouge sur le `timers.clearTimeout(handle)` de `debounce` dans js/query.js :

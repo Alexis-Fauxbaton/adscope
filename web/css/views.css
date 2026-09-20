@@ -40,9 +40,9 @@
 .calme-age{color:var(--faible); margin-left:auto; white-space:nowrap}
 
 /* ── le marché ── */
-.filtres{display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin:26px 0 24px}
-.filtres .famille{flex:0 0 190px}
-.compte-ligne{display:flex; align-items:center; gap:16px; margin-bottom:20px; padding:0 4px}
+/* La rangée de filtres, le panneau et les pastilles vivent dans
+   `filters.css` : assez de règles pour un fichier à eux. */
+.compte-ligne{display:flex; align-items:center; gap:16px; margin:24px 0 20px; padding:0 4px}
 .compte{font-size:14.5px; font-weight:700; color:var(--douce)}
 .compte-ligne > *:last-child{margin-left:auto}
 .annonce{display:grid; grid-template-columns:1fr auto; gap:28px; align-items:stretch}
@@ -76,9 +76,6 @@
 output{font-size:23px; font-weight:700; letter-spacing:-.02em}
 
 @media (max-width:640px){
-  .filtres{gap:12px}
-  .filtres .famille{flex:1 1 100%; min-width:0}
-  .filtres .seg{flex-wrap:wrap}
   .annonce{grid-template-columns:1fr; gap:18px}
   .annonce-age{text-align:left; align-items:flex-start}
   .age-hero{font-size:23px}

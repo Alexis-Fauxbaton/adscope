@@ -62,8 +62,8 @@ test('un particulier n’a pas de nom', () => {
 
 test('les fixtures du marché tiennent le contrat demandé', () => {
   const { total, items } = market(marketQuery({}, { limit: 100 }))
-  assert.equal(total, 31)
-  assert.equal(items.length, 31)
+  assert.equal(total, 54)
+  assert.equal(items.length, 54)
   for (const item of items) {
     assert.ok(item.url.startsWith('https://'))
     assert.ok(item.price_delta_since_first <= 0)
@@ -92,7 +92,8 @@ test('la recherche q est tolérante à la casse, aux accents, à l’ordre des m
   assert.equal(chaqueMot.total, 0)
 })
 
-// Rouge sur le `!== model.toLowerCase()` de `matches` dans js/fixtures.js :
+// Rouge sur le `fold(item.model) !== fold(model)` de `matches` dans
+// js/fixtures-filter.js :
 // avec un `.includes(...)`, chercher le modèle « C3 » rendrait aussi les
 // annonces dont la version le mentionne en passant.
 test('le filtre model est exact, pas un sous-texte', () => {
@@ -112,11 +113,11 @@ test('chaque tri ordonne ce qu’il annonce', () => {
 })
 
 // Rouge sur le `item.age_days < minAge` et le `dropped` de `matches` dans
-// js/fixtures.js : le mode démo doit filtrer comme l'API, sinon la capture
+// js/fixtures-filter.js : le mode démo doit filtrer comme l'API, sinon la capture
 // montre un écran qui n'existera pas.
 test('les filtres du mode démo mordent vraiment', () => {
   const vieilles = market(marketQuery({ minAgeDays: 90 }, { limit: 100 })).items
-  assert.ok(vieilles.length < 31 && vieilles.length > 0)
+  assert.ok(vieilles.length < 54 && vieilles.length > 0)
   for (const item of vieilles) assert.ok(item.age_days >= 90)
   const baissees = market(marketQuery({ dropped: true }, { limit: 100 })).items
   for (const item of baissees) assert.ok(item.price_delta_since_first < 0)
@@ -142,7 +143,7 @@ test('la pagination avance sans redonner la même page', () => {
   const un = market(marketQuery({}, { limit: 20, offset: 0 }))
   const deux = market(marketQuery({}, { limit: 20, offset: 20 }))
   assert.equal(un.items.length, 20)
-  assert.equal(deux.items.length, 11)
+  assert.equal(deux.items.length, 20)
   assert.equal(un.total, deux.total)
   const ids = new Set(un.items.map((i) => i.site_id))
   for (const item of deux.items) assert.ok(!ids.has(item.site_id))

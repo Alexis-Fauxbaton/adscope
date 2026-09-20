@@ -8,6 +8,22 @@ export const DEFAULT_SORT = 'age_desc'
 export const SORTS = ['age_desc', 'drop_desc', 'recent']
 export const MAX_LIMIT = 100
 export const PAGE_SIZE = 20
+export const AGE_STEPS = [30, 60, 90]
+
+// Clé d'état → nom du paramètre. Trois familles, trois écritures : une chaîne
+// rognée, un entier, une liste qui se répète (`fuel=essence&fuel=diesel`,
+// comme `/v1/market` l'attend).
+export const TEXTS = [
+  ['q', 'q'], ['brand', 'brand'], ['model', 'model'], ['sellerType', 'seller_type'],
+]
+export const RANGES = [
+  ['priceMin', 'price_min'], ['priceMax', 'price_max'],
+  ['yearMin', 'year_min'], ['yearMax', 'year_max'],
+  ['mileageMin', 'mileage_min'], ['mileageMax', 'mileage_max'],
+]
+export const LISTS = [
+  ['fuel', 'fuel'], ['gearbox', 'gearbox'], ['region', 'region'], ['department', 'department'],
+]
 
 export const EMPTY_FILTERS = {
   q: '',
@@ -16,6 +32,10 @@ export const EMPTY_FILTERS = {
   sellerType: '',
   minAgeDays: 0,
   dropped: false,
+  priceMin: null, priceMax: null,
+  yearMin: null, yearMax: null,
+  mileageMin: null, mileageMax: null,
+  fuel: [], gearbox: [], region: [], department: [],
   sort: DEFAULT_SORT,
 }
 
@@ -23,17 +43,43 @@ function trimmed(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-export function marketQuery(filters = {}, { limit = PAGE_SIZE, offset = 0 } = {}) {
+// Une borne, ou rien. Un champ vidé, un `null` ou une frappe en cours
+// (« 12 0 », « douze ») ne sont pas des bornes : les envoyer ferait un 422 sur
+// une saisie que le marchand n'a pas fini d'écrire.
+export function integer(value) {
+  if (value === '' || value == null) return null
+  const n = Number(value)
+  return Number.isFinite(n) ? Math.trunc(n) : null
+}
+
+// Tout ce que le marchand a choisi, sans le tri ni la pagination : c'est
+// exactement ce que `/v1/market/facets` accepte, et ce que l'URL porte.
+export function filterParams(filters = {}) {
   const params = new URLSearchParams()
-  const q = trimmed(filters.q)
-  const brand = trimmed(filters.brand)
-  const model = trimmed(filters.model)
-  if (q) params.set('q', q)
-  if (brand) params.set('brand', brand)
-  if (model) params.set('model', model)
-  if (filters.sellerType) params.set('seller_type', filters.sellerType)
+  for (const [key, name] of TEXTS) {
+    const value = trimmed(filters[key])
+    if (value) params.set(name, value)
+  }
   if (filters.minAgeDays > 0) params.set('min_age_days', String(filters.minAgeDays))
   if (filters.dropped) params.set('dropped', 'true')
+  for (const [key, name] of RANGES) {
+    const n = integer(filters[key])
+    if (n != null) params.set(name, String(n))
+  }
+  for (const [key, name] of LISTS) {
+    for (const value of filters[key] || []) if (value) params.append(name, value)
+  }
+  return params
+}
+
+// Les compteurs se demandent sur les mêmes filtres que les résultats — sinon
+// ils compteraient un autre marché que celui affiché.
+export function facetsQuery(filters = {}) {
+  return filterParams(filters)
+}
+
+export function marketQuery(filters = {}, { limit = PAGE_SIZE, offset = 0 } = {}) {
+  const params = filterParams(filters)
   if (filters.sort && filters.sort !== DEFAULT_SORT) params.set('sort', filters.sort)
   // La borne du contrat est dure : au-delà de 100 l'API refuse, et une page
   // de résultats vide vaudrait « rien à voir » alors que tout est là.
@@ -42,28 +88,22 @@ export function marketQuery(filters = {}, { limit = PAGE_SIZE, offset = 0 } = {}
   return params
 }
 
+// Une fourchette à l'envers (min > max) est un 422 côté API. Le site ne
+// l'envoie jamais : il la signale sur place, le marchand corrige.
+export function badRange(min, max) {
+  const a = integer(min)
+  const b = integer(max)
+  return a != null && b != null && a > b
+}
+
 export function familyLabel(family) {
   return [family.brand, family.model].filter(Boolean).join(' ')
 }
 
-const DIACRITICS = /[\u0300-\u036f]/g
+const DIACRITICS = /[̀-ͯ]/g
 
-function foldedForMatch(text) {
+export function fold(text) {
   return trimmed(text).toLowerCase().normalize('NFD').replace(DIACRITICS, '')
-}
-
-// Le champ « famille » est une liste et une saisie libre à la fois : le
-// marchand choisit une Clio dans son périmètre — marque et modèle exacts,
-// aucune recherche texte à côté — ou tape ce qu'il a en tête, qui part tel
-// quel dans `q` : découper la saisie en mots (l'ancien `parseFamily`) faisait
-// de « land rover » une marque « land » et un modèle « rover » qui ne
-// rendait jamais rien. Saisie et famille ne se cumulent jamais : l'une
-// efface toujours l'autre.
-export function familyInputPatch(text, families) {
-  const folded = foldedForMatch(text)
-  const match = families.find((f) => foldedForMatch(familyLabel(f)) === folded)
-  if (match) return { brand: match.brand, model: match.model, q: '' }
-  return { brand: '', model: '', q: trimmed(text) }
 }
 
 // Les globaux du navigateur : appelés tels quels et non comme méthodes d'un

@@ -2,25 +2,16 @@
 
 import * as api from './api.js'
 import { clear, el } from './dom.js'
-import { number } from './format.js'
-import { carteAnnonce } from './market-card.js'
-import { renderFilters, renderSort } from './market-filters.js'
-import { PAGE_SIZE, marketQuery } from './query.js'
+import { EMPTY_FACETS, anyBadRange, panelCount } from './market-facets.js'
+import { renderChips, renderFamilies, renderFilters, renderSort } from './market-filters.js'
+import { createList } from './market-list.js'
+import { renderPanel } from './market-panel.js'
+import { PAUSE_MS, applyPatch, createFacetRefresher } from './market-state.js'
+import { debounce } from './query.js'
+import { hashOf } from './url-state.js'
 
 const PERIMETRE = "Sur les annonces qu'adscope a vues — pas tout le marché."
-const PANNE = "L'API n'a pas répondu. Réessayez dans un instant."
-const RIEN = 'Aucune annonce vue ne répond à ces filtres.'
-
-function compte(total) {
-  return `${number(total)} annonce${total > 1 ? 's' : ''}`
-}
-
-// Zéro résultat sur une recherche texte ne se lit pas comme zéro résultat sur
-// un filtre : le marchand veut savoir ce qu'il a tapé, pas juste « rien ».
-export function messageVide(filters) {
-  const q = String((filters && filters.q) || '').trim()
-  return q ? `Aucune annonce pour « ${q} » parmi celles qu'adscope a vues.` : RIEN
-}
+const ROUTE = '#/marche'
 
 export async function renderMarket(root, state) {
   // Une licence refusée en cours de route ramène à l'écran de connexion ; le
@@ -31,64 +22,113 @@ export async function renderMarket(root, state) {
   if (!state.families) {
     state.families = await api.families().catch((err) => { auth(err); return [] })
   }
+  if (!state.facets) state.facets = EMPTY_FACETS
+  // Au premier affichage seulement : une adresse qui porte un filtre du
+  // panneau arrive panneau ouvert. Sans ça, celui qui reçoit le lien lit une
+  // liste réduite par un filtre qu'il ne voit nulle part. Ensuite c'est le
+  // marchand qui décide, et le panneau ne se rouvre plus tout seul.
+  if (state.panelOpen == null) state.panelOpen = panelCount(state.filters) > 0
 
-  const filtres = el('div')
+  // Les trois zones vivent dans le même bloc : la rangée, puis les pastilles,
+  // puis le panneau. Les pastilles *au-dessus* du panneau — ouvert, il ferait
+  // sinon descendre hors de l'écran ce qui dit quels filtres agissent.
+  const zoneRangee = el('div')
+  const zonePastilles = el('div')
+  const zonePanneau = el('div')
+  const zoneFiltres = el('div', { class: 'zone-f' }, [zoneRangee, zonePastilles, zonePanneau])
   const etiquette = el('p', { class: 'compte' })
   const zone = el('div')
   const tri = el('div')
 
-  // Les filtres se redessinent dans leur boîte, pas la page entière. Deux
-  // façons de bouger : `onChange` (bouton, validation du champ) redessine et
-  // recharge, `onSearch` (frappe en cours) ne fait que recharger — redessiner
-  // pendant la frappe couperait le focus du marchand.
-  function poserFiltres() {
-    clear(filtres).append(renderFilters(state, state.families, {
-      onChange: () => { poserFiltres(); charger(false) },
-      onSearch: () => charger(false),
-    }))
+  const ui = {
+    get filters() { return state.filters },
+    get facets() { return state.facets },
+    get families() { return state.families },
+    get open() { return state.panelOpen },
+    get total() { return state.total },
+    get narrow() { return matchMedia('(max-width: 720px)').matches },
+    patch, search: (texte) => chercher(texte), toggleOpen,
   }
 
-  async function charger(append) {
-    const offset = append ? state.items.length : 0
-    if (!append) { state.items = []; etiquette.textContent = 'Chargement…' }
-    const params = marketQuery(state.filters, { limit: PAGE_SIZE, offset })
-    let reponse
-    try {
-      reponse = await api.market(params)
-    } catch (err) {
-      auth(err)
-      etiquette.textContent = ''
-      clear(zone).append(el('div', { class: 'carte vide', text: PANNE }))
+  // `pushState` n'émet pas `hashchange` : l'écran ne se redessine pas sous nos
+  // pieds. Le bouton retour, lui, l'émet — `app.js` relit alors les filtres
+  // dans l'URL et refait la page. La frappe remplace l'entrée courante plutôt
+  // que d'en empiler une par pause de saisie.
+  function ecrireUrl(replace) {
+    const url = hashOf(ROUTE, state.filters)
+    if (location.hash === url) return
+    history[replace ? 'replaceState' : 'pushState'](null, '', url)
+  }
+
+  function patch(correctif) {
+    state.filters = applyPatch(state.filters, correctif)
+    ecrireUrl(false)
+    poser()
+    rafraichirFacettes(state.filters, { now: true })
+    charger(false)
+  }
+
+  const chercher = debounce((texte) => {
+    state.filters = applyPatch(state.filters, { q: texte })
+    ecrireUrl(true)
+    dessinerPastilles()
+    rafraichirFacettes(state.filters, { now: true })
+    charger(false)
+  }, PAUSE_MS)
+
+  function toggleOpen() {
+    state.panelOpen = !state.panelOpen
+    poser()
+  }
+
+  const demanderFacettes = createFacetRefresher({
+    fetchFacets: api.facets,
+    // Les anciens compteurs restent en place tant que la réponse n'est pas
+    // là ; une panne de facettes ne vide donc jamais les listes.
+    onFacets: (facettes) => { state.facets = facettes; poser() },
+    onError: auth,
+  })
+
+  // Même règle que la liste : rien ne part tant que la fourchette est à
+  // l'envers, et les compteurs affichés restent ceux d'avant.
+  const rafraichirFacettes = (filters, options) => (
+    anyBadRange(filters) ? null : demanderFacettes(filters, options)
+  )
+
+  function dessinerPastilles() {
+    clear(zonePastilles).append(...[renderFamilies(ui), renderChips(ui)].filter(Boolean))
+  }
+
+  // Redessiner la rangée sous un champ en cours de frappe ou une liste
+  // ouverte couperait le marchand en plein mot ou refermerait sa liste. Dans
+  // ce cas seules les pastilles bougent ; la rangée se remet à jour au
+  // changement suivant.
+  function poser() {
+    const actif = document.activeElement
+    const dedans = actif && zoneFiltres.contains(actif)
+    if ((dedans && actif.id === 'q') || zoneFiltres.querySelector('.combo-pop:not([hidden])')) {
+      dessinerPastilles()
       return
     }
-    state.total = reponse.total
-    state.items = state.items.concat(reponse.items)
-    etiquette.textContent = compte(state.total)
-    peindre()
+    const id = dedans ? actif.id : null
+    clear(zoneRangee).append(renderFilters(ui))
+    dessinerPastilles()
+    clear(zonePanneau).append(...[renderPanel(ui)].filter(Boolean))
+    clear(tri).append(renderSort(ui))
+    const rendu = id && zoneFiltres.querySelector(`#${CSS.escape(id)}`)
+    if (rendu) rendu.focus()
   }
 
-  function peindre() {
-    clear(zone)
-    if (!state.items.length) {
-      zone.append(el('div', { class: 'carte vide', text: messageVide(state.filters) }))
-      return
-    }
-    zone.append(el('div', { class: 'pile' }, state.items.map(carteAnnonce)))
-    if (state.items.length < state.total) {
-      zone.append(el('button', {
-        class: 'plus', text: 'Voir plus', onclick: () => charger(true),
-      }))
-    }
-  }
+  const charger = createList({ state, zone, etiquette, auth, onClear: patch })
 
-  clear(tri).append(renderSort(state, () => charger(false)))
   clear(root).append(
     el('h1', { class: 'vue-t', text: 'Le marché' }),
     el('p', { class: 'vue-s', text: PERIMETRE }),
-    filtres,
+    zoneFiltres,
     el('div', { class: 'compte-ligne' }, [etiquette, tri]),
     zone,
   )
-  poserFiltres()
+  poser()
+  rafraichirFacettes(state.filters, { now: true })
   await charger(false)
 }

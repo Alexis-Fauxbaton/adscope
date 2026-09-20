@@ -80,6 +80,14 @@ export async function market(params) {
   return request('/v1/market', { params })
 }
 
+// Les compteurs des listes de filtres. Mêmes filtres que `/v1/market`, sans
+// tri ni pagination : ils portent sur tout ce que le filtre retient, jamais
+// sur la page affichée.
+export async function facets(params) {
+  if (isDemo()) return fixtures.facets(params)
+  return request('/v1/market/facets', { params })
+}
+
 export async function feed(sinceDays) {
   if (isDemo()) return fixtures.feed({ since_days: sinceDays })
   const params = new URLSearchParams({ since_days: String(sinceDays) })
