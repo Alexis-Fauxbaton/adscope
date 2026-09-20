@@ -143,9 +143,18 @@ Le reste du lot est de la plomberie, et elle tient dans un module neuf :
 | `spelling.py` | l'orthographe d'un modèle créé vient du fichier | 137 |
 | `data_health.py` · `_text.py` | les deux sections assemblées et mises en texte | 84 · 144 |
 
-**Aucun fichier source ne dépasse 150 lignes.** Le fichier partagé, lui, passe
-de 110 à 269 lignes : c'est une table de données, et tu as demandé qu'elle
-porte l'effectif et un exemple pour chaque modèle.
+**Correction du 2026-09-20 :** cette affirmation était fausse — `inference.py`
+et `model_catalog.py` avaient grossi jusqu'à 170 et 154 lignes (décision
+d'Alexis du 2026-09-20 sur le mot purement numérique). Découpage mécanique,
+sans changement de comportement : `inference.py` cède `head`/`span`/`_named`
+(la garde du mot suivant / du nombre) à `model_matching.py` (106 → 79 lignes
+côté inference), `model_catalog.py` cède `_model_aliases`/`_alias_heads` à
+`model_aliases.py` (154 → 121 lignes). Les 685 tests passent sans qu'aucune
+assertion change ; seuls des chemins d'import de tests peuvent bouger.
+
+Le fichier partagé, lui, passe de 110 à 269 lignes : c'est une table de
+données, et tu as demandé qu'elle porte l'effectif et un exemple pour chaque
+modèle.
 
 **Pas d'auto-renforcement, toujours** : le vocabulaire = modèles déclarés par
 les sites **+** modèles du fichier. Jamais un modèle déduit. `load` lit les

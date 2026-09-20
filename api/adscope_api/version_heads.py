@@ -20,7 +20,7 @@ pas). Elle a le droit de se tromper : elle ne propose, elle ne pose rien.
 
 import re
 
-from .inference import head
+from .model_matching import head
 
 # Les sigles moteur relevés sur le corpus. Une liste, parce que rien ne les
 # distingue d'un nom de modèle par leur forme seule — « TCe » et « Ceed » se

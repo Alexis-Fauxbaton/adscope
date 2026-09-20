@@ -24,8 +24,9 @@ from datetime import timedelta
 
 from sqlalchemy import select
 
-from .inference import KnownModels, head, span
+from .inference import KnownModels
 from .model_catalog import with_catalog
+from .model_matching import head, span
 from .models import Listing
 from .spelling import fold
 from .taxonomy import UNKNOWN, key
