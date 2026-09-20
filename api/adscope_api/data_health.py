@@ -24,6 +24,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 
 from .data_health_fields import field_fill_rate, version_names_another_model
+from .data_health_models import cross_site_model_prefixes, frequent_unresolved_heads
 from .data_health_queries import emerging_models, publication_freshness, unknown_brands, unknown_share
 from .data_health_unverified import fuel_other_share_by_site, unverified_rules
 from .models import Listing
@@ -48,6 +49,8 @@ class Report:
     freshness: list = field(default_factory=list)
     field_fill_rate: dict = field(default_factory=dict)
     model_named_by_version: dict = field(default_factory=dict)
+    unresolved_heads: list = field(default_factory=list)
+    cross_site_prefixes: list = field(default_factory=list)
     unverified_rules: dict = field(default_factory=dict)
     fuel_other_share: list = field(default_factory=list)
 
@@ -74,6 +77,8 @@ def compute(session, now=None, window=DEFAULT_WINDOW) -> Report:
         freshness=publication_freshness(session, now, window),
         field_fill_rate=field_fill_rate(session, since, now),
         model_named_by_version=version_names_another_model(session),
+        unresolved_heads=frequent_unresolved_heads(session),
+        cross_site_prefixes=cross_site_model_prefixes(session),
         unverified_rules=unverified_rules(session),
         fuel_other_share=fuel_other_share_by_site(session),
     )

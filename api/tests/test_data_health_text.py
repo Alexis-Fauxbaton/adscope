@@ -178,3 +178,38 @@ def test_the_deduced_model_line_shows_what_was_resolved_and_what_remains():
     }))
     assert "modèle déduit de la version : 15.0%" in text
     assert "(3)" in text and "17 restent non précisées" in text
+
+
+# Fait rougir la ligne des têtes non résolues : c'est elle qui maintient
+# `shared/vehicle-aliases.json` — l'effectif et un exemple, de quoi juger sans
+# requête.
+def test_a_frequent_unresolved_head_is_shown_with_its_count_and_example():
+    text = render(bare_report(unresolved_heads=[
+        {"brand": "land rover", "head": "range rover sport", "count": 69,
+         "example": "Range Rover Sport 3.0 TDV6 180kw HSE Mark VI"},
+    ]))
+    assert ("  - land rover / range rover sport (69 annonces) — ex. "
+            "« Range Rover Sport 3.0 TDV6 180kw HSE Mark VI »") in text
+
+
+# Fait rougir la branche `else: lines.append("  - aucune")` de cette section :
+# plus rien à proposer est une information, pas une section vide.
+def test_no_unresolved_head_says_so():
+    assert "s'il y est déjà, ce que la garde du mot suivant refuse) :\n" \
+        "  - aucune" in render(bare_report())
+
+
+# Fait rougir `_sites` et la ligne des préfixes : la paire ne se juge qu'avec
+# le nom de chaque site et son effectif — « 812 (lc 3) / 812 superfast
+# (lbc 24) ».
+def test_a_cross_site_prefix_pair_shows_each_site_and_its_count():
+    text = render(bare_report(cross_site_prefixes=[
+        {"brand": "ferrari", "short": "812", "long": "812 superfast",
+         "short_sites": {"lc": 3}, "long_sites": {"lbc": 24}, "count": 27},
+    ]))
+    assert "  - ferrari : 812 (lc 3) / 812 superfast (lbc 24)" in text
+
+
+# Fait rougir la branche vide de la section des préfixes.
+def test_no_cross_site_prefix_says_so():
+    assert "candidats à un alias de modèle) :\n  - aucun" in render(bare_report())

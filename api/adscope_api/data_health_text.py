@@ -11,6 +11,10 @@ def _pct(rate) -> str:
     return "—" if rate is None else f"{rate:.1%}"
 
 
+def _sites(counts) -> str:
+    return "(" + ", ".join(f"{site} {n}" for site, n in sorted(counts.items())) + ")"
+
+
 def render(report: Report) -> str:
     lines = [
         f"Rapport de santé — {report.now:%Y-%m-%d %H:%M} UTC",
@@ -84,6 +88,29 @@ def render(report: Report) -> str:
         "jamais une alerte) :",
         f"  - {named['count']} sur {named['population']} ({_pct(named['rate'])})",
     ]
+
+    lines += ["", "Têtes de version fréquentes parmi les « Autres » non résolues "
+              "(>= 5 annonces — un modèle à ajouter au fichier partagé, ou, "
+              "s'il y est déjà, ce que la garde du mot suivant refuse) :"]
+    if report.unresolved_heads:
+        for row in report.unresolved_heads:
+            lines.append(
+                f"  - {row['brand']} / {row['head']} ({row['count']} annonces) "
+                f"— ex. « {row['example']} »"
+            )
+    else:
+        lines.append("  - aucune")
+
+    lines += ["", "Modèles dont un site dit le début de ce que l'autre dit en "
+              "entier (candidats à un alias de modèle) :"]
+    if report.cross_site_prefixes:
+        for row in report.cross_site_prefixes:
+            lines.append(
+                f"  - {row['brand']} : {row['short']} {_sites(row['short_sites'])} "
+                f"/ {row['long']} {_sites(row['long_sites'])}"
+            )
+    else:
+        lines.append("  - aucun")
 
     lines += ["", "Règles pas encore vérifiées sur données réelles :"]
     for key, title in (

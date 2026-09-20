@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 from adscope_api.data_health import Report, compute, head_line
 from adscope_api.data_health_fields import field_fill_rate, version_names_another_model
+from adscope_api.data_health_models import cross_site_model_prefixes, frequent_unresolved_heads
 from adscope_api.data_health_queries import (
     MIN_WINDOW_LISTINGS, emerging_models, publication_freshness, unknown_brands,
     unknown_share,
@@ -432,6 +433,20 @@ def test_fuel_other_share_is_reported_separately_per_site(session):
 
 
 # Fait rougir `unverified_rules=unverified_rules(session)` dans `compute`.
+def test_compute_wires_the_unresolved_heads_and_the_cross_site_prefixes(session):
+    for n in range(5):
+        add(session, "lbc", f"h{n}", NOW, brand="Land Rover", model="Autres",
+            version="Zorglub Sport 3.0 TDV6 180kw")
+    add(session, "lc", "p0", NOW, brand="Ferrari", model="Zorg")
+    add(session, "lbc", "p1", NOW, brand="Ferrari", model="Zorg Superfast")
+    session.commit()
+    report = compute(session, now=NOW, window=WEEK)
+    assert [r["head"] for r in report.unresolved_heads] == ["zorglub sport"]
+    assert [(r["short"], r["long"]) for r in report.cross_site_prefixes] == [
+        ("zorg", "zorg superfast")
+    ]
+
+
 def test_compute_wires_unverified_rules(session):
     add(session, "lbc", "1", NOW, department="2A")
     session.commit()
@@ -469,3 +484,91 @@ def test_unknown_share_has_no_deduction_rate_when_nothing_was_unclassified(sessi
     add(session, "lbc", "1", NOW, model="Xsara", version="Xsara 2.0 HDi90")
     session.commit()
     assert unknown_share(session, NOW - WEEK, NOW)["overall"]["inferred_rate"] is None
+
+
+# ---------------------------------------------------------------- lot 3b ----
+
+# Fait rougir `if e["count"] >= min_listings` dans `frequent_unresolved_heads` :
+# c'est le seuil qui sépare un modèle à ajouter au fichier d'une faute de
+# saisie. Une tête vue une fois ne se propose pas.
+def test_a_head_seen_too_rarely_is_not_proposed(session):
+    add(session, "lbc", "a0", NOW, brand="Renault", model="Autres",
+        version="Zorglub 1.6 dCi 130ch")
+    session.commit()
+    assert frequent_unresolved_heads(session, min_listings=5) == []
+
+
+# Fait rougir `entry["count"] += 1` et le groupement sur (marque, tête) : c'est
+# ainsi que « Range Rover Sport » s'est signalé 69 fois avant d'entrer dans le
+# fichier. La ligne porte l'effectif et un exemple, pour qu'on puisse juger
+# sans requête.
+def test_a_frequent_head_is_proposed_with_its_count_and_an_example(session):
+    for n in range(5):
+        add(session, "lbc", f"b{n}", NOW, brand="Land Rover", model="Autres",
+            version="Zorglub Sport 3.0 TDV6 180kw HSE")
+    session.commit()
+    rows = frequent_unresolved_heads(session, min_listings=5)
+    assert rows == [{"brand": "land rover", "head": "zorglub sport", "count": 5,
+                     "example": "Zorglub Sport 3.0 TDV6 180kw HSE"}]
+
+
+# Fait rougir `Listing.canon_model_source.is_(None)` : une annonce déjà
+# résolue — par le site ou par la déduction — n'a plus de modèle à proposer.
+# Sans ce filtre, la section redirait le vocabulaire entier à chaque passage.
+def test_a_listing_already_resolved_proposes_nothing(session):
+    for n in range(5):
+        add(session, "lbc", f"c{n}", NOW, brand="Renault", model="Clio",
+            version="Clio 1.5 dCi 90ch")
+    session.commit()
+    assert frequent_unresolved_heads(session, min_listings=5) == []
+
+
+# Fait rougir `Listing.canon_brand != _UNKNOWN_KEY` : une annonce dont la
+# marque elle-même est inconnue relève d'un vocabulaire de marques, pas de
+# modèles — 21 MG, Ineos et BYD en base.
+def test_a_listing_without_a_known_brand_proposes_nothing(session):
+    for n in range(5):
+        add(session, "lbc", f"d{n}", NOW, brand="Autres", model="Autres",
+            version="MG4 EV 170ch Comfort")
+    session.commit()
+    assert frequent_unresolved_heads(session, min_listings=5) == []
+
+
+# Fait rougir `long.split()[:len(words)] != words` dans
+# `cross_site_model_prefixes` : La Centrale écrit « 812 », leboncoin « 812
+# Superfast ». La comparaison porte sur des mots entiers, jamais une
+# sous-chaîne — « c3 » ne commence pas « c30 ».
+def test_a_model_one_site_writes_shorter_than_the_other_is_reported(session):
+    add(session, "lc", "e0", NOW, brand="Ferrari", model="Zorg")
+    for n in range(2):
+        add(session, "lbc", f"e{n+1}", NOW, brand="Ferrari", model="Zorg Superfast")
+    add(session, "lbc", "e9", NOW, brand="Ferrari", model="Zorg30")
+    session.commit()
+    rows = cross_site_model_prefixes(session)
+    assert [(r["brand"], r["short"], r["long"]) for r in rows] == [
+        ("ferrari", "zorg", "zorg superfast")
+    ]
+
+
+# Fait rougir `if set(short_sites) & set(long_sites): continue` : si les deux
+# sites portent les deux écritures, ils sont d'accord pour en faire deux
+# modèles et il n'y a rien à trancher — « C3 » et « C3 Aircross ».
+def test_two_models_both_sites_carry_are_not_a_candidate(session):
+    for site in ("lbc", "lc"):
+        add(session, site, f"f{site}1", NOW, brand="Citroen", model="Zorg")
+        add(session, site, f"f{site}2", NOW, brand="Citroen", model="Zorg Aircross")
+    session.commit()
+    assert cross_site_model_prefixes(session) == []
+
+
+# Fait rougir `Listing.canon_model_source == FROM_SITE` : un modèle **déduit**
+# ne propose pas d'alias — il vient déjà du fichier, et le fichier ne se
+# propose pas de fusionner avec lui-même.
+def test_a_deduced_model_never_proposes_an_alias(session):
+    add(session, "lc", "g0", NOW, brand="Land Rover", model="Range Rover")
+    for n in range(2):
+        row = add(session, "lbc", f"g{n+1}", NOW, brand="Land Rover", model="Autres",
+                  version="Range Rover Sport 3.0 TDV6")
+        row.canon_model, row.canon_model_source = "range rover sport", "version"
+    session.commit()
+    assert cross_site_model_prefixes(session) == []
