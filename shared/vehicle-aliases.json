@@ -67,7 +67,7 @@
       "rs q8": "RS Q8"
     }
   },
-  "_modeles_crees": "Regle 1 du lot 3b (.superpowers/recherche-lot3b.md) : des modeles reels qu'AUCUN des deux sites ne porte dans sa colonne modele, mais que la version nomme en tete. Ils elargissent le vocabulaire de la deduction (`model_vocabulary.load`) exactement comme un modele declare par un site — ils ne remplacent jamais un modele donne par un site, et un modele DEDUIT ne nourrit jamais ce fichier en retour (pas d'auto-renforcement). `annonces` est l'effectif mesure le 2026-09-20 sur la base reelle, `exemple` une version observee telle quelle. `tete` dit ce que la version ecrit quand ce n'est pas le nom du modele (« Picasso » pour une Xsara Picasso, « Smart » pour une Fortwo) ; `annee_max` pose une condition sur l'annee du vehicule, et une annee manquante ne la remplit pas.",
+  "_modeles_crees": "Regle 1 du lot 3b (.superpowers/recherche-lot3b.md) : des modeles reels qu'AUCUN des deux sites ne porte dans sa colonne modele, mais que la version nomme en tete. Ils elargissent le vocabulaire de la deduction (`model_vocabulary.load`) exactement comme un modele declare par un site — ils ne remplacent jamais un modele donne par un site, et un modele DEDUIT ne nourrit jamais ce fichier en retour (pas d'auto-renforcement). `annonces` est l'effectif mesure le 2026-09-20 sur la base reelle, `exemple` une version observee telle quelle. `tete` dit ce que la version ecrit quand ce n'est pas le nom du modele (« Picasso » pour une Xsara Picasso, « Smart » pour une Fortwo) ; `annee_max` pose une condition sur l'annee du vehicule, et une annee manquante ne la remplit pas. Decision d'Alexis du 2026-09-20 : un mot qui suit une de ces tetes et qui est PUREMENT NUMERIQUE (une cylindree, une puissance : « 4.4 », « 6.5 », « 136 », « 350 ») ne change pas non plus le nom — jamais pour le vocabulaire appris des sites, seulement pour ces tetes-ci (`api/adscope_api/inference.py`, `numeric_heads`). Un code moteur qui melange lettres et chiffres (« 53e », « 218da ») n'est pas concerne, il reste refuse. Kia « Cee'd » (18, 2007-2014), « Ceed » (6, 2019-2025) et « Pro Cee'd » (6, 2007-2010, le coupe — replie par la regle carrosserie, le mot precede plutot que suivre, d'ou le renommage plutot qu'un mot de carrosserie) sont fusionnes le meme jour sous « Ceed » : Kia a renomme officiellement « cee'd » en « Ceed » en 2018, l'ecriture courante l'emporte, comme pour Opel Grandland plus bas. Le site declare aussi 1 « CEE D » (2007) : voir `alias_modeles`.",
   "modeles_crees": {
     "citroen": [
       {"modele": "Xsara Picasso", "tete": "Picasso", "annee_max": 2010, "annonces": 118, "exemple": "Picasso 1.6 HDi110 Exclusive"},
@@ -125,9 +125,9 @@
       {"modele": "Fortwo", "tete": "Smart", "annonces": 13, "exemple": "Smart Cabriolet 55ch Pure"}
     ],
     "kia": [
-      {"modele": "Cee'd", "annonces": 18, "exemple": "Cee'd 1.6 CRDi115 Active 5p"},
-      {"modele": "Pro Cee'd", "annonces": 6, "exemple": "FIFA World Cup_Pro Cee'd 1.6 CRDi115 FIFA World Cup"},
-      {"modele": "Ceed", "annonces": 5, "exemple": "GT Line Premium_Ceed 1.4 T-GDI 140ch GT Line Premium DCT7"}
+      {"modele": "Ceed", "tete": "Cee'd", "annonces": 18, "exemple": "Cee'd 1.6 CRDi115 Active 5p"},
+      {"modele": "Ceed", "tete": "Pro Cee'd", "annonces": 6, "exemple": "FIFA World Cup_Pro Cee'd 1.6 CRDi115 FIFA World Cup"},
+      {"modele": "Ceed", "annonces": 6, "exemple": "GT Line Premium_Ceed 1.4 T-GDI 140ch GT Line Premium DCT7"}
     ],
     "dacia": [
       {"modele": "Jogger", "annonces": 13, "exemple": "Jogger 1.6 hybrid 140ch Extreme 7 places -24"},
@@ -136,8 +136,7 @@
     ],
     "ferrari": [
       {"modele": "Purosangue", "annonces": 10, "exemple": "Purosangue 6.5 V12 725ch"},
-      {"modele": "F8", "annonces": 5, "exemple": "F8 Spider Base"},
-      {"modele": "F8 Tributo", "annonces": 5, "exemple": "F8 Tributo Base"},
+      {"modele": "F8", "annonces": 10, "exemple": "F8 Spider Base"},
       {"modele": "512", "annonces": 3, "exemple": "512 5.0 M"}
     ],
     "audi": [
@@ -210,13 +209,13 @@
       {"modele": "356B", "annonces": 3, "exemple": "356B 356 B 1600"}
     ]
   },
-  "_mots_qui_ne_font_pas_un_modele": "Regles 2 et 3 du lot 3b. « carrosseries » : un mot de carrosserie n'est pas un nom de modele, on rattache au modele de base — « GLE Coupe » est une GLE, « CLA Shooting Brake » une CLA, « Vito Combi » un Vito. « finitions » : « F8 Tributo Base » est une F8 Tributo. Les deux listes servent la meme garde qu'`inference.py` appelle un qualificatif : le mot qui suit le modele le prolonge sans le changer. Elles ne valent QUE pour la deduction — un modele que le site declare lui-meme n'est jamais replie (« Nemo Combi », « Expert Combi », « 458 Spider » restent des seaux a eux). Coupe, Cabriolet, Combi, Sportback et SW etaient deja mesures par le lot 3a (un mot qui suit au moins quatre couples marque/modele) ; les autres sont ecrits ici parce que la mesure ne les atteint pas — un mot qui ne suit qu'un seul modele lui ressemble trop. « Sport » et « Tourer » sont volontairement absents : Range Rover Sport et Zafira Tourer sont des modeles a part entiere.",
+  "_mots_qui_ne_font_pas_un_modele": "Regles 2 et 3 du lot 3b. « carrosseries » : un mot de carrosserie n'est pas un nom de modele, on rattache au modele de base — « GLE Coupe » est une GLE, « CLA Shooting Brake » une CLA, « Vito Combi » un Vito. « finitions » : « F8 Tributo Base » est une F8 (« Tributo » et « Base » sont deux finitions qui suivent, aucune ne change le modele). Les deux listes servent la meme garde qu'`inference.py` appelle un qualificatif : le mot qui suit le modele le prolonge sans le changer. Elles ne valent QUE pour la deduction — un modele que le site declare lui-meme n'est jamais replie (« Nemo Combi », « Expert Combi », « 458 Spider » restent des seaux a eux). Coupe, Cabriolet, Combi, Sportback et SW etaient deja mesures par le lot 3a (un mot qui suit au moins quatre couples marque/modele) ; les autres sont ecrits ici parce que la mesure ne les atteint pas — un mot qui ne suit qu'un seul modele lui ressemble trop. « Sport » et « Tourer » sont volontairement absents : Range Rover Sport et Zafira Tourer sont des modeles a part entiere. « Tributo » est entree le 2026-09-20 : Ferrari « F8 Tributo » (5 annonces, deduit) et « F8 » (5, deduit) sont la meme voiture au meme age (2020-2022) — dans l'esprit de la regle carrosserie (leboncoin range la 488 GTB sous « 488 », « F8 Spider » etait deja rattache), Ferrari nomme la famille F8. Le seau F8 porte desormais 10 annonces ; « Tributo » reste visible dans le libelle affiche, seul le seau change.",
   "carrosseries": [
     "Coupe", "Cabriolet", "Combi", "Sportback", "SW", "Spider", "Roadster",
     "Volante", "Fastback", "Shooting", "Brake", "GTC"
   ],
-  "finitions": ["Base"],
-  "_alias_modeles": "Deux sites, deux noms pour la meme voiture : La Centrale ecrit « 812 », leboncoin « 812 Superfast ». Sans cette table, le menu des modeles porterait deux lignes pour une seule famille. L'alias s'applique au modele DECLARE par un site (donc a `canon_model`, a la cle de rapprochement et au vocabulaire) ; les mots observes restent dans `search_text`, `q=superfast` rend donc toujours autant. Le champ `marque` est le pli de la marque CANONIQUE (apres les alias de marque ci-dessus).",
+  "finitions": ["Base", "Tributo"],
+  "_alias_modeles": "Deux sites, deux noms pour la meme voiture : La Centrale ecrit « 812 », leboncoin « 812 Superfast ». Sans cette table, le menu des modeles porterait deux lignes pour une seule famille. L'alias s'applique au modele DECLARE par un site (donc a `canon_model`, a la cle de rapprochement et au vocabulaire) ; les mots observes restent dans `search_text`, `q=superfast` rend donc toujours autant. Le champ `marque` est le pli de la marque CANONIQUE (apres les alias de marque ci-dessus). `annee_max` (optionnel, decision d'Alexis du 2026-09-20) pose la meme condition qu'un `modeles_crees` sous condition : l'alias ne s'applique que si l'annee du vehicule est connue et ne depasse pas `annee_max` ; absent, l'alias s'applique toujours.",
   "alias_modeles": [
     {
       "marque": "ferrari",
@@ -224,6 +223,28 @@
       "vers": "812",
       "pourquoi": "La meme voiture sous deux noms : leboncoin classe 24 annonces en « 812 Superfast », La Centrale 3 en « 812 ». Le nom court l'emporte parce que c'est celui de la famille (812 Superfast, 812 GTS) et celui que la version elle-meme ecrit des deux cotes (« 812 V12 6.5 800ch »). Mesure du 2026-09-20 : aucune autre ecriture de la famille 812 en base.",
       "effectifs": {"812 superfast": 24, "812": 3, "apres_fusion": 27}
+    },
+    {
+      "marque": "citroen",
+      "de": "Picasso",
+      "vers": "Xsara Picasso",
+      "annee_max": 2010,
+      "pourquoi": "La Centrale declare 14 annonces au modele nu « Picasso », sans « Xsara » ni « C4 ». Verifie sur la donnee le 2026-09-20 : les 14 versions (« 2.0 HDI », « 1.6 HDI 110 », etc.) et les 14 annees (2000 a 2009) sont exactement celles d'un Xsara Picasso, aucune ne porte de trait C4 (BlueHDi, PureTech, S&S). Meme condition que la tete deduite du meme nom (`modeles_crees.citroen`) : au-dela de 2010 un « Picasso » redeviendrait ambigu avec le C4 Picasso, mieux vaut alors le laisser tel quel qu'aliaser a tort.",
+      "effectifs": {"picasso": 14, "apres_fusion_xsara_picasso": 132}
+    },
+    {
+      "marque": "kia",
+      "de": "CEE D",
+      "vers": "Ceed",
+      "pourquoi": "Un site (La Centrale) declare litteralement le modele « CEE D » (1 annonce, 2007, « 1.6 CRDI 115 ACTIVE ») — le meme plage d'annees et la meme motorisation que les « Cee'd » deduits ci-dessus. Rejoint le seau unifie « Ceed » du 2026-09-20 pour la meme raison qu'eux.",
+      "effectifs": {"cee d": 1, "apres_fusion_ceed": 31}
+    },
+    {
+      "marque": "opel",
+      "de": "Grandland X",
+      "vers": "Grandland",
+      "pourquoi": "Opel a retire le « X » du nom en 2021. Verifie sur la donnee le 2026-09-20 : les 6 « Grandland X » declares vont de 2018 a 2020, les 3 « Grandland » deduits de 2020 a 2026 — meme voiture, deux ecritures separees par le millesime du renommage, aucun chevauchement contradictoire. L'ecriture courante (post-2021) l'emporte, comme pour Kia Ceed.",
+      "effectifs": {"grandland x": 6, "apres_fusion_grandland": 9}
     }
   ],
   "_alias": "vers_marque et vers_modele disent ce que l'alias impose ; vers_modele ne s'applique que si le modele observe est vide ou « Autres » — jamais si le site en a donne un. vers_modele_sous_reserve_de_version (booleen, absent = false) restreint encore : il ne pose vers_modele que si la version ne le contredit pas — vide, ou le nommant en mots entiers, forme repliee. Une version qui dit autre chose ne pose que la marque, le modele reste tel quel.",
