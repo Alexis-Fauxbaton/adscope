@@ -10,7 +10,7 @@ from .auth import require_license
 from .comparables import comparables_for
 from .db import get_session
 from .disappearance import AbsenceOut, observe
-from . import auth_email, families, follows, market
+from . import auth_email, families, follows, market, market_facets
 from .follows import followed_ids
 from .models import Listing
 from .observations import record
@@ -29,6 +29,7 @@ app.include_router(auth_email.router)
 app.include_router(follows.router)
 app.include_router(families.router)
 app.include_router(market.router)
+app.include_router(market_facets.router)
 
 # Le site du marchand : des fichiers statiques, jamais authentifiés — la porte
 # reste sur `/v1/*`. `check_dir=False` parce que le dossier peut ne pas encore

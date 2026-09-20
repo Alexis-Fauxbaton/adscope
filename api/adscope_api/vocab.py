@@ -44,6 +44,16 @@ Fuel = Literal[
 ]
 Gearbox = Literal["manuelle", "automatique", "autre"]
 
+# L'écriture d'affichage, pour `facet_query.py` — jamais utilisée pour
+# comparer ou stocker : les clés ci-dessus restent la seule forme qui va en
+# base et dans les filtres.
+FUEL_LABELS = {
+    "essence": "Essence", "diesel": "Diesel", "hybride": "Hybride",
+    "hybride_rechargeable": "Hybride rechargeable", "electrique": "Électrique",
+    "gpl": "GPL", "gnv": "GNV", "hydrogene": "Hydrogène", OTHER: "Autre",
+}
+GEARBOX_LABELS = {"manuelle": "Manuelle", "automatique": "Automatique", OTHER: "Autre"}
+
 
 def canonical(value, values: tuple[str, ...], field: str) -> str | None:
     """`value` ramenée au vocabulaire fermé : minuscules ASCII, et tout ce qui
