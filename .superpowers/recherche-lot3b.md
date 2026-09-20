@@ -564,3 +564,183 @@ texte, chacune dans ses deux branches.
   les modèles à ajouter au fichier, et les alias entre sites à écrire. La
   liste de 93 candidats qui a fait ce lot s'est écrite à la main une fois ;
   elle se réécrira toute seule à chaque passage du rapport.
+
+---
+
+# Décisions d'Alexis du 2026-09-20
+
+Appliqué sur `adscope`, **55 783 annonces**, branche `feat/api`. **685 tests**
+Python (19 neufs), la restriction et chaque alias prouvés en cassant la ligne
+de production qui les porte. Aucune migration. Base recanonisée, API relancée
+par label (`fr.adscope.api`).
+
+**La somme de contrôle des champs observés n'a pas bougé d'un bit** —
+`brand, model, version, fingerprint, year, mileage`, 55 783 lignes :
+`a3c9076be62bb0831fdc4cd02a5c0b37` avant comme après.
+
+## Décision 1 — un mot purement numérique après un modèle du fichier
+
+**Remesuré avec la restriction que tu as posée** (« seulement pour les
+modèles du fichier », pas le vocabulaire appris des sites), en comparant le
+code d'avant et d'après sur le même instantané de base :
+
+| | avant | après | delta |
+|---|---:|---:|---:|
+| « Autres » résolues (total) | 1 006 | **1 086** | **+80** |
+| déductions sur le modèle connu (population 17 905) | 14 086 | 14 089 | +3 |
+| justes | 13 782 | 13 782 | 0 |
+| contradictoires | 304 | 307 | **+3** |
+| précision hors désaccords légitimes | 100 % | **100 %** | — |
+
+**+80, pas +141** : la restriction au « purement numérique » (regex
+`^\d+([.,]\d+)?$`) laisse dehors les codes moteur qui mêlent lettres et
+chiffres (« 53e », « 218da », « 45ch », « 120ch »), qui comptaient dans la
+mesure large du lot précédent. +79 viennent de la règle elle-même ; +1 vient
+d'un effet de bord corrigé en cours de route (§ »ce que j'ai dû corriger »).
+
+**Les 3 contradictions, toutes** — zéro n'est une lecture fausse, les trois
+sont des annonces où **les deux colonnes du site se contredisent déjà** (le
+modèle déclaré n'est pas celui que la version nomme, indépendamment de toute
+règle numérique) :
+
+| marque | modèle déclaré | version | modèle que la règle lit |
+|---|---|---|---|
+| Mercedes | Classe B | Sensation_GLA 180 Sensation | GLA |
+| Mercedes | Classe A | Classic_Classe ML 320 Classic | Classe ML |
+| Mercedes | Classe E | Pack Luxury_Classe ML 420 CDI Pack Luxe | Classe ML |
+
+**La porte des 99 % tient**, largement : la précision hors désaccords
+légitimes reste 100 %, et les 3 contradictions sont la même catégorie déjà
+comptée dans les 304 de la mesure d'origine (deux colonnes d'un site qui ne
+s'accordent pas), jamais une faute de la règle.
+
+**Les deux pièges tenus par un test** (`tests/test_inference.py`) :
+- un modèle lui-même numérique (« 512 ») ne se perd pas parce que le mot qui
+  le suit est, lui aussi, un chiffre — `512 5.0 M` reste `512` ;
+- le plus long gagne toujours même quand le mot qui suit le plus court est
+  numérique — « Série 2 » et « Série 2 ActiveTourer » ne se mélangent pas,
+  parce que la sélection du plus long précède la garde numérique dans
+  `_named`.
+
+Implémentation : `KnownModels.numeric_heads` (nouveau champ), alimenté
+uniquement par les têtes de `modeles_crees` dans `model_catalog.with_catalog`
+— jamais par le vocabulaire mesuré des sites, ni par un alias de modèle. Vingt
+nouvelles déductions tirées au hasard parmi les 80 :
+
+| marque | année | version | modèle déduit |
+|---|---|---|---|
+| Toyota | 2007 | Sol_Corolla Verso 136 D-4D Sol 5 places | corolla verso |
+| Mercedes | 2020 | GLC 300 e 211+122ch AMG Line 4Matic 9G-Tronic Euro6d-T-EVAP-ISC | glc |
+| Ferrari | 2024 | Purosangue 6.5 V12 725ch | purosangue |
+| BMW | 2023 | XM 4.4 V8 653ch | xm |
+| Porsche | 1962 | 356B 356 B 1600 Super 90 | 356b |
+| Mercedes | 2026 | GLE 53 AMG HYBRID 449ch+184ch 4Matic+ 9G-Speedshift TCT | gle |
+| Land Rover | 2026 | Range Rover Sport 4.4 P635 635ch MHEV SV Edition Two | range rover sport |
+| BMW | 2023 | XM 4.4 V8 653ch | xm |
+| Toyota | 2008 | Corolla Verso 136 D-4D Sol 7 places | corolla verso |
+| Mercedes | 2006 | Pack Luxury_Classe ML 500 Pack Luxe | classe ml |
+| Mercedes | 2006 | Pack Luxury_Classe ML 500 Pack Luxe | classe ml |
+| Land Rover | 2024 | Range Rover Sport 4.4 P635 635ch MHEV Dynamic SV Edition One Flux Silver Gloss | range rover sport |
+| Land Rover | 2019 | Range Rover Sport 5.0 V8 S/C 575ch SVR Mark VIII | range rover sport |
+| Land Rover | 2023 | Range Rover Sport 4.4 P530 530ch First Edition | range rover sport |
+| BMW | 2023 | XM 4.4 V8 748ch (585+197) Label Red | xm |
+| Ferrari | 2025 | Purosangue 6.5 V12 725ch | purosangue |
+| Mercedes | 2011 | Classe ML 300 CDI BE Grand Edition | classe ml |
+| Mercedes | 2015 | CLA 180 Fascination | cla |
+| Mercedes | 2022 | GLC 400 e Hybrid 381ch AMG Line 4Matic 9G-Tronic | glc |
+| Ferrari | 1992 | 512 5.0 M | 512 |
+
+## Décision 2 — quatre alias de modèle
+
+Vérifiés sur la donnée avant d'être posés, comme demandé.
+
+| alias | vérification | condition | effectif avant | effectif après fusion |
+|---|---|---|---|---|
+| Citroën « Picasso » → Xsara Picasso | les 14 déclarés par La Centrale sont tous datés 2000-2009, versions « 2.0 HDI », « 1.6 HDI 110 »… aucune trace C4 (BlueHDi, PureTech) | année ≤ 2010 | 14 (déclaré) + 118 (déduit) | **132** |
+| Ferrari « F8 Tributo » + « F8 » → F8 | même famille, mêmes années (2020-2022) ; « Tributo » devient une finition (comme « Base »), le mot reste visible dans le libellé | aucune | 5 + 5 (déduits, aucun des deux n'est déclaré par un site) | **10** |
+| Kia « Cee'd »/« Ceed »/« Pro Cee'd » → Ceed | Cee'd 2007-2014, Ceed 2019-2025, Pro Cee'd (coupé) 2007-2010 — Kia a renommé l'écriture officielle en 2018, l'écriture courante l'emporte ; « XCeed » (crossover, 6 annonces) est un **modèle différent**, non touché | aucune | 18+6+6 (déduits) + 1 « CEE D » (déclaré, 2007) | **31** |
+| Opel « Grandland X » → Grandland | les 6 déclarés vont de 2018 à 2020, les 3 déduits de 2020 à 2026 — même voiture, Opel a retiré le X en 2021, aucun chevauchement contradictoire | aucune | 6 (déclaré) + 3 (déduit) | **9**, +1 « Autres » restauré (§ ci-dessous) = **10** |
+
+**Le compte des modèles déclarés inchangés, avant/après** : 1 117 paires
+(marque, modèle déclaré) distinctes en base. **Exactement 3 changent de clé
+canonique** — Citroën/PICASSO, Kia/CEE D, Opel/Grandland X — les 1 114 autres
+sont identiques bit à bit, vérifié en rejouant `taxonomy.key` de l'ancien code
+et du nouveau sur les mêmes 1 117 paires.
+
+**La recherche ne perd rien**, mesuré annonce par annonce sur les 55 783,
+avant/après :
+
+| requête | avant | après |
+|---|---:|---:|
+| `q=f8 tributo` | 5 | **5** |
+| `q=pro cee'd` | 6 | **6** |
+| `q=grandland x` | 7 | **7** |
+| `q=picasso` | 1 278 | **1 278** |
+| `q=xsara picasso` | 118 | **132** *(gagné)* |
+
+## Ce que j'ai dû corriger en cours de route
+
+`model_vocabulary.load` bâtit le vocabulaire de la déduction sur
+`taxonomy.key`, qui applique déjà les alias — et un alias sans condition
+d'année (Grandland X) se serait donc appliqué **avant** le comptage des
+têtes, effaçant la tête à deux mots « grandland x » du vocabulaire (le mot
+« x » seul ne suit jamais assez de modèles pour être un qualificatif mesuré).
+Une annonce « Autres » dont la version commence par « Grandland X » aurait
+perdu sa déduction — pas une donnée fausse, une régression silencieuse d'une
+annonce. `model_catalog._alias_heads` réinjecte la tête déclarée de chaque
+alias dans le vocabulaire de la déduction, exactement comme `modeles_crees`
+le fait déjà pour ses propres têtes — jamais dans `numeric_heads`, la
+décision 1 ne vaut que pour le fichier. Deux tests le tiennent
+(`test_an_alias_heads_multi_word_head_survives_its_own_alias`,
+`test_an_alias_head_never_gets_the_numeric_word_exception`), et c'est pour ça
+que le compte final est 1 086 (+80) et non 1 085 (+79).
+
+## « Autres » résolues, avant/après
+
+| | avant (lot 3b) | après (ces décisions) |
+|---|---:|---:|
+| modèle déduit (`canon_model_source = 'version'`) | 1 006 | **1 086** |
+| non précisées (`canon_model = 'autres'`) | 3 848 | **3 768** |
+
+## Appliqué à la base réelle
+
+```
+pg_dump -Fc adscope -f ~/adscope-backups/adscope-20260920-180317-avant-decisions-lot3b.dump
+python scripts/recanonize.py --all → 131 annonces recanonisées, < 1 s
+python scripts/recanonize.py --all → 0 annonce (rejoué, rien à faire)
+launchctl kickstart -k gui/501/fr.adscope.api
+```
+
+Somme de contrôle des champs observés (`brand`, `model`, `version`,
+`fingerprint`, `year`, `mileage`, 55 783 annonces, `ORDER BY id`) :
+
+```
+avant  a3c9076be62bb0831fdc4cd02a5c0b37
+après  a3c9076be62bb0831fdc4cd02a5c0b37
+```
+
+**Elle n'a pas bougé d'un bit.**
+
+## Tests — 685, dont 19 neufs
+
+`cd api && ./.venv/bin/pytest tests/ -q` → **685 passés** (666 avant ces
+décisions). Chaque test nouveau nomme la ligne de production qui le fait
+rougir, prouvé en la cassant à la main (le gate numérique dans `_named`, la
+condition d'année dans `canonical`, `numeric_heads` et `_alias_heads` dans
+`with_catalog`) puis restaurée. Aucun ne lit l'horloge.
+
+| fichier | tests neufs |
+|---|---:|
+| `tests/test_inference.py` | 5 (décision 1, dont les deux pièges) |
+| `tests/test_model_catalog.py` | 8 (décision 1 + la fusion Kia/F8 réelle + `_alias_heads`) |
+| `tests/test_taxonomy.py` | 5 (l'alias Picasso sous condition d'année) |
+| `tests/test_naming.py`, `test_spelling.py` | 1 chacun |
+
+## Fichiers touchés
+
+`api/adscope_api/inference.py` (garde numérique restreinte au fichier),
+`model_catalog.py` (`numeric_heads`, `_alias_heads`, alias sous condition
+d'année), `taxonomy.py` (`canonical`/`key`/`search_text` prennent `year`),
+`naming.py` + `market_items.py` + `feed_query.py` (le libellé aussi),
+`shared/vehicle-aliases.json` (3 alias neufs, « Tributo » en finition, fusion
+Kia). Aucun fichier ne dépasse 150 lignes.
