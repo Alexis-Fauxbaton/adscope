@@ -224,23 +224,6 @@ test('le panneau posé en tête ne se duplique pas au fil des rendus', () => {
   assert.equal(w.panel().parentElement.children.indexOf(w.panel()), 0)
 })
 
-// B, l'emplacement écarté : la colonne de droite, sous le bloc prix. Gardé
-// déclaré pour que la comparaison reste reproductible — et pour qu'un
-// basculement soit une ligne, pas une refonte.
-test('l’emplacement de droite reste déclaré, sous le bloc prix du site', () => {
-  capped() // charge le registre du site dans ce monde
-  const { spots } = globalThis.ADS.lacentrale
-  const side = new El('div')
-  const price = new El('div')
-  price.setAttribute('data-page-zone', 'syntheseAnnonce')
-  const contact = new El('div')
-  side.append(price, contact)
-  const at = spots.b({ querySelector: (sel) => side.querySelector(sel) })
-  assert.equal(at.parent, side)
-  assert.equal(at.before, contact)
-  assert.equal(spots.b({ querySelector: () => null }), null)
-})
-
 // Le cœur du lot, vu de la page : le site écrit « 60 jours », l'annonce en a
 // 1 810, et l'écart doit se lire sans quitter la fiche. Le compte de 1 810
 // jours n'est vrai qu'au jour du relevé : ce test lisait l'horloge réelle et

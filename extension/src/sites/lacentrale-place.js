@@ -35,16 +35,16 @@ ADS.lacentrale.spots = (() => {
     ADS.read.before(doc.querySelector('#classified-main-infos-v2')) ||
     ADS.read.head(doc.querySelector('.main-area'))
 
-  // B — ÉTUDIÉ, ÉCARTÉ. Colonne de droite, sous le bloc prix : visible sans
-  // défiler, mais ≈ 320 px de large — la courbe y perd ses dates — et planté au
-  // milieu du bloc de contact du site, entre le prix et « N° téléphone ».
-  const b = (doc) => ADS.read.after(doc.querySelector('[data-page-zone="syntheseAnnonce"]'))
+  // Écarté par Alexis le 2026-09-20 : la colonne de droite, sous
+  // `[data-page-zone="syntheseAnnonce"]`. Visible sans défiler, mais ≈ 320 px de
+  // large — la courbe y perd ses dates — et planté au milieu du bloc de contact
+  // du site, entre le prix et « N° téléphone ». Capture : docs/panneau-lc-placement-b.png.
 
   // Le repli, qui est l'ancre d'avant ce lot : si A manque, le panneau descend
   // sous le pavé du prix. Jamais pas de panneau.
   const under = (doc) => ADS.read.after(doc.querySelector('#pavePrix'))
 
-  return { a, b, under }
+  return { a, under }
 })()
 
 ADS.lacentrale.mount = (doc) => ADS.lacentrale.spots.a(doc) || ADS.lacentrale.spots.under(doc)
