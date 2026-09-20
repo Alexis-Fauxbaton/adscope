@@ -29,8 +29,24 @@ test("un accès de site coupé s'annonce, avec le nom du site et son bouton", as
   const w = await open({ status: detail(), problems: [cut('lc', 'La Centrale', LC)] })
   assert.equal(box(w).hidden, false)
   assert.equal(lines(w).length, 1)
-  assert.equal(said(lines(w)[0]), 'La Centrale : accès désactivé')
+  assert.equal(
+    said(lines(w)[0]),
+    "adscope n'a plus l'accès permanent à La Centrale : il ne fonctionne que sur les onglets où vous cliquez sur son icône.",
+  )
   assert.equal(act(lines(w)[0]).textContent, 'Réactiver')
+})
+
+// Le vécu que l'ancien texte contredisait : en mode « Sur clic », le panneau
+// s'affiche après un rechargement sur l'onglet où l'on a cliqué l'icône, et la
+// fenêtre affirmait pendant ce temps que l'accès était « désactivé ». Rouge sur
+// l'entrée `site_access` de `SAYS` dans src/health.js : le texte doit nommer la
+// perte de l'accès *permanent*, jamais la coupure totale.
+test("l'alerte d'accès ne prétend pas que l'extension est éteinte", async () => {
+  const w = await open({ status: detail(), problems: [cut('lc', 'La Centrale', LC)] })
+  const text = said(lines(w)[0])
+  assert.match(text, /accès permanent/)
+  assert.match(text, /onglets où vous cliquez sur son icône/)
+  assert.doesNotMatch(text, /désactivé/)
 })
 
 // Fait rougir `chrome.permissions.request({ origins: [p.origin] })` de

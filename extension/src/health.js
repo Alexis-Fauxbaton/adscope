@@ -53,8 +53,16 @@ ADS.health = (() => {
   // vocabulaire est ici et nulle part ailleurs — « reconnectez-vous » sur un
   // serveur injoignable serait la mauvaise consigne, et c'est précisément ce
   // que ces trois espèces séparées existent pour empêcher.
+  // `site_access` dit ce qui se passe vraiment, pas ce que le réglage s'appelle.
+  // En mode « Sur clic », cliquer l'icône donne à l'extension un accès
+  // temporaire à l'onglet courant : le panneau s'affiche alors après un
+  // rechargement, pendant que la fenêtre annonçait « accès désactivé ». Deux
+  // affirmations contradictoires à l'écran, et c'est la fenêtre qui avait tort.
   const SAYS = {
-    site_access: (p) => ({ text: `${p.name} : accès désactivé`, button: 'Réactiver' }),
+    site_access: (p) => ({
+      text: `adscope n'a plus l'accès permanent à ${p.name} : il ne fonctionne que sur les onglets où vous cliquez sur son icône.`,
+      button: 'Réactiver',
+    }),
     logged_out: () => ({ text: 'Session adscope expirée : reconnectez-vous.', button: 'Se reconnecter' }),
     unreachable: () => ({ text: 'adscope est injoignable.', button: 'Réessayer' }),
   }
