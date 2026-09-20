@@ -2,9 +2,21 @@
 boîte, localisation, vendeur, les trois fourchettes — sur les mêmes filtres
 que `/v1/market` (sans `sort`/`limit`/`offset`). Chaque facette se compte sans
 son propre filtre (`market_query.core`, `exclude`) : choisir « diesel » ne
-vide pas la liste des carburants, `total` seul applique tout. Le détail par
-facette est dans `facet_query.py`, les libellés dans `spelling.py`/`vocab.py`/
-`region.py`.
+vide pas la liste des carburants, `total` seul applique tout.
+
+Une facette en cascade ignore aussi son descendant, pas seulement son propre
+filtre : `brands` exclut `brand` **et** `model` — sinon choisir un modèle
+enferme dans sa marque (cul-de-sac constaté par le lot `web`,
+`.superpowers/recherche-lot4-web.md`, impossible de changer de marque sans
+d'abord défaire le modèle) — et `regions` exclut `location` en entier, qui
+couvre déjà `department` et `region` ensemble (`market_filters.combined`, une
+seule liste avant `market_query.core`, partagée par `regions` et
+`departments` — voir `facet_query.locations`). `models` (n'exclut que
+`model`, garde `brand`) et `departments` n'ont pas de descendant à eux : rien
+n'y change.
+
+Le détail par facette est dans `facet_query.py`, les libellés dans
+`spelling.py`/`vocab.py`/`region.py`/`department_labels.py`.
 """
 
 from datetime import datetime, timezone
@@ -61,7 +73,7 @@ def get_facets(
 
     return {
         "total": fq.total(session, excluding()),
-        "brands": fq.brands(session, excluding("brand")),
+        "brands": fq.brands(session, excluding("brand", "model")),
         "models": fq.models(session, excluding("model")) if brand else [],
         "fuel": fuel_list, "fuel_unknown": fuel_unknown,
         "gearbox": gearbox_list, "gearbox_unknown": gearbox_unknown,

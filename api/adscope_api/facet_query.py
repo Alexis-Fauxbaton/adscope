@@ -8,12 +8,14 @@ libellé s'en déduit : `spelling.brand` pour la marque (table fermée),
 `spelling.inferred` pour le modèle (même mécanique que pour un modèle déduit,
 voir son commentaire : titre-casé puis passé par la règle/les exceptions de
 `spelling.model`). Les régions n'ont pas de colonne : `region.of_department`
-replie les comptes par département.
+replie les comptes par département ; le nom d'un département vient de
+`department_labels.py`.
 """
 
 from sqlalchemy import func, select
 
 from . import region as region_module
+from .department_labels import label_of as department_label
 from .region import REGIONS
 from .spelling import brand as brand_label, inferred as model_label
 from .taxonomy import UNKNOWN, fold
@@ -83,7 +85,9 @@ def locations(session, query):
     qu'un repli des comptes par département (`region.of_department`), jamais
     une colonne à elle — voir `region.py`."""
     rows = _counts(session, query, "department")
-    departments = [{"key": k, "count": n} for k, n in rows if k]
+    departments = [
+        {"key": k, "label": department_label(k), "count": n} for k, n in rows if k
+    ]
     unknown = sum(n for k, n in rows if not k)
     by_region: dict[str, int] = {}
     for k, n in rows:

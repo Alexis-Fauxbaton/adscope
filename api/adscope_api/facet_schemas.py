@@ -13,6 +13,7 @@ class FacetItem(BaseModel):
 
 class DepartmentFacetItem(BaseModel):
     key: str
+    label: str
     count: int
 
 

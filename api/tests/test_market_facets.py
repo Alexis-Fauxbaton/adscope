@@ -88,6 +88,18 @@ def test_brands_facet_excludes_its_own_filter(client, key, session):
     assert by_key(body["brands"]) == {"renault": 1, "peugeot": 1}
 
 
+# Fait rougir le `"model"` de `excluding("brand", "model")` dans
+# `market_facets.get_facets` (une facette en cascade ignore aussi ses
+# descendants — sans lui, un modèle choisi enfermait dans sa marque, cul-de-sac
+# constaté par le lot `web`, `.superpowers/recherche-lot4-web.md`).
+def test_brands_facet_also_ignores_the_chosen_model(client, key, session):
+    car(session, "1", brand="Renault", model="Clio")
+    car(session, "2", brand="Peugeot", model="208")
+    body = facets(client, key, brand="Renault", model="Clio")
+    assert body["total"] == 1
+    assert by_key(body["brands"]) == {"renault": 1, "peugeot": 1}
+
+
 # --- models -----------------------------------------------------------------
 
 def test_models_is_empty_without_a_brand_chosen(client, key, session):
@@ -194,6 +206,17 @@ def test_regions_and_departments_derive_from_department(client, key, session):
     assert by_key(body["departments"]) == {"75": 1, "92": 1, "13": 1}
 
 
+# Fait rougir `department_label(k)` dans `facet_query.locations` (mis à la
+# place d'un simple `k` sans label) : chaque département porte son nom
+# officiel, pas seulement son code.
+def test_departments_carry_their_official_name(client, key, session):
+    car(session, "1", department="92")
+    car(session, "2", department="2A")
+    body = facets(client, key)
+    assert {"key": "92", "label": "Hauts-de-Seine", "count": 1} in body["departments"]
+    assert {"key": "2A", "label": "Corse-du-Sud", "count": 1} in body["departments"]
+
+
 def test_location_unknown_counts_listings_without_a_department(client, key, session):
     car(session, "1", department="75")
     car(session, "2", department=None)
@@ -209,6 +232,18 @@ def test_regions_facet_excludes_its_own_filter(client, key, session):
     body = facets(client, key, region="ile-de-france")
     assert body["total"] == 1
     assert by_key(body["regions"]) == {"ile-de-france": 1, "paca": 1}
+
+
+# Fait rougir le `"location"` de `regions, departments, location_unknown =
+# fq.locations(session, excluding("location"))` (une facette en cascade
+# ignore aussi ses descendants) : région *et* département choisis ensemble ne
+# doivent pas faire disparaître la Bretagne de la facette des régions.
+def test_regions_facet_ignores_both_region_and_department(client, key, session):
+    car(session, "1", department="92")  # Île-de-France
+    car(session, "2", department="35")  # Bretagne
+    body = facets(client, key, region="ile-de-france", department="92")
+    assert body["total"] == 1
+    assert by_key(body["regions"]) == {"ile-de-france": 1, "bretagne": 1}
 
 
 def test_departments_facet_excludes_its_own_filter(client, key, session):

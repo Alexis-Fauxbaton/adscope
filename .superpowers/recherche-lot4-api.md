@@ -166,3 +166,99 @@ le plus chargé).
   absentes de la facette plutôt que comptées à part, à la différence de
   `fuel`/`gearbox`/`department`. Lu ainsi dans le contrat fixé ; à confirmer
   si Alexis en voulait un.
+
+## 2026-09-20 — deux corrections, sur le rapport du lot `web`
+
+Deux points relevés après coup (dépôt encore à HEAD `77bac90`, trois agents en
+parallèle dans `api/`/`web/`/`extension/`, aucun autre chemin touché).
+
+### 1. La cascade manquait un cran : `brands` gardait `model`
+
+C'était la réserve ci-dessus, confirmée cul-de-sac par le lot `web`
+(`.superpowers/recherche-lot4-web.md`, testé dans un vrai navigateur) : « chaque
+facette se compte sans son propre filtre » pris à la lettre laissait `model`
+appliqué sur la facette `brands`, donc choisir « Renault Clio » réduisait la
+liste des marques à Renault seule — impossible de revenir à Peugeot sans
+d'abord défaire le modèle. Ce n'était pas une divergence entre `api/` et
+`web/`, comme le rapport du lot `web` le formulait : c'était une imprécision du
+contrat, corrigée pour les deux à la fois. Règle : une facette en cascade
+ignore aussi son descendant, pas seulement son propre filtre — `brands` exclut
+`brand` **et** `model` (`market_facets.get_facets`,
+`excluding("brand", "model")`, un mot changé). `regions` l'ignorait déjà en
+entier par construction (`department`/`region` fusionnés en une seule liste
+avant `market_query.core`, `excluding("location")` partagé par `regions` et
+`departments`) — vérifié, pas juste supposé : un test pose région *et*
+département ensemble et prouve que la Bretagne reste dans `regions`. `models`
+et `departments` n'ont pas de descendant à eux : rien n'y change.
+
+### 2. `departments` porte maintenant un nom
+
+`{key, label, count}` : `label` est le nom officiel (« Hauts-de-Seine »,
+« Corse-du-Sud », « La Réunion »…), table neuve **`department_labels.py`**
+(121 lignes) — un module dédié plutôt qu'un ajout à `region.py` (64 lignes) ou
+`department.py` (48, occupé par la normalisation d'un département envoyé ou
+dérivé d'un code postal, un tout autre sujet), pour rester sous 150 lignes.
+Les 101 clés sont exactement celles de `region.REGIONS`, un test le vérifie
+par égalité d'ensembles plutôt que de recompter à la main.
+
+### Vérifié en vrai
+
+- `./.venv/bin/pytest tests/ -q` : **736 passés** (728 avant, huit ajoutés —
+  trois dans `test_market_facets.py`, cinq dans `tests/test_department_labels.py`,
+  neuf), aucun échec.
+- **Chaque ligne changée cassée puis restaurée, un test rougit à chaque fois**
+  (script jetable, jamais commité) : `excluding("brand", "model")` (déjà
+  rougi *avant* la correction, en écrivant le test sur le code non corrigé —
+  la preuve la plus directe qui soit), `department_label(k)` dans
+  `facet_query.locations`, le `"location"` de l'appel à `fq.locations` (changé
+  en `"region"` seul : la Bretagne disparaît de `regions`), une clé retirée de
+  `DEPARTMENT_LABELS` (rougit l'égalité d'ensembles), un libellé dupliqué
+  (rougit l'unicité et le nom propre de la Corse-du-Sud), le repli
+  `DEPARTMENT_LABELS.get(department, department)` changé en accès direct
+  (`KeyError` sur un code inconnu).
+- `launchctl kickstart -k gui/$UID/fr.adscope.api` : relancé sur le nouveau
+  code, aucune trace ni erreur neuve dans `~/Library/Logs/adscope-api.log`
+  (seuls les avertissements `fuel hors vocabulaire` déjà présents avant ce
+  lot). `GET /v1/market/facets` sans clé → 401, `GET /app/` → 200.
+- **Aucune écriture d'essai sur `adscope`** : `SELECT count(*)` sur
+  `listings`/`licenses` avant et après, 55 783 / 4, inchangés — aucune requête
+  autre que des `SELECT` dans ce lot. Pas de licence réelle en main (seul le
+  hash est en base) pour rejouer une requête HTTP authentifiée contre la vraie
+  base ; la tâche interdit d'en frapper une, comme au lot précédent — le
+  contrôle 200/authentifié reste porté par les tests de route
+  (`client`/`key`, `adscope_test`).
+
+### Fichiers touchés (`api/` seulement)
+
+| Fichier | État | Lignes |
+|---|---|---|
+| `adscope_api/department_labels.py` | neuf — les 101 noms officiels | 121 |
+| `adscope_api/facet_query.py` | `locations` rend `label` par département | 109 |
+| `adscope_api/facet_schemas.py` | `DepartmentFacetItem.label` | 48 |
+| `adscope_api/market_facets.py` | `brands` exclut aussi `model` ; docstring | 87 |
+| `adscope_api/search.py` | docstring de `family` mise à jour | 54 |
+| `tests/test_department_labels.py` | neuf — cinq tests | — |
+| `tests/test_market_facets.py` | trois tests ajoutés (cascade marque/modèle, cascade région/département, label département) | — |
+
+Aucun fichier de production ne dépasse 150 lignes (`department_labels.py` à
+121, le plus long des fichiers touchés aujourd'hui).
+
+### Réserves (mises à jour)
+
+- La réserve « `models`/`brands` filtrent aussi le paramètre `model` sans
+  `brand` » ci-dessus ne tient plus pour `brands` (corrigée) ; elle reste
+  vraie pour `models`, sans changement — hors sujet ici (`models` n'a pas de
+  descendant).
+- **`departments` continue de partager sa requête avec `regions`**
+  (`excluding("location")`, une seule requête pour les deux, comme au lot 4) —
+  poser une région ne restreint donc pas la liste des départements à ceux de
+  cette région : le filtre `region` est ignoré autant que `department` pour
+  les deux facettes. Non demandé par cette tâche (elle ne cite que le
+  cul-de-sac marque/modèle et les noms de département), non testé
+  spécifiquement, mais à vérifier avec Alexis si « departments sans
+  department, avec region » doit un jour se distinguer réellement de
+  « regions sans region ni department » — separar les deux romprait le
+  partage d'une seule requête pour les deux facettes.
+- Les autres réserves du lot 4 (ordre de départage arbitraire, mesure de
+  latence hors requête HTTP réelle, `seller_type` sans `_unknown`) sont
+  inchangées, non revues ici.
