@@ -26,6 +26,20 @@ const FUEL_LABELS = {
 }
 const GEARBOX_LABELS = { manuelle: 'Manuelle', automatique: 'Automatique', autre: 'Autre' }
 
+// Le nom administratif des huit départements que portent les fixtures — le
+// contrat sert désormais `departments: [{key, label, count}]`, et l'écran
+// affiche « 92 · Hauts-de-Seine » plutôt que le seul code.
+const DEPARTMENT_LABELS = {
+  13: 'Bouches-du-Rhône',
+  33: 'Gironde',
+  34: 'Hérault',
+  44: 'Loire-Atlantique',
+  67: 'Bas-Rhin',
+  69: 'Rhône',
+  75: 'Paris',
+  92: 'Hauts-de-Seine',
+}
+
 // Compte décroissant, puis libellé : deux marques à égalité ne doivent pas
 // changer de place d'une requête à l'autre.
 function tally(items, keyOf, labelOf) {
@@ -79,11 +93,12 @@ export function facetsOf(items, params) {
     fuel_unknown: unknowns(sans('fuel'), 'fuel'),
     gearbox: tally(sans('gearbox'), (i) => i.gearbox, (i) => GEARBOX_LABELS[i.gearbox] || i.gearbox),
     gearbox_unknown: unknowns(sans('gearbox'), 'gearbox'),
-    regions: tally(sans('region'), (i) => i.region, (i) => i.region_label),
-    // Le contrat rend les départements sans libellé : leur clé *est* leur
-    // écriture (« 92 »), il n'y a pas de second mot à servir.
+    // Sans région *ni* département, comme `brands` sans marque ni modèle :
+    // choisir un département ne doit pas enfermer la liste des régions dans
+    // la sienne, sans quoi on ne pourrait plus en changer sans tout défaire.
+    regions: tally(sans(['region', 'department']), (i) => i.region, (i) => i.region_label),
     departments: tally(place, (i) => i.department, (i) => i.department)
-      .map(({ key, count }) => ({ key, count })),
+      .map(({ key, count }) => ({ key, count, label: DEPARTMENT_LABELS[key] || null })),
     location_unknown: unknowns(place, 'department'),
     seller_type: tally(sans('seller_type'), (i) => i.seller_type, (i) => i.seller_type),
     ranges: {

@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { EMPTY_FILTERS } from '../js/query.js'
+import { EMPTY_FILTERS, facetsQuery, marketQuery } from '../js/query.js'
 import {
-  activeCount, anyBadRange, coverage, coverageLine, labelFor, modelsFor, optionFor,
-  panelCount,
+  activeCount, anyBadRange, coverage, coverageLine, departmentLabel, labelFor, modelsFor,
+  optionFor, panelCount, withoutBadRanges,
 } from '../js/market-facets.js'
 
 const MARQUES = [
@@ -101,6 +101,38 @@ test('une fourchette à l’envers se reconnaît sur les trois champs', () => {
   assert.equal(anyBadRange({ ...EMPTY_FILTERS, priceMin: 30000, priceMax: 5000 }), true)
   assert.equal(anyBadRange({ ...EMPTY_FILTERS, yearMin: 2021, yearMax: 2018 }), true)
   assert.equal(anyBadRange({ ...EMPTY_FILTERS, mileageMin: 10, mileageMax: 200000 }), false)
+})
+
+// Rouge sur le `if (badRange(…))` de `withoutBadRanges` dans
+// js/market-facets.js : sans lui, une adresse partagée portant une marque
+// valide *et* une fourchette inversée laissait la garde de market.js couper
+// tout l'appel aux facettes — marque et modèle retombaient sur « Toutes »,
+// et la fourchette fautive, elle, restait dans la requête au lieu d'être
+// seule écartée.
+test('une fourchette à l’envers est seule écartée, pas le reste des filtres', () => {
+  const filtres = {
+    ...EMPTY_FILTERS, brand: 'renault', model: 'clio', priceMin: 30000, priceMax: 10000,
+  }
+  const nettoyés = withoutBadRanges(filtres)
+  assert.equal(nettoyés.priceMin, null)
+  assert.equal(nettoyés.priceMax, null)
+  assert.equal(nettoyés.brand, 'renault')
+  assert.equal(nettoyés.model, 'clio')
+  // Ce que market.js envoie réellement : un appel part, sans la fourchette.
+  assert.equal(String(facetsQuery(nettoyés)), 'brand=renault&model=clio')
+  assert.equal(String(marketQuery(nettoyés)), 'brand=renault&model=clio&limit=20')
+  // Une fourchette valide, elle, n'est jamais touchée.
+  const posée = { ...EMPTY_FILTERS, priceMin: 5000, priceMax: 12000 }
+  assert.deepEqual(withoutBadRanges(posée), posée)
+})
+
+// Rouge sur le `option.label ? … : option.key` de `departmentLabel` : sans le
+// repli, un département sans libellé afficherait « 92 · undefined » plutôt
+// que « 92 » tout seul.
+test('un département affiche son code et son nom, ou son code seul', () => {
+  assert.equal(departmentLabel({ key: '92', label: 'Hauts-de-Seine' }), '92 · Hauts-de-Seine')
+  assert.equal(departmentLabel({ key: '92', label: null }), '92')
+  assert.equal(departmentLabel(null, '92'), '92')
 })
 
 // Rouge sur `panelCount` dans js/market-facets.js : ce qui décide si une

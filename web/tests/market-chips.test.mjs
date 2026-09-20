@@ -9,7 +9,7 @@ const FACETTES = {
   fuel: [{ key: 'hybride_rechargeable', label: 'Hybride rechargeable', count: 12 }],
   gearbox: [{ key: 'automatique', label: 'Automatique', count: 40 }],
   regions: [{ key: 'ile-de-france', label: 'Île-de-France', count: 88 }],
-  departments: [{ key: '92', count: 21 }],
+  departments: [{ key: '92', label: 'Hauts-de-Seine', count: 21 }],
 }
 
 const libelles = (filters) => activeChips(filters, FACETTES).map((c) => c.label)
@@ -31,7 +31,20 @@ test('chaque pastille porte l’écriture officielle, pas la clé', () => {
 // sur une pastille ne dit pas ce que c'est — une année tronquée, un nombre
 // d'annonces ?
 test('un département se nomme comme tel', () => {
-  assert.deepEqual(libelles({ ...EMPTY_FILTERS, department: ['92'] }), ['Département 92'])
+  assert.deepEqual(
+    libelles({ ...EMPTY_FILTERS, department: ['92'] }),
+    ['Département 92 · Hauts-de-Seine'],
+  )
+})
+
+// Rouge sur le `departmentLabel(optionFor(…), value)` de `listChips` : sans le
+// repli sur le code, un département absent des compteurs (filtré par un
+// filtre non lié, comme un modèle très rare) n'afficherait rien du tout.
+test('un département sans compteur garde au moins son code', () => {
+  assert.deepEqual(
+    libelles({ ...EMPTY_FILTERS, department: ['08'] }),
+    ['Département 08'],
+  )
 })
 
 // Rouge sur les trois branches de `rangeChip` : une fourchette à demi posée

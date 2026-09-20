@@ -2,7 +2,7 @@
 
 import * as api from './api.js'
 import { clear, el } from './dom.js'
-import { EMPTY_FACETS, anyBadRange, panelCount } from './market-facets.js'
+import { EMPTY_FACETS, panelCount, withoutBadRanges } from './market-facets.js'
 import { renderChips, renderFamilies, renderFilters, renderSort } from './market-filters.js'
 import { createList } from './market-list.js'
 import { renderPanel } from './market-panel.js'
@@ -89,11 +89,11 @@ export async function renderMarket(root, state) {
     onError: auth,
   })
 
-  // Même règle que la liste : rien ne part tant que la fourchette est à
-  // l'envers, et les compteurs affichés restent ceux d'avant.
-  const rafraichirFacettes = (filters, options) => (
-    anyBadRange(filters) ? null : demanderFacettes(filters, options)
-  )
+  // Les compteurs se demandent toujours, même avec une fourchette à l'envers :
+  // seule elle est écartée (`withoutBadRanges`), jamais le reste — sinon une
+  // adresse partagée avec une fourchette cassée laisserait marque, modèle,
+  // carburant, boîte et lieu sans réponse pour un filtre qui n'a rien à voir.
+  const rafraichirFacettes = (filters, options) => demanderFacettes(withoutBadRanges(filters), options)
 
   function dessinerPastilles() {
     clear(zonePastilles).append(...[renderFamilies(ui), renderChips(ui)].filter(Boolean))

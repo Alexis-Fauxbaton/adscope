@@ -99,6 +99,25 @@ test('une région porte son nom officiel et sa clé', () => {
   assert.equal(idf.count, 3)
 })
 
+// Rouge sur le `label: DEPARTMENT_LABELS[key] || null` de `facetsOf` : sans
+// lui, la liste des départements ne porterait que des codes, et l'écran
+// afficherait « 92 » au lieu de « 92 · Hauts-de-Seine ».
+test('un département porte son code et son nom', () => {
+  const idf = f({}).departments.find((d) => d.key === '92')
+  assert.equal(idf.label, 'Hauts-de-Seine')
+  assert.equal(idf.count, 1)
+})
+
+// Rouge sur le `sans(['region', 'department'])` de `facetsOf` : avec le seul
+// `'region'`, choisir un département enfermerait la liste des régions dans
+// celle du département choisi — le même cul-de-sac que la marque sans le
+// modèle.
+test('un département choisi n’enferme pas dans sa région', () => {
+  const régions = f({ region: ['ile-de-france'], department: ['92'] }).regions
+  assert.ok(clés(régions).includes('auvergne-rhone-alpes'))
+  assert.ok(régions.length > 1)
+})
+
 // Rouge sur le `span(sans('price'), 'price')` de `facetsOf` : les bornes
 // suggérées servent à *élargir* la fourchette posée. Les recalculer dedans
 // les enfermerait sur ce que le marchand vient de saisir.

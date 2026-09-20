@@ -186,3 +186,67 @@ racine, `docs/` hors les trois captures nommées par la tâche. HEAD de départ
 cinquantaine de modifications dans `extension/` (dont des suppressions
 indexées). Elles ne viennent pas de ce lot et n'ont **pas** été commitées : le
 commit est fait chemin par chemin sur `web/`, les trois captures et ce rapport.
+
+## 2026-09-20 — Correctif revue : fourchette inversée, départements nommés
+
+### 1. La fourchette inversée coupait tout, pas juste elle-même
+
+`js/market.js` gardait `rafraichirFacettes` derrière `anyBadRange(filters) ?
+null : demanderFacettes(…)` : une adresse partagée portant une marque valide
+**et** une fourchette à l'envers (`price_min=30000&price_max=10000`) ne
+faisait *aucun* appel à `/v1/market/facets` au premier affichage. Marque et
+modèle retombaient sur « Toutes » / « Tous » (la liste qui les nomme n'était
+jamais arrivée), et carburant, boîte, lieu restaient vides sans un mot
+d'explication.
+
+Correctif : `withoutBadRanges` (`js/market-facets.js`) écarte **seule** la
+fourchette fautive — les deux bornes repassent à `null` avant la requête —
+sans jamais toucher au reste des filtres. `market.js` appelle désormais
+`demanderFacettes` sans condition ; l'erreur reste affichée sous le champ
+via `anyBadRange`, qui ne sert plus qu'à ça. `js/market-list.js` n'était pas
+concerné : il n'appelait déjà rien vers `/v1/market` sur une fourchette
+cassée (décision prise au lot 4), ce qui satisfait déjà « la fourchette n'est
+pas envoyée » — non touché.
+
+Test qui rougit sans le correctif (`tests/market-facets.test.mjs`, « une
+fourchette à l'envers est seule écartée, pas le reste des filtres ») : marque
+et modèle valides + fourchette inversée → `withoutBadRanges` ne doit garder
+que les deux premiers dans la requête ; cassé en ligne et restauré, preuve
+faite (voir aussi les quatre autres lignes ci-dessous, cassées une à une).
+
+### 2. Les départements par leur nom
+
+Le contrat sert désormais `departments: [{key, label, count}]`. `js/market-
+panel.js` (liste) et `js/market-chips.js` (pastille) affichent « 92 ·
+Hauts-de-Seine », repli sur le code seul si `label` manque —
+`departmentLabel` (`js/market-facets.js`) porte cette règle une fois, lue par
+les deux. Fixtures démo mises à jour : `js/fixtures-facets.js` porte les huit
+noms de département (`DEPARTMENT_LABELS`) que ses fixtures couvrent.
+
+### 3. Les marques et les régions ne s'enferment plus
+
+Vérifié : rien côté `web/` ne suppose qu'une facette se filtre elle-même —
+`market-filters.js` et `market-panel.js` affichent les listes telles que la
+facette les rend, sans logique d'exclusion à eux. L'exclusion vit entièrement
+côté fixtures démo (`facetsOf`), au même endroit que côté API. `brands`
+excluait déjà `brand` *et* `model` (lot 4). `regions`, en revanche,
+n'excluait que `region` — un département choisi enfermait la liste des
+régions dans la sienne, le même cul-de-sac que la marque sans le modèle.
+Corrigé : `sans(['region', 'department'])`.
+
+### Tests
+
+`node --test web/tests/*.test.mjs` : **111 verts** (106 avant ce correctif).
+Cinq tests neufs, chacun nommant la ligne de production qui le fait rougir,
+cassée puis restaurée : `withoutBadRanges` (market-facets.test.mjs),
+`departmentLabel` (market-facets.test.mjs), le repli de `listChips` sur le
+département (market-chips.test.mjs), le libellé de département dans
+`facetsOf` et son exclusion `region`/`department` (fixtures-facets.test.mjs).
+Aucun ne lit l'horloge réelle.
+
+### Pas touché
+
+`api/`, `extension/`, `crawler/`, `scripts/`, `docs/` hors ce rapport. HEAD de
+départ `77bac90`. Aucun sous-agent dispatché. L'arbre portait encore, à
+l'ouverture de cet agent, des modifications non commitées dans `extension/`
+(pas de ce lot) — signalé, non touché.

@@ -4,6 +4,15 @@
 
 import { LISTS, badRange, fold } from './query.js'
 
+// `departments` porte un code (« 92 ») et, depuis ce lot, un libellé
+// administratif (« Hauts-de-Seine »). L'écran affiche les deux, « 92 · Hauts-
+// de-Seine » ; si le libellé manque (la facette ne le garantit pas dans tous
+// les cas), le repli est le code seul — jamais un `undefined` affiché.
+export function departmentLabel(option, fallback = '') {
+  if (!option) return fallback
+  return option.label ? `${option.key} · ${option.label}` : option.key
+}
+
 // Les trois fourchettes, chacune vue comme *un* filtre : le marchand pose
 // « de 5 000 à 12 000 € », pas deux bornes indépendantes — d'où une seule
 // pastille et un seul point au compteur du mobile.
@@ -40,8 +49,8 @@ export function optionFor(options = [], value) {
     || null
 }
 
-// `departments` est la seule facette rendue sans `label` : sa clé *est* le
-// libellé. D'où le repli sur la valeur plutôt que sur un `undefined` affiché.
+// Le libellé d'une option, ou la valeur posée si la facette ne la connaît pas
+// encore (compteurs pas encore chargés) — jamais un `undefined` affiché.
 export function labelFor(options, value, fallback = '') {
   const option = optionFor(options, value)
   return (option && option.label) || value || fallback
@@ -87,12 +96,25 @@ export function modelsFor(facets, filters) {
   return filters.brand ? (facets.models || []) : []
 }
 
-// Une fourchette à l'envers vaut 422 côté API. L'écran la signale sur place et
-// **n'interroge pas** : une erreur réseau afficherait « L'API n'a pas répondu »
-// là où c'est la saisie qui est à corriger, et le marchand chercherait la panne
-// du mauvais côté.
+// Une fourchette à l'envers vaut 422 côté API. Sert à afficher l'erreur sous
+// le champ (`market-panel.js`) — plus à bloquer une requête : voir
+// `withoutBadRanges`, qui écarte la fourchette fautive sans jamais couper le
+// reste des filtres.
 export function anyBadRange(filters = {}) {
   return RANGE_GROUPS.some((g) => badRange(filters[g.min], filters[g.max]))
+}
+
+// La fourchette à l'envers ne part ni vers `/v1/market` ni vers
+// `/v1/market/facets`, mais elle seule : sans ce tri, une adresse partagée
+// portant un filtre valide (marque) *et* une fourchette cassée coupait tout
+// le premier appel aux facettes — marque et modèle retombaient sur « Toutes »,
+// carburant, boîte et lieu restaient vides sans un mot d'explication.
+export function withoutBadRanges(filters = {}) {
+  const next = { ...filters }
+  for (const g of RANGE_GROUPS) {
+    if (badRange(filters[g.min], filters[g.max])) { next[g.min] = null; next[g.max] = null }
+  }
+  return next
 }
 
 // Ce que « Plus de filtres » contient : les trois fourchettes, les deux champs

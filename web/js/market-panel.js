@@ -10,7 +10,7 @@ import { combo } from './combo.js'
 import { el } from './dom.js'
 import { number } from './format.js'
 import { clearPatch } from './market-chips.js'
-import { RANGE_GROUPS, SELLER_LABELS, coverageLine } from './market-facets.js'
+import { RANGE_GROUPS, SELLER_LABELS, coverageLine, departmentLabel } from './market-facets.js'
 import { primarySections, section } from './market-sections.js'
 import { toggleInList } from './market-state.js'
 import { badRange } from './query.js'
@@ -80,7 +80,9 @@ function lieu(ui) {
     }),
     combo({
       id: 'departement', label: 'Département',
-      options: (ui.facets.departments || []).map((d) => ({ ...d, label: d.key })),
+      // « 92 · Hauts-de-Seine » ; repli sur le code seul si la facette ne
+      // porte pas de libellé.
+      options: (ui.facets.departments || []).map((d) => ({ ...d, label: departmentLabel(d) })),
       value: ui.filters.department[0] || '', emptyLabel: 'Tous',
       onPick: (key) => ui.patch({ department: key ? [key] : [] }),
     }),

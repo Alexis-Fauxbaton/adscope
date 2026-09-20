@@ -6,7 +6,7 @@
 // correctif exact qui l'enlève — jamais « effacer le dernier ».
 
 import { EMPTY_FILTERS, LISTS } from './query.js'
-import { RANGE_GROUPS, SELLER_LABELS, labelFor } from './market-facets.js'
+import { RANGE_GROUPS, SELLER_LABELS, departmentLabel, labelFor, optionFor } from './market-facets.js'
 import { number } from './format.js'
 
 // Espace insécable avant l'unité, comme `format.money` — le séparateur de
@@ -50,7 +50,11 @@ function listChips(filters, facets) {
   }
   for (const [key] of LISTS) {
     for (const value of filters[key] || []) {
-      const brut = labelFor(sources[key] || [], value, value)
+      // Le département porte son code *et* son nom (« 92 · Hauts-de-Seine ») :
+      // `labelFor` seul rendrait le nom sans le code, ambigu à côté d'une année.
+      const brut = key === 'department'
+        ? departmentLabel(optionFor(sources.department || [], value), value)
+        : labelFor(sources[key] || [], value, value)
       chips.push({
         id: `${key}:${value}`,
         label: key === 'department' ? `Département ${brut}` : brut,
