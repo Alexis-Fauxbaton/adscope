@@ -112,3 +112,14 @@ def test_a_deduced_key_still_goes_through_the_table_and_the_rule():
 # sur un modèle qui peut n'avoir pas été déduit.
 def test_no_deduced_model_stays_nothing():
     assert inferred(None) is None
+
+
+# Fait rougir `{**_created(), **_flattened(...)}` dans `_load` : un modèle créé
+# par le lot 3b apporte sa propre orthographe. Sans elle, la règle du chiffre
+# écrirait « Gle », « Dbx » et « Cee'D » — trois fautes sur les libellés de
+# 840 annonces.
+def test_a_created_model_keeps_the_spelling_the_file_gives_it():
+    assert inferred("gle") == "GLE"
+    assert inferred("dbx") == "DBX"
+    assert inferred("cee\'d") == "Cee\'d"
+    assert inferred("xsara picasso") == "Xsara Picasso"

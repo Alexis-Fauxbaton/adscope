@@ -263,3 +263,11 @@ def test_the_deduced_model_is_written_the_way_it_is_displayed():
 # ne bouge pas d'un caractère.
 def test_without_a_deduction_the_label_is_the_one_of_lot_one():
     assert label("Ferrari", "Autres", None) == "Ferrari"
+
+
+# Fait rougir `written = written_heads(inferred)` et son passage à `_phrases` :
+# la version écrit « Picasso », le libellé dit « Xsara Picasso ». Sans elles,
+# « Citroën Xsara Picasso Base Picasso 2.0 HDi90 » — le modèle deux fois.
+def test_the_version_stops_repeating_a_model_it_writes_otherwise():
+    assert label("Citroen", "Autres", "Base_Picasso 2.0 HDi90", "xsara picasso") == \
+        "Citroën Xsara Picasso Base 2.0 HDi90"

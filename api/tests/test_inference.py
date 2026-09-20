@@ -9,10 +9,12 @@ lit pas.
 from adscope_api.inference import KnownModels, infer_model
 
 
-def known(qualifiers=("break", "1.4", "1.6", "2.0"), **by_brand):
+def known(qualifiers=("break", "1.4", "1.6", "2.0"), renames=None, year_max=None,
+          **by_brand):
     return KnownModels(
         by_brand={b: frozenset(m) for b, m in by_brand.items()},
         qualifiers=frozenset(qualifiers),
+        renames=renames or {}, year_max=year_max or {},
     )
 
 
@@ -146,3 +148,88 @@ def test_the_same_version_and_the_same_vocabulary_give_the_same_answer():
     table = known(citroen=["xsara"])
     version = "Xsara 2.0 HDi90 Exclusive 5p"
     assert infer_model("citroen", version, table) == infer_model("citroen", version, table)
+
+
+# ---------------------------------------------------------------- lot 3b ----
+
+# Fait rougir `return self.renames.get((brand_key, head_key), head_key)` dans
+# `resolved` : la version écrit « Smart Cabriolet », le modèle s'appelle
+# Fortwo. Sans le renommage, treize Smart entrent dans un seau « smart » qui
+# n'est le nom d'aucune voiture.
+def test_a_head_can_name_a_model_the_version_never_writes():
+    table = known(qualifiers=["cabriolet"], smart=["smart"],
+                  renames={("smart", "smart"): "fortwo"})
+    assert infer_model("smart", "Smart Cabriolet 55ch Pure", table) == "fortwo"
+
+
+# Fait rougir `limit is not None and (year is None or year > limit)` dans son
+# sens passant : sous la condition, la tête nomme bien le modèle. 118 Citroën
+# « Picasso » en dépendent, toutes antérieures à 2010.
+def test_a_head_under_condition_names_its_model_when_the_year_fits():
+    table = known(qualifiers=["1.6"], citroen=["picasso"],
+                  renames={("citroen", "picasso"): "xsara picasso"},
+                  year_max={("citroen", "picasso"): 2010})
+    version = "Picasso 1.6 HDi110 Exclusive"
+    assert infer_model("citroen", version, table, 2007) == "xsara picasso"
+
+
+# Fait rougir `year > limit` : au-delà de l'année, la tête redevient ambiguë —
+# un « Picasso » de 2013 peut être un C4 Picasso, et un modèle faux est pire
+# qu'un modèle absent.
+def test_beyond_its_year_a_conditional_head_proves_nothing():
+    table = known(qualifiers=["1.6"], citroen=["picasso"],
+                  renames={("citroen", "picasso"): "xsara picasso"},
+                  year_max={("citroen", "picasso"): 2010})
+    assert infer_model("citroen", "Picasso 1.6 HDi110", table, 2013) is None
+
+
+# Fait rougir `year is None` : une année manquante ne remplit aucune
+# condition. On ne parie pas sur l'âge d'une voiture qu'on ne connaît pas.
+def test_a_missing_year_never_fulfils_a_condition():
+    table = known(qualifiers=["1.6"], citroen=["picasso"],
+                  renames={("citroen", "picasso"): "xsara picasso"},
+                  year_max={("citroen", "picasso"): 2010})
+    assert infer_model("citroen", "Picasso 1.6 HDi110", table, None) is None
+
+
+# Fait rougir `if found is None and _MODEL_YEAR.match(words[start])` : un
+# millésime écrit devant la version n'est pas un nom de modèle. Dix Dodge
+# « 1973 Challenger » et une Ford « 1965 Mustang » l'écrivent ainsi.
+def test_a_model_year_in_front_of_the_version_is_not_the_model():
+    table = known(qualifiers=["5.0"], ford=["mustang"])
+    assert infer_model("ford", "1965 Mustang 5.0 V8", table) == "mustang"
+
+
+# Fait rougir `_MODEL_YEAR.match(words[start])` dans l'autre sens : **seul**
+# un millésime autorise à passer le premier mot. Sans cette condition,
+# l'ancrage en tête du lot 3a tombe — « Exclusive C4 Picasso » redeviendrait
+# une C4 Picasso alors que rien ne dit que « Exclusive » est une finition.
+def test_only_a_model_year_lets_the_search_move_past_the_first_word():
+    table = known(qualifiers=["bluehdi"], citroen=["c4 picasso"])
+    assert infer_model("citroen", "Exclusive C4 Picasso BlueHDi 150ch", table) is None
+    assert infer_model("citroen", "2015 C4 Picasso BlueHDi 150ch", table) == "c4 picasso"
+
+
+# Fait rougir `found is None and` : le saut ne joue **qu'après** un échec. 81
+# Peugeot « 2008 » commencent par ce qui ressemble à un millésime et qui est
+# leur nom — les chercher au deuxième mot les perdrait toutes.
+def test_a_leading_number_that_is_a_model_is_read_as_the_model():
+    table = known(qualifiers=["1.2"], peugeot=["2008", "208"])
+    assert infer_model("peugeot", "2008 1.2 PureTech 110ch", table) == "2008"
+
+
+# Fait rougir `after += span(words, after, best.replace(" ", ""))` : une
+# version qui redit le modèle ne le change pas. Sans cette ligne, « 1973
+# Challenger Challenger » bute sur son propre nom.
+def test_a_version_that_repeats_the_model_still_names_it():
+    table = known(qualifiers=["5.7"], dodge=["challenger"])
+    version = "1973 Challenger Challenger 5.7 V8"
+    assert infer_model("dodge", version, table) == "challenger"
+
+
+# Fait rougir la garde qui suit la redite : après le modèle répété, le mot
+# suivant est examiné comme n'importe quel autre. Sans elle, la redite
+# ouvrirait une porte dérobée à « Challenger Hellcat ».
+def test_after_a_repetition_the_next_word_is_still_judged():
+    table = known(qualifiers=["5.7"], dodge=["challenger"])
+    assert infer_model("dodge", "Challenger Challenger Hellcat", table) is None

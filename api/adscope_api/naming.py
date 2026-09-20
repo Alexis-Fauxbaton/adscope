@@ -16,6 +16,7 @@ faute de quoi « C3 » mordrait dans « C3500 ».
 
 import re
 
+from .model_catalog import written_heads
 from .spelling import fold, inferred as spelled_inferred
 from .taxonomy import NO_VEHICLE, UNKNOWN, canonical
 
@@ -116,10 +117,17 @@ def label(brand, model, version, inferred=None) -> str:
     Rover Range Rover Evoque 2.0 D 150ch R-Dynamic », jamais « … Range Rover
     Evoque Range Rover Evoque … ». Il ne comble que le vide : un modèle donné
     par le site n'est jamais remplacé.
+
+    Quand la version l'écrit sous un **autre** nom — « Picasso » pour une Xsara
+    Picasso, « Smart » pour une Fortwo —, c'est ce nom-là qu'il faut retirer de
+    la queue, et `model_catalog` le dit : sinon « Citroën Xsara Picasso Base
+    Picasso 2.0 HDi90 ».
     """
     canon_brand, canon_model = canonical(brand, model, version)
+    written = ()
     if inferred and canon_model in (None, UNKNOWN):
         canon_model = spelled_inferred(inferred)
+        written = written_heads(inferred)
     head = [p for p in (canon_brand, canon_model) if p and p != UNKNOWN]
     if len(head) == 2 and fold(head[0]) == fold(head[1]):
         head = head[:1]
@@ -127,5 +135,6 @@ def label(brand, model, version, inferred=None) -> str:
         rebranded = _rebrand(canon_brand, canon_model)
         if rebranded is not None:
             head = [rebranded]
-    tail = _trimmed(_unglued(version), _phrases(brand, model, canon_brand, canon_model))
+    phrases = _phrases(brand, model, canon_brand, canon_model, *written)
+    tail = _trimmed(_unglued(version), phrases)
     return " ".join(head + ([tail] if tail else [])) or NO_VEHICLE

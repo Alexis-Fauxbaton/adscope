@@ -25,6 +25,7 @@ from datetime import timedelta
 from sqlalchemy import select
 
 from .inference import KnownModels, head, span
+from .model_catalog import with_catalog
 from .models import Listing
 from .spelling import fold
 from .taxonomy import UNKNOWN, key
@@ -64,7 +65,7 @@ def vocabulary(rows, *, min_listings=MIN_LISTINGS,
 
 
 def load(session) -> KnownModels:
-    """Le vocabulaire lu en base, sur les seules annonces classées par le site.
+    """Le vocabulaire lu en base, **plus** ce que le fichier partagé crée.
 
     Tout part des colonnes **observées**, et les clés se recalculent ici. Lire
     `canon_model` serait plus court et faux deux fois : cette colonne porte
@@ -72,6 +73,11 @@ def load(session) -> KnownModels:
     le vocabulaire, une erreur en engendrerait d'autres — et elle est vide
     tant que `recanonize.py` n'est pas passé, si bien que le premier
     rattrapage d'une base neuve ne déduirait jamais rien.
+
+    Les modèles créés arrivent ensuite, par `model_catalog.with_catalog` :
+    ceux-là ne viennent d'aucun site mais d'un humain qui a lu une mesure
+    (`shared/vehicle-aliases.json`, section `modeles_crees`). Les deux sources
+    se cumulent, aucune ne se relit elle-même.
     """
     rows = session.execute(
         select(Listing.brand, Listing.model, Listing.version)
@@ -85,7 +91,7 @@ def load(session) -> KnownModels:
         brand_key, model_key = key(brand, model)
         if brand_key and model_key:
             triples.append((brand_key, model_key, version))
-    return vocabulary(triples)
+    return with_catalog(vocabulary(triples))
 
 
 class Cache:

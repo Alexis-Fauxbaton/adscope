@@ -15,10 +15,15 @@ from adscope_api.taxonomy import (
 
 
 class Row:
-    """Ce que `derive` connaît d'une annonce : six attributs, pas un ORM."""
+    """Ce que `derive` connaît d'une annonce : sept attributs, pas un ORM.
 
-    def __init__(self, brand=None, model=None, version=None):
+    `year` est le septième, arrivé avec le lot 3b : une tête de version peut
+    avoir besoin de l'âge du véhicule pour nommer un modèle (« Picasso »).
+    """
+
+    def __init__(self, brand=None, model=None, version=None, year=None):
         self.brand, self.model, self.version = brand, model, version
+        self.year = year
         self.canon_brand = self.canon_model = self.search_text = None
         self.canon_model_source = None
 
@@ -292,3 +297,40 @@ def test_only_a_model_deduced_from_the_version_is_given_back_as_deduced():
     assert inferred_model("xsara", "version") == "xsara"
     assert inferred_model("xsara", "site") is None
     assert inferred_model("autres", None) is None
+
+
+# ---------------------------------------------------------------- lot 3b ----
+
+# Fait rougir `renamed = MODEL_ALIASES.get(...)` dans `canonical` : deux sites,
+# deux noms pour la même voiture. leboncoin classe 24 annonces en « 812
+# Superfast », La Centrale 3 en « 812 » — un seul seau, une seule ligne de
+# menu, et `?model=812` les rend toutes.
+def test_two_sites_two_names_for_one_model_make_one_bucket():
+    assert canonical("Ferrari", "812 Superfast") == ("Ferrari", "812")
+    assert key("Ferrari", "812 Superfast") == key("Ferrari", "812")
+
+
+# Fait rougir `for value in (brand, model, version, ...)` de `search_text` :
+# l'alias ne doit rien retirer à la recherche. Les mots observés restent, donc
+# `?q=superfast` rend toujours ses 24 annonces.
+def test_an_alias_never_takes_a_word_away_from_the_search():
+    text = search_text("Ferrari", "812 Superfast", "812 V12 6.5 800ch")
+    assert "superfast" in text.split() and "812" in text.split()
+
+
+# Fait rougir `infer_model(brand, listing.version, known, listing.year)` : sans
+# l'année, une tête sous condition ne se pose jamais — les 118 « Picasso »
+# resteraient « Autres ».
+def test_the_deduction_receives_the_year_of_the_vehicle():
+    table = KnownModels(
+        by_brand={"citroen": frozenset({"picasso"})},
+        qualifiers=frozenset({"1.6"}),
+        renames={("citroen", "picasso"): "xsara picasso"},
+        year_max={("citroen", "picasso"): 2010},
+    )
+    row = Row("Citroen", "Autres", "Picasso 1.6 HDi110 Exclusive", year=2007)
+    derive(row, table)
+    assert (row.canon_model, row.canon_model_source) == ("xsara picasso", "version")
+    late = Row("Citroen", "Autres", "Picasso 1.6 HDi110 Exclusive", year=2013)
+    derive(late, table)
+    assert (late.canon_model, late.canon_model_source) == ("autres", None)

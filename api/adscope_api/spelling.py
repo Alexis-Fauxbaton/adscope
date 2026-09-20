@@ -39,6 +39,22 @@ _SPACES = re.compile(r"\s+")
 _DIGIT = re.compile(r"\d")
 
 
+DATA = json.loads(TABLE.read_text(encoding="utf-8"))
+
+
+def fold(value) -> str:
+    """Minuscules, sans accents, espaces resserrés : le pli d'un libellé.
+
+    C'est la seule normalisation du lot, et la seule forme sur laquelle on
+    compare quoi que ce soit. Pas d'`unaccent` ni de `pg_trgm` : Postgres ne
+    voit que du texte déjà plié, écrit par Python.
+    """
+    text = "" if value is None else str(value)
+    decomposed = unicodedata.normalize("NFD", text)
+    without_marks = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
+    return _SPACES.sub(" ", without_marks.lower()).strip()
+
+
 def _flattened(groups):
     """Les exceptions de modèle en une seule table.
 
@@ -55,26 +71,26 @@ def _flattened(groups):
     }
 
 
+def _created():
+    """L'écriture d'affichage des modèles que `modeles_crees` ajoute.
+
+    D'un modèle déduit on n'a que la clé repliée, et la règle du chiffre
+    rendrait « Gle », « Dbx », « Cee'D » — fausses toutes les trois.
+    L'écriture juste est déjà dans le fichier, observée telle quelle dans les
+    versions : c'est le champ `modele`. Les exceptions de la section `modeles`
+    passent après, donc devant : une orthographe arbitrée à la main ne se fait
+    pas écraser par une forme observée.
+    """
+    return {fold(entry["modele"]): entry["modele"]
+            for entries in DATA["modeles_crees"].values() for entry in entries}
+
+
 def _load():
-    data = json.loads(TABLE.read_text(encoding="utf-8"))
-    aliases = {entry["marque"]: entry for entry in data["alias"]}
-    return data["marques"], _flattened(data["modeles"]), aliases
+    aliases = {entry["marque"]: entry for entry in DATA["alias"]}
+    return DATA["marques"], {**_created(), **_flattened(DATA["modeles"])}, aliases
 
 
 _BRANDS, _MODELS, ALIASES = _load()
-
-
-def fold(value) -> str:
-    """Minuscules, sans accents, espaces resserrés : le pli d'un libellé.
-
-    C'est la seule normalisation du lot, et la seule forme sur laquelle on
-    compare quoi que ce soit. Pas d'`unaccent` ni de `pg_trgm` : Postgres ne
-    voit que du texte déjà plié, écrit par Python.
-    """
-    text = "" if value is None else str(value)
-    decomposed = unicodedata.normalize("NFD", text)
-    without_marks = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
-    return _SPACES.sub(" ", without_marks.lower()).strip()
 
 
 def _tidy(value):

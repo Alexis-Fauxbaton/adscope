@@ -18,6 +18,7 @@ nom propre du véhicule.
 
 from .inference import infer_model
 from .mentions import version_confirms
+from .model_catalog import MODEL_ALIASES
 from .spelling import ALIASES, brand as spelled_brand, fold, model as spelled_model
 
 # Le seau « je ne sais pas » des sites. Il reste dans les colonnes canoniques —
@@ -42,6 +43,12 @@ def canonical(brand, model, version=None):
     plus que la version ne le contredise pas (`mentions.version_confirms`) : les
     Camaro que leboncoin range aussi dans le seau « Corvette / Autres » gagnent
     la marque, jamais le modèle — un modèle faux est pire qu'un modèle absent.
+
+    En dernier, l'**alias de modèle** (`alias_modeles`) : deux sites qui
+    nomment la même voiture différemment n'en font qu'un seau. leboncoin
+    classe 24 annonces en « 812 Superfast », La Centrale 3 en « 812 » ; le nom
+    court l'emporte. Il s'applique au modèle **déclaré**, après l'alias de
+    marque puisqu'il se lit sur la marque canonique.
     """
     canon_brand, canon_model = spelled_brand(brand), spelled_model(model)
     rule = ALIASES.get(fold(brand))
@@ -52,7 +59,8 @@ def canonical(brand, model, version=None):
             conditional = rule.get("vers_modele_sous_reserve_de_version", False)
             if not conditional or version_confirms(version, posed_model):
                 canon_model = posed_model
-    return canon_brand, canon_model
+    renamed = MODEL_ALIASES.get((fold(canon_brand), fold(canon_model)))
+    return canon_brand, canon_model if renamed is None else renamed
 
 
 def key(brand, model, version=None):
@@ -109,12 +117,17 @@ def derive(listing, known=None) -> bool:
     par un alias de marque) n'est jamais remplacé, et sans vocabulaire
     (`known is None`) rien n'est déduit du tout. Elle n'écrit que cette
     couche : `brand`, `model`, `version` et `fingerprint` ne bougent pas.
+
+    L'année lui est passée parce qu'une tête de version peut avoir besoin
+    d'elle : « Picasso » seul ne nomme un Xsara Picasso que jusqu'en 2010
+    (au-delà, le C4 Picasso existe aussi). Une annonce sans année ne remplit
+    aucune condition, et ne reçoit donc pas ces modèles-là.
     """
     brand, model = key(listing.brand, listing.model, listing.version)
     source = None if model in (None, fold(UNKNOWN)) else FROM_SITE
     inferred = None
     if source is None and known is not None:
-        inferred = infer_model(brand, listing.version, known)
+        inferred = infer_model(brand, listing.version, known, listing.year)
         if inferred is not None:
             model, source = inferred, FROM_VERSION
     text = search_text(listing.brand, listing.model, listing.version, inferred)
