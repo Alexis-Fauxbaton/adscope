@@ -1,6 +1,6 @@
 {
   "mesure": "Base reelle du 2026-09-19 : 52 956 annonces, 83 plis de marque, 709 modeles. Voir .superpowers/recherche-lot1.md.",
-  "_lecture": "Trois sections, trois metiers. « marques » et « modeles » ne disent qu'une ORTHOGRAPHE D'AFFICHAGE : rien de ce qui s'y ecrit ne change un resultat de recherche ni ne deplace une annonce, la comparaison se fait toujours sur la forme repliee (minuscules, sans accents). « alias » seul verse des annonces d'un seau dans un autre.",
+  "_lecture": "Deux metiers, pas un. « marques » et « modeles » ne disent qu'une ORTHOGRAPHE D'AFFICHAGE : rien de ce qui s'y ecrit ne change un resultat de recherche ni ne deplace une annonce, la comparaison se fait toujours sur la forme repliee (minuscules, sans accents). Les autres sections, elles, DEPLACENT des annonces : « alias » et « alias_modeles » versent un seau dans un autre, « modeles_crees », « carrosseries » et « finitions » disent a la deduction du modele (api/adscope_api/inference.py) ce qu'une version a le droit de nommer quand le site n'a donne aucun modele. Les champs prefixes d'un souligne sont de la prose pour le lecteur, jamais lus par le code.",
   "_marques": "pli -> orthographe officielle d'usage en France. Liste fermee : ce sont les 83 plis que la base porte, le site les sert en filtre. Un sigle qui s'epelle lettre par lettre garde ses capitales (BMW, DS, KTM, PGO) ; un sigle qui se prononce comme un mot prend la capitale initiale, comme la presse francaise l'ecrit (Fiat, Seat, Cupra, Smart). Un pli aliase plus bas ne s'affiche jamais : c'est l'alias qui tranche.",
   "marques": {
     "abarth": "Abarth", "aixam": "Aixam", "alfa romeo": "Alfa Romeo", "alpine": "Alpine",
@@ -67,6 +67,165 @@
       "rs q8": "RS Q8"
     }
   },
+  "_modeles_crees": "Regle 1 du lot 3b (.superpowers/recherche-lot3b.md) : des modeles reels qu'AUCUN des deux sites ne porte dans sa colonne modele, mais que la version nomme en tete. Ils elargissent le vocabulaire de la deduction (`model_vocabulary.load`) exactement comme un modele declare par un site — ils ne remplacent jamais un modele donne par un site, et un modele DEDUIT ne nourrit jamais ce fichier en retour (pas d'auto-renforcement). `annonces` est l'effectif mesure le 2026-09-20 sur la base reelle, `exemple` une version observee telle quelle. `tete` dit ce que la version ecrit quand ce n'est pas le nom du modele (« Picasso » pour une Xsara Picasso, « Smart » pour une Fortwo) ; `annee_max` pose une condition sur l'annee du vehicule, et une annee manquante ne la remplit pas.",
+  "modeles_crees": {
+    "citroen": [
+      {"modele": "Xsara Picasso", "tete": "Picasso", "annee_max": 2010, "annonces": 118, "exemple": "Picasso 1.6 HDi110 Exclusive"},
+      {"modele": "C3 Pluriel", "annonces": 30, "exemple": "So Chic_C3 Pluriel 1.4i So Chic"},
+      {"modele": "C5 Aircross", "annonces": 25, "exemple": "C5 Aircross BlueHDi 130ch S&S Feel EAT8"},
+      {"modele": "Grand C4 SpaceTourer", "annonces": 9, "exemple": "Shine Pack_Grand C4 SpaceTourer BlueHDi 130ch S&S Shine Pack E6.d-TEMP"},
+      {"modele": "C4 Cactus", "annonces": 3, "exemple": "Live_C4 Cactus PureTech 82 Live"}
+    ],
+    "mercedes": [
+      {"modele": "GLE", "annonces": 44, "exemple": "AMG Line_GLE 350 e 211+136ch AMG Line 4Matic 9G-Tronic"},
+      {"modele": "CLA", "annonces": 25, "exemple": "Sensation_CLA Shooting Brake 200 d Sensation 7G-DCT"},
+      {"modele": "GLC", "annonces": 22, "exemple": "GLC 220 d 170ch 4Matic 9G-Tronic"},
+      {"modele": "GLA", "annonces": 16, "exemple": "Sensation_GLA 220 d Sensation 4Matic 7G-DCT"},
+      {"modele": "Classe ML", "annonces": 10, "exemple": "Pack Luxury_Classe ML 500 Pack Luxe"},
+      {"modele": "CLE", "annonces": 8, "exemple": "CLE Coupé 220 d 197ch AMG Line 9G-Tronic"},
+      {"modele": "SLS", "annonces": 7, "exemple": "SLS 63 AMG Speedshift DCT"},
+      {"modele": "GLS", "annonces": 4, "exemple": "GLS 600 557ch Maybach 4Matic 9G-Tronic"},
+      {"modele": "Vito", "annonces": 3, "exemple": "Vito Combi 113 CDI BE Long BA"}
+    ],
+    "land rover": [
+      {"modele": "Range Rover Sport", "annonces": 69, "exemple": "Range Rover Sport 3.0 TDV6 180kw HSE Mark VI"},
+      {"modele": "Range Rover Evoque", "annonces": 20, "exemple": "Dynamic_Range Rover Evoque 2.2 SD4 Dynamic BVA Mark I"}
+    ],
+    "renault": [
+      {"modele": "Grand Modus", "annonces": 39, "exemple": "Authentique_Grand Modus 1.5 dCi 65ch Authentique"},
+      {"modele": "Austral", "annonces": 15, "exemple": "Austral 1.2 E-Tech full hybrid 200ch Iconic"},
+      {"modele": "Symbioz", "annonces": 12, "exemple": "Symbioz 1.6 E-Tech full hybrid 145ch Techno"},
+      {"modele": "Grand Espace", "annonces": 10, "exemple": "Initiale_Grand Espace 2.2 dCi 150ch Initiale"},
+      {"modele": "Rafale", "annonces": 3, "exemple": "Rafale 1.2 E-Tech full hybrid 200ch Techno"}
+    ],
+    "bmw": [
+      {"modele": "XM", "annonces": 16, "exemple": "XM 4.4 V8 748ch (585+197) Label Red"},
+      {"modele": "M2", "annonces": 11, "exemple": "M2 Coupé 3.0 410ch Competition M DKG"},
+      {"modele": "M4", "annonces": 10, "exemple": "M4 Coupé 3.0 550ch CS"},
+      {"modele": "Série 2", "annonces": 6, "exemple": "Sport_Série 2 Coupé 218d 143ch Sport"},
+      {"modele": "Série 2 ActiveTourer", "annonces": 5, "exemple": "Série 2 ActiveTourer 218d 150ch Luxury DKG7"},
+      {"modele": "Série 4", "annonces": 5, "exemple": "Sport_Série 4 Coupé 430dA 258ch Sport"},
+      {"modele": "Z4", "annonces": 5, "exemple": "Z4 Roadster 2.2i 170ch"},
+      {"modele": "Série 2 Gran Tourer", "annonces": 4, "exemple": "Sport_Série 2 Gran Tourer 218dA 150ch Sport"}
+    ],
+    "aston martin": [
+      {"modele": "DBS", "annonces": 17, "exemple": "DBS Coupé V12 5.2 725ch Superleggera BVA8"},
+      {"modele": "DBX", "annonces": 15, "exemple": "DBX 4.0 V8 biturbo 707ch BVA9"},
+      {"modele": "DB12", "annonces": 8, "exemple": "DB12 V8 4.0 680ch BVA8"},
+      {"modele": "DB9", "annonces": 6, "exemple": "Coupé_DB9 Coupé V12 5.9L 477ch Touchtronic2"}
+    ],
+    "ford": [
+      {"modele": "Mustang", "annonces": 15, "exemple": "Mustang Fastback 5.0 V8 421ch GT BVA6"},
+      {"modele": "Grand C-MAX", "annonces": 13, "exemple": "Grand C-MAX 1.6 TDCi 115ch FAP Titanium"},
+      {"modele": "Ranger", "annonces": 13, "exemple": "Wildtrak_Ranger 3.2 TDCi 200ch Double Cabine Wildtrak 4x4"},
+      {"modele": "Tourneo Custom", "annonces": 3, "exemple": "Tourneo Custom 340 L1H1 2.5 Duratec 232ch Hybride rechargeable Titanium X CVT"}
+    ],
+    "smart": [
+      {"modele": "Fortwo", "annonces": 30, "exemple": "Fortwo Coupe 90ch Brabus style twinamic E6c"},
+      {"modele": "Fortwo", "tete": "Smart", "annonces": 13, "exemple": "Smart Cabriolet 55ch Pure"}
+    ],
+    "kia": [
+      {"modele": "Cee'd", "annonces": 18, "exemple": "Cee'd 1.6 CRDi115 Active 5p"},
+      {"modele": "Pro Cee'd", "annonces": 6, "exemple": "FIFA World Cup_Pro Cee'd 1.6 CRDi115 FIFA World Cup"},
+      {"modele": "Ceed", "annonces": 5, "exemple": "GT Line Premium_Ceed 1.4 T-GDI 140ch GT Line Premium DCT7"}
+    ],
+    "dacia": [
+      {"modele": "Jogger", "annonces": 13, "exemple": "Jogger 1.6 hybrid 140ch Extreme 7 places -24"},
+      {"modele": "Bigster", "annonces": 8, "exemple": "Bigster 1.8 hybrid 155ch Journey"},
+      {"modele": "Spring", "annonces": 7, "exemple": "Spring 45ch Business 2020 - Achat Intégral"}
+    ],
+    "ferrari": [
+      {"modele": "Purosangue", "annonces": 10, "exemple": "Purosangue 6.5 V12 725ch"},
+      {"modele": "F8", "annonces": 5, "exemple": "F8 Spider Base"},
+      {"modele": "F8 Tributo", "annonces": 5, "exemple": "F8 Tributo Base"},
+      {"modele": "512", "annonces": 3, "exemple": "512 5.0 M"}
+    ],
+    "audi": [
+      {"modele": "RS3", "annonces": 11, "exemple": "Base_RS3 Sportback 2.5 TFSI 400ch quattro S tronic 7"},
+      {"modele": "A7", "annonces": 4, "exemple": "A7 Sportback 3.0 V6 TDI 218ch Ambition Luxe quattro S tronic 7"},
+      {"modele": "S e-tron GT", "annonces": 4, "exemple": "S e-tron GT 591ch quattro"},
+      {"modele": "RS7", "annonces": 3, "exemple": "RS7 Sportback 4.0 V8 TFSI 600ch quattro tiptronic 8 53cv"}
+    ],
+    "maserati": [
+      {"modele": "MC20 Cielo", "annonces": 9, "exemple": "MC20 Cielo 3.0 V6 Biturbo 630ch"},
+      {"modele": "MC20", "annonces": 7, "exemple": "MC20 3.0 V6 Biturbo 630ch"}
+    ],
+    "toyota": [
+      {"modele": "Corolla Verso", "annonces": 9, "exemple": "Corolla Verso 136 D-4D Luna 7 places"},
+      {"modele": "Aygo X", "annonces": 4, "exemple": "Air Design_Aygo X 1.0 VVT-i 72ch Air Design S-CVT"},
+      {"modele": "Yaris Cross", "annonces": 3, "exemple": "Yaris Cross 130h Design MY26"}
+    ],
+    "fiat": [
+      {"modele": "500X", "annonces": 10, "exemple": "Sport_500X 1.0 FireFly Turbo T3 120ch Sport Euro 6D Full"},
+      {"modele": "500L", "annonces": 4, "exemple": "Lounge_500L 1.6 Multijet 16v 120ch S&S Lounge"}
+    ],
+    "mini": [
+      {"modele": "Clubman Cooper", "annonces": 6, "exemple": "Clubman Cooper 136ch Kensington Euro6d-T"},
+      {"modele": "Clubman Cooper D", "annonces": 5, "exemple": "Canonbury_Clubman Cooper D  150ch Canonbury BVA8"},
+      {"modele": "Mini Cooper", "annonces": 3, "exemple": "Cooper_Mini Cooper 115ch"}
+    ],
+    "opel": [
+      {"modele": "Zafira Tourer", "annonces": 6, "exemple": "Cosmo Pack_Zafira Tourer 1.4 Turbo 140ch ecoFLEX Cosmo Pack Start/Stop 7 places"},
+      {"modele": "Crossland", "annonces": 4, "exemple": "GS_Crossland 1.5 D 110ch GS"},
+      {"modele": "Grandland", "annonces": 3, "exemple": "Elegance Business_Grandland 1.5 D 130ch Elegance Business BVA8"}
+    ],
+    "peugeot": [
+      {"modele": "Partner Tepee", "annonces": 11, "exemple": "Family_Partner Tepee 1.6 HDi92 FAP Family"}
+    ],
+    "volkswagen": [
+      {"modele": "Taigo", "annonces": 8, "exemple": "Taigo 1.0 TSI 110ch R-Line DSG7"},
+      {"modele": "ID.4", "annonces": 3, "exemple": "ID.4 286ch Pro 77 kWh Life Max"}
+    ],
+    "dodge": [
+      {"modele": "Challenger", "annonces": 10, "exemple": "1973 Challenger Challenger"}
+    ],
+    "seat": [
+      {"modele": "Altea XL", "annonces": 10, "exemple": "Altea XL 1.9 TDI105 Reference"}
+    ],
+    "nissan": [
+      {"modele": "Almera Tino", "annonces": 5, "exemple": "Almera Tino 2.2 dCi 112ch Acenta GPS"},
+      {"modele": "Qashqai+2", "annonces": 4, "exemple": "Qashqai+2 1.5 dCi 110ch FAP Tekna"}
+    ],
+    "hyundai": [
+      {"modele": "Bayon", "annonces": 8, "exemple": "Bayon 1.0 T-GDi 100ch Intuitive DCT-7"}
+    ],
+    "jaguar": [
+      {"modele": "F-Type", "annonces": 8, "exemple": "F-Type Coupe 5.0 V8 Suralimenté 575ch R75 AWD BVA8"}
+    ],
+    "lotus": [
+      {"modele": "Emira", "annonces": 5, "exemple": "Emira 2.0T 364ch First Edition DCT8"},
+      {"modele": "Emeya", "annonces": 3, "exemple": "Emeya 918ch R"}
+    ],
+    "mclaren": [
+      {"modele": "600LT", "annonces": 4, "exemple": "600LT Base"},
+      {"modele": "GT", "annonces": 4, "exemple": "GT Base"}
+    ],
+    "jeep": [
+      {"modele": "Avenger", "annonces": 7, "exemple": "Avenger 1.2 Turbo T3 100ch Altitude"}
+    ],
+    "alfa romeo": [
+      {"modele": "Tonale", "annonces": 3, "exemple": "Tonale 1.5 Hybrid 130ch Sprint TCT"}
+    ],
+    "porsche": [
+      {"modele": "356B", "annonces": 3, "exemple": "356B 356 B 1600"}
+    ]
+  },
+  "_mots_qui_ne_font_pas_un_modele": "Regles 2 et 3 du lot 3b. « carrosseries » : un mot de carrosserie n'est pas un nom de modele, on rattache au modele de base — « GLE Coupe » est une GLE, « CLA Shooting Brake » une CLA, « Vito Combi » un Vito. « finitions » : « F8 Tributo Base » est une F8 Tributo. Les deux listes servent la meme garde qu'`inference.py` appelle un qualificatif : le mot qui suit le modele le prolonge sans le changer. Elles ne valent QUE pour la deduction — un modele que le site declare lui-meme n'est jamais replie (« Nemo Combi », « Expert Combi », « 458 Spider » restent des seaux a eux). Coupe, Cabriolet, Combi, Sportback et SW etaient deja mesures par le lot 3a (un mot qui suit au moins quatre couples marque/modele) ; les autres sont ecrits ici parce que la mesure ne les atteint pas — un mot qui ne suit qu'un seul modele lui ressemble trop. « Sport » et « Tourer » sont volontairement absents : Range Rover Sport et Zafira Tourer sont des modeles a part entiere.",
+  "carrosseries": [
+    "Coupe", "Cabriolet", "Combi", "Sportback", "SW", "Spider", "Roadster",
+    "Volante", "Fastback", "Shooting", "Brake", "GTC"
+  ],
+  "finitions": ["Base"],
+  "_alias_modeles": "Deux sites, deux noms pour la meme voiture : La Centrale ecrit « 812 », leboncoin « 812 Superfast ». Sans cette table, le menu des modeles porterait deux lignes pour une seule famille. L'alias s'applique au modele DECLARE par un site (donc a `canon_model`, a la cle de rapprochement et au vocabulaire) ; les mots observes restent dans `search_text`, `q=superfast` rend donc toujours autant. Le champ `marque` est le pli de la marque CANONIQUE (apres les alias de marque ci-dessus).",
+  "alias_modeles": [
+    {
+      "marque": "ferrari",
+      "de": "812 Superfast",
+      "vers": "812",
+      "pourquoi": "La meme voiture sous deux noms : leboncoin classe 24 annonces en « 812 Superfast », La Centrale 3 en « 812 ». Le nom court l'emporte parce que c'est celui de la famille (812 Superfast, 812 GTS) et celui que la version elle-meme ecrit des deux cotes (« 812 V12 6.5 800ch »). Mesure du 2026-09-20 : aucune autre ecriture de la famille 812 en base.",
+      "effectifs": {"812 superfast": 24, "812": 3, "apres_fusion": 27}
+    }
+  ],
   "_alias": "vers_marque et vers_modele disent ce que l'alias impose ; vers_modele ne s'applique que si le modele observe est vide ou « Autres » — jamais si le site en a donne un. vers_modele_sous_reserve_de_version (booleen, absent = false) restreint encore : il ne pose vers_modele que si la version ne le contredit pas — vide, ou le nommant en mots entiers, forme repliee. Une version qui dit autre chose ne pose que la marque, le modele reste tel quel.",
   "alias": [
     {
