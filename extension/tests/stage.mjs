@@ -192,10 +192,10 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
   const MODULES = [
     'context.js', 'stale-notice.js', 'sites.js', 'sites/read.js', 'format.js', 'curve.js', 'view.js', 'diag.js',
     'sync.js', 'market.js', 'follow.js', 'feed.js', 'auth-notice.js', 'panel-node.js',
-    'panel-icons.js', 'panel-curve.js', 'panel-note.js', 'panel-sections.js', 'panel-cards.js',
+    'panel-icons.js', 'panel-labels.js', 'panel-curve.js', 'panel-note.js', 'panel-sections.js', 'panel-cards.js',
     'panel.js',
   ]
-  for (const f of ['context.js', 'stale-notice.js', 'sites.js', 'sites/read.js', 'sites/vehicle-fields.js', site, ...MODULES.slice(4)]) load(f)
+  for (const f of ['context.js', 'stale-notice.js', 'sites.js', 'sites/read.js', 'sites/vehicle-fields.js', ...[].concat(site), ...MODULES.slice(4)]) load(f)
   // Le travail lourd, compté à travers le registre : le code partagé y accède
   // de la même façon, par le site que l'origine désigne.
   const current = ADS.sites.current()

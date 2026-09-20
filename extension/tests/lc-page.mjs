@@ -98,15 +98,35 @@ export const results = (cards, similar = []) => [
 // La page telle que le navigateur la montre : le libellé plafonné sous le prix,
 // les cartes de résultats dans le bloc qui porte leurs métadonnées de suivi, et
 // les charges dans des scripts en ligne.
-export const page = ({ path, scripts, label = null, cards = [], cache = {}, price = false, boost = null }) => {
+// La colonne principale, telle que les deux fiches sauvegardées la portent :
+// `.main-area > section`, et en tête de cette section le bloc que le site
+// nomme `#classified-main-infos-v2`. `column: 'plain'` rejoue une page dont
+// l'identifiant a disparu — la zone reste, le bloc ne s'appelle plus ainsi.
+const column = (body, named) => {
+  const area = new El('div')
+  area.className = 'main-area'
+  const section = new El('section')
+  if (named) {
+    const head = new El('div')
+    head.setAttribute('id', 'classified-main-infos-v2')
+    section.append(head)
+  }
+  area.append(section)
+  body.append(area)
+  return section
+}
+
+export const page = ({ path, scripts, label = null, cards = [], cache = {}, price = false, column: col = false, boost = null }) => {
   const body = new El('body')
   body.append(new El('h1'))
-  // Le pavé du prix, en haut de la fiche ; le libellé plafonné, lui, ferme la
-  // page au ras du pied — c'est tout l'écart entre les deux points d'ancrage.
+  const section = col ? column(body, col !== 'plain') : null
+  // Le pavé du prix : pas en haut de la colonne, mais après six autres pavés —
+  // description, budget, garantie, assurance, historique, entretien. C'est tout
+  // l'écart entre l'ancre retenue et celle d'avant ce lot.
   if (price) {
     const pave = new El('div')
     pave.setAttribute('id', 'pavePrix')
-    body.append(pave)
+    ;(section || body).append(pave)
   }
   if (label) {
     const p = new El('p')
@@ -164,7 +184,7 @@ export const page = ({ path, scripts, label = null, cards = [], cache = {}, pric
     body.append(s)
     return s
   })
-  const staged = stage(body, { origin: ORIGIN, path, cache, site: 'sites/lacentrale.js' })
+  const staged = stage(body, { origin: ORIGIN, path, cache, site: ['sites/lacentrale.js', 'sites/lacentrale-place.js'] })
   return {
     ...staged,
     body,

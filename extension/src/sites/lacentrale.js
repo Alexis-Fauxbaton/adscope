@@ -95,9 +95,6 @@ ADS.lacentrale = ADS.sites.register((() => {
   const cardOf = (doc, l) => [...new Set(
     [...doc.querySelectorAll(`a[href*="${slug(l.siteId)}"]`)].map((a) => a.closest('[data-tracking-meta]') || a),
   )]
-  // Le pavé du prix, sous lequel le panneau se pose : un identifiant que le site tient.
-  const mount = (doc) => doc.querySelector('#pavePrix')
-
   // Mesuré : là où le compteur du site s'arrête. La fiche relevée le 2026-09-06 porte
   // 1 810 jours en ligne et affiche « Publiée il y a 60 jours » ; au-delà de ce plafond,
   // son libellé ne distingue plus rien, et l'écart, lui, se mesure.
@@ -143,7 +140,7 @@ ADS.lacentrale = ADS.sites.register((() => {
 
   return {
     id: SITE, name: 'La Centrale', origins: ['https://www.lacentrale.fr'], urlId, card: cardOf,
-    dateNode, mount, words, claim, displayed, fromDocument, fromScripts, payload, signals,
+    dateNode, words, claim, displayed, fromDocument, fromScripts, payload, signals,
   }
 })())
 

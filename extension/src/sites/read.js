@@ -57,6 +57,15 @@ ADS.read = (() => {
     return whole ? [whole, ...out] : out
   }
 
+  // Où poser le panneau. Un site rend un endroit — le parent, et le nœud devant
+  // lequel insérer —, jamais un simple voisin : en tête d'une colonne il n'y a
+  // personne derrière qui servirait de repère, et `insertBefore(n, null)`
+  // ajoute au bout. Un nœud absent rend `null`, et l'appelant essaie l'ancre
+  // suivante.
+  const after = (node) => (node && node.parentElement ? { parent: node.parentElement, before: node.nextSibling } : null)
+  const before = (node) => (node && node.parentElement ? { parent: node.parentElement, before: node } : null)
+  const head = (node) => (node ? { parent: node, before: node.children[0] || null } : null)
+
   // Tous les nœuds d'un arbre qui répondent à un test, sans descendre dans ceux
   // qui y répondent déjà.
   const collect = (node, hit, out = [], depth = 0) => {
@@ -66,7 +75,7 @@ ADS.read = (() => {
     return out
   }
 
-  return { leaf, blobs, collect }
+  return { leaf, blobs, collect, after, before, head }
 })()
 
 if (typeof module !== 'undefined') module.exports = ADS.read

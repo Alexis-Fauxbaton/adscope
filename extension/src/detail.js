@@ -9,10 +9,12 @@
   // Le panneau cite lui-même cette date : ne pas la relire dans son propre texte.
   const dateNode = () => site.dateNode(document, `[${MARK}]`)
 
-  // Où le panneau se pose : sous le prix, et c'est le site qui sait où il l'écrit.
-  // Le libellé d'ancienneté déjà trouvé lui est tendu — certains s'y ancrent —, et
-  // le titre reste le dernier recours quand la page n'offre ni l'un ni l'autre.
-  const anchor = (node) => site.mount(document, node) || document.querySelector('h1')
+  // Où le panneau se pose : c'est le site qui le sait, et lui seul. Il rend un
+  // endroit — le parent et le nœud devant lequel insérer —, jamais un simple
+  // voisin : en tête d'une colonne il n'y a personne derrière qui serve de
+  // repère. Le libellé d'ancienneté déjà trouvé lui est tendu — certains s'y
+  // ancrent —, et le titre reste le dernier recours quand la page n'offre rien.
+  const spot = (node) => site.mount(document, node) || ADS.read.after(document.querySelector('h1'))
 
   // Ce que la fenêtre montrera de l'annonce. Elle n'a pas la page : tout ce
   // qu'elle affiche de la fiche passe par là, y compris la contradiction — que
@@ -75,10 +77,10 @@
     const remote = ADS.sync.of(listing.siteId)
     const node = dateNode()
     if (!el) {
-      const target = anchor(node)
-      if (!target) return
+      const at = spot(node)
+      if (!at) return
       el = document.createElement('div')
-      target.parentElement.insertBefore(el, target.nextSibling)
+      at.parent.insertBefore(el, at.before)
     }
     el.setAttribute(MARK, listing.siteId)
     el.setAttribute(SRC, stampOf(listing.siteId))
@@ -98,6 +100,13 @@
   })
 
   render()
+  // La colonne change de largeur avec la fenêtre : le tracé se redessine à la
+  // nouvelle place, sinon son texte se remettrait à rétrécir avec le cadre.
+  // Rien d'autre n'est rejoué — le rendu, lui, n'a aucune raison de l'être.
+  addEventListener('resize', () => {
+    const posted = document.querySelector(`[${MARK}]`)
+    if (posted) ADS.plot.fit(posted)
+  })
   ADS.sync.onSignals(render)
   ADS.market.onFound(render)
   // La fiche suivante n'est pas garantie de produire un lot de mutations qu'on

@@ -53,7 +53,13 @@ test('la contradiction est nommée avec le libellé du site', () => {
 
 test('le libellé est lu par son texte, jamais par une classe de build', () => {
   const src = readFileSync(join(here, '../src/sites/lacentrale.js'), 'utf8')
-  assert.equal(/__SLIVb|__0sGLk|querySelector\(['"`]\./.test(src), false)
+  // Ce qui est proscrit n'est pas la classe, c'est le hachage que le build
+  // régénère : `ReferencesInfo_referencesInfoContainer__SLIVb` change au
+  // prochain déploiement du site. Les classes de zone que La Centrale écrit à
+  // la main — `.main-area`, `.side-area` — n'en portent pas, et le point de
+  // montage s'y replie quand l'identifiant de la colonne manque.
+  assert.equal(/querySelector(?:All)?\(\s*['"`][^'"`]*__/.test(src), false)
+  assert.equal(/__SLIVb|__0sGLk/.test(src), false)
   const node = (text) => ({ textContent: text, children: [] })
   const doc = {
     querySelectorAll: (sel) =>

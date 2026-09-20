@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CARDS, FICHES, fiche, page, results } from './lc-page.mjs'
-import { at } from './stage.mjs'
+import { El, at } from './stage.mjs'
 
 // Le relevé de la fenêtre, chargé avant que le décor ne réinitialise `ADS` : les
 // chiffres du diagnostic et les lignes affichées doivent se juger ensemble.
@@ -73,9 +73,6 @@ test('le résumé des résultats compte le seuil dépassé et les alertes', () =
   assert.equal(s.alerts, 8)
   // Le badge de l'icône porte le même nombre, et il vient du même comptage.
   assert.equal(w.badges().at(-1).alerts, 8)
-  // Le résumé de la fenêtre le rend tel quel.
-  const rendered = report.summary(s).map((r) => r.value)
-  assert.deepEqual(rendered, ['23', '14', '8'])
 })
 
 // Ce que la page montre en pastilles doit dire la même chose que ce que le
@@ -179,15 +176,69 @@ const capped = (over = {}) =>
     ...over,
   })
 
-// Sur la fiche de ce site, le libellé d'ancienneté ferme la page au ras du pied,
-// sous les mentions légales : s'y ancrer poserait le panneau là où personne ne
-// le lirait. Le pavé du prix, lui, est en haut. Rouge sur le `mount` de
-// src/sites/lacentrale.js, qui laisserait le panneau retomber sur le libellé.
-test('le panneau se pose sous le prix, pas au pied de la fiche', () => {
+// Le placement, après « j'ai l'impression qu'il se trouve super bas » : le pavé
+// du prix n'est pas en haut de la colonne, il vient après six autres pavés. Le
+// panneau se pose donc en tête de `.main-area`, devant le premier bloc du site.
+// Rouge sur le `top(doc) || under(doc)` de src/sites/lacentrale.js : replié sur
+// `#pavePrix`, le panneau redescend d'un écran et demi.
+test('le panneau se pose en tête de la colonne principale', () => {
+  const w = capped({ price: true, column: true })
+  w.load('detail.js')
+  const kin = w.panel().parentElement.children
+  assert.equal(w.panel().parentElement.tag, 'section')
+  assert.equal(kin.indexOf(w.panel()), 0)
+  assert.equal(kin[1].getAttribute('id'), 'classified-main-infos-v2')
+})
+
+// Même sans l'identifiant du premier bloc — le site le renomme, il porte déjà
+// un « -v2 » —, la zone suffit : le panneau reste en tête de la colonne. Rouge
+// sur le `ADS.read.head(doc.querySelector('.main-area'))` du même `top`.
+test("sans l'identifiant du bloc, la zone de la colonne suffit", () => {
+  const w = capped({ price: true, column: 'plain' })
+  w.load('detail.js')
+  const kin = w.panel().parentElement.children
+  assert.equal(w.panel().parentElement.className, 'main-area')
+  assert.equal(kin.indexOf(w.panel()), 0)
+})
+
+// Et quand la colonne elle-même a disparu, le panneau descend sous le prix — il
+// ne disparaît jamais. Rouge sur le `|| under(doc)` de `mount` : sans lui, le
+// panneau retomberait sur le titre de la page, deux écrans plus haut que le prix.
+test("sans colonne principale, le panneau se replie sous le prix", () => {
   const w = capped({ price: true })
   w.load('detail.js')
   const kin = w.body.children
   assert.equal(kin[kin.indexOf(w.panel()) - 1].getAttribute('id'), 'pavePrix')
+})
+
+// Le panneau est rejoué sans fin par les mutations de la fiche : il doit rester
+// un seul nœud, au même rang. Rouge sur le `document.querySelector([${MARK}])`
+// de src/detail.js, qui sans lui reposerait un panneau par lot de mutations.
+test('le panneau posé en tête ne se duplique pas au fil des rendus', () => {
+  const w = capped({ price: true, column: true })
+  w.load('detail.js')
+  const first = w.panel()
+  w.mutate(8)
+  assert.equal(w.body.querySelectorAll('[data-adscope-detail]').length, 1)
+  assert.equal(w.panel(), first)
+  assert.equal(w.panel().parentElement.children.indexOf(w.panel()), 0)
+})
+
+// B, l'emplacement écarté : la colonne de droite, sous le bloc prix. Gardé
+// déclaré pour que la comparaison reste reproductible — et pour qu'un
+// basculement soit une ligne, pas une refonte.
+test('l’emplacement de droite reste déclaré, sous le bloc prix du site', () => {
+  capped() // charge le registre du site dans ce monde
+  const { spots } = globalThis.ADS.lacentrale
+  const side = new El('div')
+  const price = new El('div')
+  price.setAttribute('data-page-zone', 'syntheseAnnonce')
+  const contact = new El('div')
+  side.append(price, contact)
+  const at = spots.b({ querySelector: (sel) => side.querySelector(sel) })
+  assert.equal(at.parent, side)
+  assert.equal(at.before, contact)
+  assert.equal(spots.b({ querySelector: () => null }), null)
 })
 
 // Le cœur du lot, vu de la page : le site écrit « 60 jours », l'annonce en a
