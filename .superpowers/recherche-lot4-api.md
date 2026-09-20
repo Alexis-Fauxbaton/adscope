@@ -262,3 +262,66 @@ Aucun fichier de production ne dépasse 150 lignes (`department_labels.py` à
 - Les autres réserves du lot 4 (ordre de départage arbitraire, mesure de
   latence hors requête HTTP réelle, `seller_type` sans `_unknown`) sont
   inchangées, non revues ici.
+
+## 2026-09-20 — Correctif : cascade région → département
+
+C'était la réserve « `departments` continue de partager sa requête avec
+`regions` » ci-dessus, devenue une demande explicite d'Alexis : symétrique de
+marque → modèle, `departments` doit ignorer `department` seul et **garder**
+`region` — poser une région restreint la liste des départements aux siens,
+comme choisir une marque restreint la liste des modèles.
+
+`facet_query.locations` (une seule requête pour `regions` et `departments`)
+est scindée en deux : `regions` (inchangé — ignore `location` en entier, porte
+toujours `location_unknown`) et `departments` (nouveau, compte sur une requête
+qui garde le filtre région). `market_facets.get_facets` calcule deux listes de
+départements avec `market_filters.combined` (déjà utilisée par `/v1/market`,
+réutilisée telle quelle, rien inventé) : `location_all` (marque+région, pour
+`total` et le reste, inchangé) et `location_region_only =
+combined_departments(None, region)` — le paramètre `department` posé par le
+marchand est ignoré, seule `region` compte. La facette `departments` appelle
+`core` avec ce filtre substitué et `exclude` vide (le filtre s'applique donc,
+contrairement à `regions` qui l'exclut). Un mot changé dans `excluding`, qui
+gagne un paramètre `department` par-dessus sa valeur par défaut.
+
+`region.py` n'a pas bougé : seule sa fonction déjà en place
+(`departments_of`, via `market_filters.region_departments`) est réutilisée. Les
+libellés (`department_labels.py`) ne changent pas non plus.
+
+### Vérifié en vrai
+
+- `./.venv/bin/pytest tests/ -q` : **737 passés** (736 avant, un ajouté —
+  `test_departments_facet_is_restricted_by_region`, `tests/test_market_facets.py`),
+  aucun échec.
+- **Le test neuf nomme la ligne qui le fait rougir et le prouve** :
+  `excluding(department=location_region_only)` changé en `excluding("location")`
+  (l'ancien comportement, celui du bug) — le test rougit (Bretagne + Île-de-
+  France reviennent toutes les deux au lieu de la seule Bretagne), puis
+  restauré, script jetable jamais commité.
+- Côté site : vérifié que `web/js/market-panel.js` (`onPick` de la région)
+  vide déjà `department` en changeant de région — comportement déjà symétrique
+  de marque → modèle (`market-state.applyPatch`), rien à corriger. Vérifié
+  aussi que `fixtures-facets.js` restreint déjà les départements à la région
+  posée (`place = sans('department')`, qui garde le filtre région) — mesuré à
+  la main (`facets({region: ['ile-de-france']}).departments` ne rend que
+  `75`/`92`, les deux départements franciliens des fixtures). **Aucun des deux
+  fichiers web n'a été modifié.**
+- `launchctl kickstart -k gui/$UID/fr.adscope.api` : relancé sur le nouveau
+  code, aucune erreur ni trace neuve dans `~/Library/Logs/adscope-api.log`
+  (mêmes avertissements `fuel hors vocabulaire` qu'avant). `GET
+  /v1/market/facets` sans clé → 401, `GET /app/` → 200.
+- **Aucune écriture d'essai sur `adscope`** : les tests tournent sur
+  `adscope_test` (`tests/conftest.py`), jamais sur la base réelle ; aucune
+  requête envoyée à `adscope` dans ce correctif, ni licence ni observation
+  créée.
+
+### Fichiers touchés (`api/` seulement)
+
+| Fichier | État | Lignes |
+|---|---|---|
+| `adscope_api/facet_query.py` | `locations` scindée en `regions`/`departments` | 115 |
+| `adscope_api/market_facets.py` | `departments` garde `region`, ignore `department` | 89 |
+| `tests/test_market_facets.py` | un test ajouté (cascade région → département) | — |
+
+Aucun fichier de production ne dépasse 150 lignes (`facet_query.py` à 115, le
+plus long des deux touchés).

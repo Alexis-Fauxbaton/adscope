@@ -9,11 +9,11 @@ filtre : `brands` exclut `brand` **et** `model` — sinon choisir un modèle
 enferme dans sa marque (cul-de-sac constaté par le lot `web`,
 `.superpowers/recherche-lot4-web.md`, impossible de changer de marque sans
 d'abord défaire le modèle) — et `regions` exclut `location` en entier, qui
-couvre déjà `department` et `region` ensemble (`market_filters.combined`, une
-seule liste avant `market_query.core`, partagée par `regions` et
-`departments` — voir `facet_query.locations`). `models` (n'exclut que
-`model`, garde `brand`) et `departments` n'ont pas de descendant à eux : rien
-n'y change.
+couvre `department` et `region` ensemble (`market_filters.combined`, une
+seule liste avant `market_query.core`). `models` (n'exclut que `model`,
+garde `brand`) et `departments` (n'exclut que `department`, garde `region` —
+même symétrie, voir `facet_query.departments`) n'ont pas de descendant à eux :
+rien n'y change au-delà de leur propre filtre.
 
 Le détail par facette est dans `facet_query.py`, les libellés dans
 `spelling.py`/`vocab.py`/`region.py`/`department_labels.py`.
@@ -57,19 +57,21 @@ def get_facets(
 ):
     now = datetime.now(timezone.utc)
     bounds = parse_ranges(price_min, price_max, year_min, year_max, mileage_min, mileage_max)
+    location_all = combined_departments(department, region)
+    location_region_only = combined_departments(None, region)
     common = dict(
         brand=brand, model=model, q=q, seller_type=seller_type, fuel=fuel, gearbox=gearbox,
-        department=combined_departments(department, region), bounds=bounds,
-        min_age_days=min_age_days, dropped=dropped,
+        bounds=bounds, min_age_days=min_age_days, dropped=dropped,
     )
 
-    def excluding(*names):
-        built, _age, _delta = core(license_, now, exclude=frozenset(names), **common)
+    def excluding(*names, department=location_all):
+        built, _age, _delta = core(license_, now, exclude=frozenset(names), department=department, **common)
         return built
 
     fuel_list, fuel_unknown = fq.fuel(session, excluding("fuel"))
     gearbox_list, gearbox_unknown = fq.gearbox(session, excluding("gearbox"))
-    regions, departments, location_unknown = fq.locations(session, excluding("location"))
+    regions, location_unknown = fq.regions(session, excluding("location"))
+    departments = fq.departments(session, excluding(department=location_region_only))
 
     return {
         "total": fq.total(session, excluding()),

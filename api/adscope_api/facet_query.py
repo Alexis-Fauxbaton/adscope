@@ -80,26 +80,32 @@ def seller_types(session, query):
     return [{"key": k, "count": n} for k, n in rows if k]
 
 
-def locations(session, query):
-    """Régions et départements partagent une seule requête : la région n'est
-    qu'un repli des comptes par département (`region.of_department`), jamais
-    une colonne à elle — voir `region.py`."""
+def regions(session, query):
+    """La région n'est qu'un repli des comptes par département
+    (`region.of_department`), jamais une colonne à elle — voir `region.py`.
+    `location_unknown` (annonces sans département) vient de la même requête,
+    celle qui ignore département *et* région (`market_facets.py`,
+    `excluding("location")`)."""
     rows = _counts(session, query, "department")
-    departments = [
-        {"key": k, "label": department_label(k), "count": n} for k, n in rows if k
-    ]
     unknown = sum(n for k, n in rows if not k)
     by_region: dict[str, int] = {}
     for k, n in rows:
         name = region_module.of_department(k) if k else None
         if name:
             by_region[name] = by_region.get(name, 0) + n
-    regions = sorted(
+    ordered = sorted(
         ({"key": ident, "label": name, "count": by_region[name]}
          for ident, (name, _) in REGIONS.items() if name in by_region),
         key=lambda item: (-item["count"], item["key"]),
     )
-    return regions, departments, unknown
+    return ordered, unknown
+
+
+def departments(session, query):
+    """Les départements, comptés sur une requête qui garde le filtre région
+    (symétrique de `models`, qui garde `brand`) — voir `market_facets.py`."""
+    rows = _counts(session, query, "department")
+    return [{"key": k, "label": department_label(k), "count": n} for k, n in rows if k]
 
 
 def ranges(session, query, column_name):

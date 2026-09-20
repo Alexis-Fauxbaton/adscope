@@ -254,6 +254,19 @@ def test_departments_facet_excludes_its_own_filter(client, key, session):
     assert by_key(body["departments"]) == {"75": 1, "92": 1}
 
 
+# Fait rougir `excluding(department=location_region_only)` dans
+# `market_facets.get_facets` (symétrique de `models` qui garde `brand`) :
+# poser une région restreint la liste des départements à ceux de cette
+# région, sans que `regions` en soit affectée.
+def test_departments_facet_is_restricted_by_region(client, key, session):
+    car(session, "1", department="35")  # Bretagne
+    car(session, "2", department="75")  # Île-de-France
+    body = facets(client, key, region="bretagne")
+    assert body["total"] == 1
+    assert by_key(body["departments"]) == {"35": 1}
+    assert by_key(body["regions"]) == {"bretagne": 1, "ile-de-france": 1}
+
+
 # --- seller_type ----------------------------------------------------------
 
 def test_seller_type_lists_counts(client, key, session):
