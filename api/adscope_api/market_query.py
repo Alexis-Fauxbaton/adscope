@@ -77,6 +77,7 @@ def core(license_, now, *, brand=None, model=None, q=None, seller_type=None,
     )
     query = (
         select(
+            Listing.id.label("id"),
             Listing.site, Listing.site_id, Listing.brand, Listing.model, Listing.version,
             Listing.canon_brand, Listing.canon_model, Listing.canon_model_source,
             Listing.year, Listing.mileage, last_price.c.price,

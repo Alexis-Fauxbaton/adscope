@@ -18,10 +18,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from .auth import require_license
 from .db import get_session
 from .feed_query import FeedOut, feed_for
-from .market_filters import combined as combined_departments
 from .market_items import MarketOut, item_of
+from .market_params import MarketParams
 from .market_query import market_page
-from .market_ranges import parse as parse_ranges
 from .schemas import SellerType
 from .vocab import Fuel, Gearbox
 
@@ -50,12 +49,15 @@ def get_market(
     session=Depends(get_session), license_=Depends(require_license),
 ):
     now = datetime.now(timezone.utc)
-    bounds = parse_ranges(price_min, price_max, year_min, year_max, mileage_min, mileage_max)
+    params = MarketParams(
+        brand=brand, model=model, q=q, seller_type=seller_type,
+        fuel=fuel or [], gearbox=gearbox or [], department=department or [], region=region or [],
+        price_min=price_min, price_max=price_max, year_min=year_min, year_max=year_max,
+        mileage_min=mileage_min, mileage_max=mileage_max,
+        min_age_days=min_age_days, dropped=dropped,
+    )
     total, rows = market_page(
-        session, license_, now, brand=brand, model=model, q=q, seller_type=seller_type,
-        fuel=fuel, gearbox=gearbox, department=combined_departments(department, region),
-        bounds=bounds,
-        min_age_days=min_age_days, dropped=dropped, sort=sort, limit=limit, offset=offset,
+        session, license_, now, sort=sort, limit=limit, offset=offset, **params.core_kwargs(),
     )
     return {"total": total, "items": [item_of(row) for row in rows]}
 
