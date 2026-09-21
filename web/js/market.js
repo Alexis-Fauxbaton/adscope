@@ -8,6 +8,7 @@ import { createList } from './market-list.js'
 import { renderPanel } from './market-panel.js'
 import { PAUSE_MS, applyPatch, createFacetRefresher } from './market-state.js'
 import { debounce } from './query.js'
+import { renderSaveSearch } from './save-search.js'
 import { hashOf } from './url-state.js'
 
 const PERIMETRE = "Sur les annonces qu'adscope a vues — pas tout le marché."
@@ -49,6 +50,10 @@ export async function renderMarket(root, state) {
     get narrow() { return matchMedia('(max-width: 720px)').matches },
     patch, search: (texte) => chercher(texte), toggleOpen,
   }
+
+  // À côté du tri, pas dans le panneau : « Enregistrer cette recherche »
+  // porte sur les filtres posés à l'instant du clic, lus depuis `ui.filters`.
+  const zoneSaveSearch = renderSaveSearch(ui, () => state.onAuthError())
 
   // `pushState` n'émet pas `hashchange` : l'écran ne se redessine pas sous nos
   // pieds. Le bouton retour, lui, l'émet — `app.js` relit alors les filtres
@@ -125,7 +130,7 @@ export async function renderMarket(root, state) {
     el('h1', { class: 'vue-t', text: 'Le marché' }),
     el('p', { class: 'vue-s', text: PERIMETRE }),
     zoneFiltres,
-    el('div', { class: 'compte-ligne' }, [etiquette, tri]),
+    el('div', { class: 'compte-ligne' }, [etiquette, zoneSaveSearch, tri]),
     zone,
   )
   poser()

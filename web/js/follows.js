@@ -4,9 +4,20 @@
 import * as api from './api.js'
 import { clear, el, outLink } from './dom.js'
 import { factsOf, isGone } from './facts.js'
+import { DEFAULT_SORT, SORTS, sortFeed } from './follows-sort.js'
 import { kilometres, money, spellAge, vehicleShortLabel } from './format.js'
 
 const FENETRES = [[1, '24 heures'], [7, '7 jours']]
+
+function segmentTri(root, state) {
+  const actif = state.followSort || DEFAULT_SORT
+  return el('div', { class: 'seg tri-suivis', role: 'tablist' },
+    SORTS.map(([cle, label]) => el('button', {
+      class: `seg-b${actif === cle ? ' on' : ''}`,
+      role: 'tab', 'aria-selected': actif === cle, text: label,
+      onclick: () => { state.followSort = cle; renderFollows(root, state) },
+    })))
+}
 
 // « Peugeot 208 · 2020 · 3 574 km » : le nom du véhicule (marque + modèle, ou
 // `label` quand l'API le sert) ne se sépare pas par le point médian qui
@@ -87,13 +98,13 @@ export async function renderFollows(root, state) {
 
   clear(root).append(
     el('h1', { class: 'vue-t', text: 'Mes suivis' }),
-    bascule,
+    el('div', { class: 'suivis-entete' }, [bascule, segmentTri(root, state)]),
     zone,
   )
   zone.append(el('p', { class: 'vue-s', text: 'Chargement…' }))
   try {
     const { items } = await api.feed(state.sinceDays)
-    clear(zone).append(corps(items))
+    clear(zone).append(corps(sortFeed(items, state.followSort)))
   } catch (err) {
     // Une licence refusée ramène à l'écran de connexion ; le reste des pannes
     // reste dans la page.
