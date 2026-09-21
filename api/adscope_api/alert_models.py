@@ -55,6 +55,8 @@ class AccountSettings(Base):
     )
     digest_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     include_follows: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    # Le jeton lui-même, pas son empreinte — voir `alert_settings.py` pour le
+    # pourquoi (écart documenté au plan d'exécution).
     unsubscribe_token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 

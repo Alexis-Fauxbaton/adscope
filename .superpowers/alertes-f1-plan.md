@@ -544,6 +544,27 @@ sera, l'échec d'envoi devra soit rejouer, soit défaire le marquage.
 
 ---
 
+## 8bis. Écart d'exécution : le jeton de désabonnement n'est pas haché
+
+Constaté pendant l'implémentation. Le § 8 prévoit `unsubscribe_token_hash`
+haché (sha256), sur le modèle de `sessions.hash_token`. Mais ce jeton doit
+rester *identique* et *valable* dans chaque email envoyé à un compte,
+potentiellement pendant des années (« il ne périme pas — un email vieux de
+six mois doit encore pouvoir désabonner ») : `digest_build.py` en a besoin
+**en clair** à chaque passage du script, pas seulement à la création de la
+ligne. Un jeton haché ne se lit qu'une fois, à sa frappe — c'est justement le
+principe qui protège `sessions`/`login_tokens`, où le secret ne revit qu'au
+navigateur, jamais côté serveur. Ici il n'y a pas de « navigateur » qui le
+retient : c'est le serveur qui doit le réécrire chaque matin. Sans secret
+d'application (le HMAC est explicitement écarté plus bas) et sans table
+d'historique de jetons (le schéma n'a qu'une colonne), la seule lecture qui
+tienne est de garder le jeton en clair dans `account_settings`. Sensibilité
+acceptée : son seul pouvoir est de couper l'email du matin d'un compte — la
+même portée que `digests.token`, déjà en clair dans ce lot. Colonne et
+migration inchangées (le nom `unsubscribe_token_hash` reste, par souci de ne
+pas ajouter une migration pour un renommage ; commenté dans `alert_models.py`
+et `alert_settings.py`). Contrat HTTP inchangé.
+
 ## 8. Le désabonnement — mécanisme retenu
 
 **Retenu : un jeton aléatoire long, propre au compte, stocké haché dans

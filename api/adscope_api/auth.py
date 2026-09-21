@@ -95,3 +95,13 @@ def require_license(request: Request, authorization: str = Header(default=""),
     if sessions.touch(row, now):
         session.commit()
     return license_
+
+
+# La porte des alertes (lot F1) : une recherche enregistrée, un réglage email,
+# se lisent au compte, pas à la licence qui interroge l'API en son nom. Une
+# clé de machine (`Bearer`, sans compte) passe `require_license` mais s'arrête
+# ici — 403, jamais 401 : la clé est valide, il lui manque un compte.
+def require_account(license_=Depends(require_license)) -> int:
+    if license_.account_id is None:
+        raise HTTPException(status_code=403, detail="compte requis")
+    return license_.account_id
