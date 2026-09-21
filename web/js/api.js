@@ -47,7 +47,9 @@ export function buildRequest(path, { method = 'GET', params, body } = {}) {
   }
 }
 
-async function request(path, options) {
+// Exportée pour `api-alerts.js` : même construction de requête, même porte —
+// il n'y a pas un second chemin réseau pour les alertes.
+export async function request(path, options) {
   const { url, init } = buildRequest(path, options)
   const res = await fetch(url, init)
   // La session refusée n'est pas une panne : c'est l'écran de connexion.
