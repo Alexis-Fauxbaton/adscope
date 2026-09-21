@@ -59,7 +59,3 @@ export async function digestVisit(token) {
 export async function unsubscribe(token) {
   return request('/v1/alerts/unsubscribe', { method: 'POST', body: { token } })
 }
-
-export async function resubscribe(token) {
-  return request('/v1/alerts/resubscribe', { method: 'POST', body: { token } })
-}

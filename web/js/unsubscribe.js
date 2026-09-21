@@ -4,17 +4,20 @@
 // préchargent les URL ne déclenchent qu'un `GET`, jamais l'appel réseau posté
 // ici en JavaScript.
 
-import { resubscribe, unsubscribe } from './api-alerts.js'
+import { unsubscribe } from './api-alerts.js'
 import { clear, el } from './dom.js'
 
 export function tokenFromSearch(search = location.search) {
   return new URLSearchParams(search).get('t')
 }
 
-function carte(texte, action) {
+// Pas de « Réactiver » ici : le jeton du pied d'email ne tourne jamais, et qui
+// détient un vieil email transféré rallumerait l'envoi d'un autre. Rallumer se
+// fait connecté, depuis Mes alertes.
+function carte(texte, retour) {
   return el('div', { class: 'carte' }, [
     el('p', { class: 'entree-s', text: texte }),
-    action && el('button', { class: 'bouton', text: action.label, onclick: action.onclick }),
+    retour && el('a', { class: 'bouton', href: './#/alertes', text: 'Le réactiver depuis Mes alertes' }),
   ])
 }
 
@@ -28,18 +31,9 @@ export async function render(root) {
   const token = tokenFromSearch()
   if (!token) { zone.append(carte('Lien invalide.')); return }
 
-  async function reactiver() {
-    try {
-      await resubscribe(token)
-      clear(zone).append(...entete(), carte('Email du matin réactivé.'))
-    } catch {
-      zone.append(carte("L'action a échoué. Réessayez plus tard."))
-    }
-  }
-
   try {
     await unsubscribe(token)
-    zone.append(carte("Vous ne recevrez plus l'email du matin.", { label: 'Réactiver', onclick: reactiver }))
+    zone.append(carte("Vous ne recevrez plus l'email du matin.", true))
   } catch {
     zone.append(carte('Lien invalide ou déjà expiré.'))
   }

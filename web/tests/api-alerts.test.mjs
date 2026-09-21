@@ -81,20 +81,18 @@ test('lire un envoi cible son identifiant', async () => {
 
 // Rouge sur les trois routes non authentifiées : la mesure de visite et le
 // désabonnement doivent poster un jeton, jamais l'identifiant du compte.
-test('visite, désabonnement et réabonnement postent le jeton opaque', async () => {
-  const { digestVisit, unsubscribe, resubscribe } = await loadApiAlerts()
+test('visite et désabonnement postent le jeton opaque', async () => {
+  const { digestVisit, unsubscribe } = await loadApiAlerts()
   const calls = []
   globalThis.fetch = fakeFetch(calls, { digest_enabled: false })
   await digestVisit('abc')
   await unsubscribe('abc')
-  await resubscribe('abc')
   for (const c of calls) {
     assert.equal(c.init.method, 'POST')
     assert.equal(JSON.parse(c.init.body).token, 'abc')
   }
   assert.equal(calls[0].url, '/v1/digests/visit')
   assert.equal(calls[1].url, '/v1/alerts/unsubscribe')
-  assert.equal(calls[2].url, '/v1/alerts/resubscribe')
 })
 
 // Rouge sur chaque `if (isDemo()) return fixtures…` : sans lui, le mode démo
