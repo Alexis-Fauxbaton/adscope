@@ -171,3 +171,217 @@ bien à l'écran de connexion sans erreur console.
    manuelle** des quatre PNG — un problème de mise en page qui ne se voit
    qu'à une largeur intermédiaire (entre 640 px et 900 px, la grille passe
    à une colonne) n'a pas été vérifié.
+
+---
+
+## 2026-09-21 — « Je trouve la page pas très claire dans ce qu'il est possible de faire »
+
+Le propriétaire a ouvert `docs/site-v0-alertes.png` (l'état du § 5 ci-dessus) et n'a
+pas compris la page : une carte « Mes recherches » qui répète le nom en gris, quatre
+cases natives bleues sans un mot d'explication (`notify_drops`/`notify_new`/`paused`
+exposées telles quelles), une carte « Suivis inclus » sans dire ce que ça ajoute, une
+boîte d'envoi qui ne dit ni pourquoi elle est vide ni ce qui arrivera. Refonte de la
+page, sans nouvelle route (contrat § 3 du plan inchangé), pensée depuis Karim et non
+depuis les colonnes de `saved_searches`.
+
+### Méthode — le parcours de Karim, écrit avant de coder
+
+**Karim, 42 ans, marchand à Narbonne, 25 voitures au parc.** Café en main, sur
+l'ordinateur du bureau le matin, ou sur son téléphone entre deux clients. Il connaît
+leboncoin par cœur ; aucun mot d'adscope. Ce qu'il veut : qu'on le prévienne quand une
+voiture de ses modèles, qui traîne, baisse de prix — un vendeur qui baisse se négocie.
+
+**1. La première fois, sur Le marché.** — « Je filtre : Renault, Clio, diesel, Nord
+et Pas-de-Calais. 47 annonces. Je vois un lien bleu, *Enregistrer cette recherche*. Je
+clique. Un champ s'ouvre, déjà rempli — *Renault Clio · diesel · dépt. 59, 62* — je
+n'ai rien à taper. Je clique *Enregistrer*. La ligne devient : *Recherche
+enregistrée.* puis, juste en dessous, *Vous serez alerté dans l'email du matin : Une
+annonce en ligne depuis plus de 30 jours baisse d'au moins 3 %.* — ah, voilà ce que ça
+fait, et quand. Un lien *Régler cette alerte →*. Je clique, j'atterris sur Mes
+alertes. »
+
+« En haut, une phrase sous le titre : *Chaque matin, un email avec ce qui a bougé sur
+vos recherches et vos annonces suivies ; rien s'il n'y a rien à dire.* Voilà, je sais
+à quoi sert la page avant même de lire le reste. Une carte *L'email du matin*, en
+premier : un interrupteur bleu-violet allumé, *Recevoir l'email du matin*, et en
+dessous *Envoyé à karim@garage-narbonne.fr — prochain envoi demain matin.* Je sais où
+ça part et quand, sans qu'on m'invente une heure. Un second interrupteur, *Inclure mes
+annonces suivies*, avec sa phrase : ce qu'il ajoute (baisses, seuils de 30/60/90 jours,
+disparitions) — je comprends avant de toucher.
+
+Plus bas, *Mes recherches*, un bouton *Nouvelle recherche* et une ligne qui dit
+comment : *Filtrez le marché, puis Enregistrez cette recherche.* Ma carte : le nom que
+j'ai laissé, des pastilles — Renault, Clio, diesel, Département 59, Département 60 —
+je revois mes filtres sans les deviner, jamais un texte gris qui répète juste le nom.
+*47 annonces aujourd'hui*, un lien *Voir les annonces*. Deux règles, chacune avec son
+interrupteur : *Baisses sur les annonces anciennes*, allumée, avec en dessous une
+phrase à deux menus — *Une annonce en ligne depuis plus de [30 jours] : [une baisse de
+3 % ou plus].* — je vois que je peux changer ça sans qu'on me demande un chiffre.
+*Nouvelles annonces*, éteinte, avec sa raison écrite : leboncoin et La Centrale le
+font déjà en temps réel, adscope arrive après — je comprends pourquoi c'est éteint par
+défaut plutôt que de me demander si c'est un bug.
+
+En bas de la carte, à part : *Mettre en pause* (*Plus d'alerte, la recherche est
+gardée*) et *Supprimer*. Je sais ce que chacun fait sans cliquer pour voir.
+
+Enfin *Emails envoyés* : *Le premier email partira le matin où une de vos recherches
+aura bougé. Seul ce qui se passe après l'enregistrement d'une recherche compte.* —
+normal, je viens de la créer, rien pour l'instant, et ce n'est pas un problème. »
+
+**2. Depuis l'email, « gérer mes alertes ».** — « Je reçois trop d'emails, une baisse
+de 50 € me dérange. J'arrive sur Mes alertes avec mes trois recherches. Sur *Clio IV
+diesel 59-62*, je change le second menu de *une baisse de 3 % ou plus* à *une baisse
+de 5 % ou plus* — un clic, la ligne change tout de suite, pas de rechargement de la
+page, pas de formulaire à valider. Sur *208 essence Hauts-de-Seine* je change le
+premier menu de *15 jours* à *30 jours* : je serai prévenu plus tard, sur des annonces
+plus installées. Je pars trois semaines : sur *Duster diesel*, je clique *Mettre en
+pause* — la carte s'assombrit, un badge *En pause* apparaît, je sais que je ne
+recevrai plus rien pour celle-là sans l'avoir supprimée. Si je voulais vraiment tout
+couper, l'interrupteur *Recevoir l'email du matin* en haut de la page le ferait d'un
+clic — et la carte le dirait elle-même : *L'email est coupé : vos recherches restent
+enregistrées, mais rien ne partira.* »
+
+**3. Rien reçu ce matin.** — « J'ouvre Mes alertes, inquiet. La carte *L'email du
+matin* : l'interrupteur est allumé, *Envoyé à karim@garage-narbonne.fr — prochain
+envoi demain matin.* — ça marche, donc. Je descends à *Emails envoyés* : le dernier
+est daté d'avant-hier, *18 sept.* Je comprends : rien n'a bougé hier, pas de panne.
+Si la liste avait été vide je serais tombé sur : *Le premier email partira le matin où
+une de vos recherches aura bougé.* — le même message, qui ne me laisse jamais deviner
+si c'est cassé. »
+
+### Ce que ce parcours a changé dans le code (trouvé en l'écrivant, avant capture)
+
+En écrivant la situation 2, aucun contrôle de la page ne permettait de changer les
+seuils (`min_age_days`, `min_drop_pct`) — seule une phrase figée les affichait. Ajouté
+avant la première capture : deux `<select>` (registre du site, jamais un champ
+numérique) dans la phrase de la règle de baisse, chacun à choix tout faits (15/30/60
+jours · dès la moindre baisse/3 %/5 %), écriture optimiste avec retour arrière si
+l'API refuse — `web/js/alerts-search-thresholds.js`.
+
+### Ce qui a changé
+
+**Nouveaux fichiers** — `js/switch.js` (l'interrupteur du registre : piste et
+pastille à l'accent, un `<input type="checkbox" role="switch">` gardé dessous,
+jamais une `<div>` qui ferait semblant ; écriture optimiste, retour en arrière et
+message si l'API refuse) · `js/alerts-search-rules.js` (les phrases et les choix,
+purs, testés sans DOM — `dropsSentence`, `countLabel`, `payloadFor`, `withCurrent`,
+les listes `AGE_CHOICES`/`DROP_CHOICES`) · `js/alerts-search-thresholds.js` (les deux
+menus de seuils) · `js/alerts-digest.js` (la carte *L'email du matin*).
+
+**Réécrits** — `js/alerts-searches.js` (une carte par recherche, plus une liste de
+cases ; contrôleur qui redessine sa seule section à la pause/suppression, jamais
+toute la page) · `js/alerts-outbox.js` (dates en français via `format.shortDate`,
+visites dites en clair — `visitsLabel`, pas de « — » ambigu) · `js/alerts.js`
+(orchestration : intro, carte email, section recherches, boîte d'envoi ; compte les
+annonces de chaque recherche via `/v1/market/facets`, la même route que Le marché) ·
+`js/save-search.js` (confirmation qui dit ce qui va être reçu, `dropsSentence`
+partagée avec la carte, et un lien vers Mes alertes) · `js/app.js` (`api.me()` appelée
+aussi en démo — `fixtures.me()` ne fait aucun réseau — pour que l'adresse s'affiche
+en haut à droite même en capture) · `css/alerts.css` (registre inchangé : sol/cartes/
+accent de `base.css`, rien de nouveau).
+
+**Aucune route neuve.** Compteur par recherche : `/v1/market/facets`, déjà utilisée
+par Le marché. Pause/suppression : `PUT`/`DELETE /v1/searches/{id}`, déjà du contrat.
+
+**Mode démo** (`fixtures-alerts.js`) : `?demo=1&vide=1` sert un compte du premier
+jour (aucune recherche, aucun email) — un drapeau, pas un second jeu de fixtures ;
+l'email HTML de démo réécrit à l'identique du registre de `digest_html.py`.
+
+### `api/adscope_api/digest_html.py`
+
+- **Chaque `<a>` porte sa police en ligne** (`_link`) : sans elle, un lien sortait en
+  Times bleu souligné dans la plupart des clients mail, qui n'héritent rien sur un
+  `<a>`. Vérifié en cassant la ligne (`FONT` retiré de `_link`) : le test dédié rougit,
+  restauré, vert.
+- **Le prix tient sa propre ligne** (`_split_price_line`, sur la flèche « → » que rend
+  déjà `digest_text.body_of`) : *23 900 € → 22 700 €* en gras sombre, les faits
+  (cumul, ancienneté, fenêtre de constat) restent en gris dessous, jamais répétés.
+  Cassé (`_split_price_line` renvoyant toujours `("", body)`) : le test rougit,
+  restauré, vert.
+- **Pied réécrit** : pourquoi l'email arrive, *Gérer mes alertes*, *Me désabonner* —
+  les deux liens du plan, plus la phrase que le plan n'écrivait pas encore.
+- `api/tests/test_digest_html.py` (neuf, 4 tests, directs sur `render()` — pas besoin
+  de base pour tester du HTML) : les trois lignes ci-dessus, plus un candidat sans
+  flèche de prix (`kind == "crossed"`) qui ne casse pas la carte. Chacun cassé puis
+  restauré (voir ci-dessus) sauf le quatrième (assertion directe, même réserve que le
+  reste de la suite).
+- Service relancé par `launchctl kickstart -k gui/$UID/fr.adscope.api` après la
+  modification, comme demandé — jamais autrement.
+
+### Écarts au parcours écrit plus haut, trouvés en rejouant les captures
+
+Les quatre PNG relus avec l'outil `Read`, et les trois parcours de Karim rejoués à la
+souris et au clavier sur le site servi en local (Playwright piloté en Node, Chromium
+mis en cache — même procédé que le lot précédent, § 5 ci-dessus ; navigateur du plugin
+Playwright de cette session sans accès réseau, y compris `127.0.0.1`, donc écarté).
+
+1. **Seuils non réglables — trouvé en écrivant le parcours 2, avant toute capture**,
+   déjà corrigé plus haut (`alerts-search-thresholds.js`).
+2. **Deux recherches sur trois affichaient « 0 annonce aujourd'hui »** sur la première
+   capture — les requêtes démo héritées du lot précédent ne croisaient presque aucune
+   ligne de `fixtures-rows.js` (base très réduite, 54 lignes). Un compte à zéro sur la
+   carte vedette se lit comme une panne du compteur, pas comme un marché calme.
+   Corrigé : les trois requêtes démo (`fixtures-alerts.js`) rejouent maintenant contre
+   de vraies lignes (1 annonce chacune) ; noms de recherche ajustés en conséquence
+   (« Clio diesel », « Dacia Duster — en pause »). Effet de bord positif : les
+   pastilles carburant sortent bien capitalisées (« Diesel », pas « diesel ») une fois
+   qu'il y a une facette à lire.
+3. **Piste de l'interrupteur mal alignée quand le texte passe sur deux lignes** —
+   visible sur la capture mobile initiale (« Inclure mes annonces suivies ») : `align-
+   items:center` centrait la piste entre les deux lignes du texte au lieu de l'aligner
+   sur le titre. Corrigé (`.switch{align-items:flex-start}`), revérifié sur la capture
+   mobile finale.
+4. **Rejoué à la souris et au clavier** (`Playwright`, hors des quatre captures
+   requises) sur le rendu réel : cocher/décocher une règle (clic sur la piste, et Tab +
+   Espace au clavier) bascule tout de suite, sans navigation ni redessin de la page (le
+   nœud `<h1>` reste le même nœud DOM avant/après) ; les deux menus de seuils changent
+   de valeur ; Mettre en pause/Reprendre bascule le badge *En pause* et redessine
+   seulement la carte ; Supprimer s'arme puis confirme, la carte disparaît, 3 → 2.
+   Aucun défaut trouvé sur ces chemins.
+5. **Confirmation après enregistrement, non capturable** : sur Le marché en mode
+   démo, le bouton *Enregistrer cette recherche* renvoie volontairement vers l'écran
+   de connexion (comportement du lot précédent, `save-search.js`, non changé par ce
+   lot) — il n'existe donc aucun moyen, dans les limites du périmètre (pas de requête
+   authentifiée à l'API réelle), de capturer à l'écran le message *Recherche
+   enregistrée… Vous serez alerté…* Vérifié par lecture du code uniquement (§ réserves).
+
+### Tests
+
+`cd web && node --test tests/*.test.mjs` → **150 passés** (144 au départ, +9 neufs
+— `alerts-search-rules.test.mjs`, `alerts-outbox.test.mjs`, un test dans
+`fixtures-alerts.test.mjs` —, −3 retirés avec `querySummary`, remplacée par les
+pastilles de `market-chips.js`). `cd api && ./.venv/bin/pytest tests/ -q` → **816
+passés** (812 au départ, +4 neufs, `test_digest_html.py`).
+
+Chaque test neuf nomme en commentaire la ligne de production qu'il fait rougir.
+Cassé puis restauré, resuite complète revérifiée verte à chaque restauration :
+`dropsSentence` (interpolation des deux seuils), `withCurrent` (repli du seuil hors
+choix), `visitsLabel` (le cas `0`), `videDemande` via `?vide=1` (fixtures vides),
+`_link` (police manquante sur un `<a>`), `_split_price_line` (le prix se noierait
+dans les faits gris). `countLabel` et `payloadFor` (repris de l'ancien fichier) et le
+test du pied de l'email : assertion directe sur la ligne identifiée, non
+individuellement cassés-puis-restaurés — même réserve que le lot précédent.
+
+Aucun test ne lit l'horloge réelle : `DEMO_NOW`/dates littérales comme avant, `NOW`
+fixe dans `test_digest_html.py`. Aucune requête vers `leboncoin`, `La Centrale` ni
+l'API réelle — les captures tournent en `?demo=1` contre un serveur statique local
+sur un port éphémère, arrêté par son propre PID.
+
+### Réserves
+
+1. **Compteur d'annonces par recherche (`/v1/market/facets`) non testé** : correct
+   par lecture (même appel que Le marché) et par capture, mais aucun test direct ne
+   couvre `facetsPerSearch` (`alerts.js`) — DOM non testable dans cet environnement,
+   même limite que le reste des vues du site.
+2. **Écriture optimiste des seuils (`alerts-search-thresholds.js`) et de l'email du
+   matin (`alerts-digest.js`) non testée automatiquement**, vérifiée seulement à la
+   souris et au clavier (§ ci-dessus) — même raison (DOM).
+3. **Le message de confirmation après `Enregistrer cette recherche`** n'a pas pu être
+   capturé (§ 5 ci-dessus) : vérifié par lecture de code uniquement.
+4. **Compte d'annonces potentiellement à jour avec un léger retard** : `facetsPerSearch`
+   se demande une fois à l'affichage de la page, pas après une écriture sur les
+   seuils/filtres (qui ne touchent pas la requête de la recherche elle-même, donc le
+   compte reste juste) — mais une recherche modifiée depuis Le marché puis revue sans
+   recharger « Mes alertes » montrerait un compte figé jusqu'au prochain chargement.
+5. **`api/tests/test_digest_html.py` n'exerce pas `digest_send.py`** (déjà couvert par
+   `test_digest.py`, non touché) — lecture de contrat, pas d'exécution croisée.
