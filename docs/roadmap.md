@@ -52,6 +52,13 @@ lui-même. Modèle visé : extension gratuite (acquisition, et chaque utilisateu
 base), site payant. Avant Stripe : cinq marchands, deux semaines, gratuit — s'ils rouvrent le
 site sans relance, le prix passe.
 
+**Arbitrages clos le 2026-09-21** : « Mercedes » (la forme longue est un alias), « Skoda » sans
+hatchek, « C-Max » à la manière de la presse, et on garde le « Classe » de « Classe CLK » comme
+le « II » de « Compass II » — c'est le modèle que le site déclare, on ne le replie pas. Le
+carburant **éthanol** (E85) entre au vocabulaire avec le lot F2 : un vrai critère de marchand,
+aujourd'hui rangé dans « autre ». Le 3c (modèle déduit du titre) attend une nouvelle mesure
+après F2, qui rafraîchira ces annonces par les pages de résultats.
+
 **« Pas de télémétrie », précisé le 2026-09-21** : aucun traceur tiers, aucun suivi de
 comportement dans l'extension (ses observations sont le produit, rien de plus). Sur le site,
 une mesure d'usage interne, côté serveur, rattachée aux comptes, déclarée dans la politique de
