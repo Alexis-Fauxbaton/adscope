@@ -42,7 +42,8 @@ doublon multi-plateformes.
 | C · Listing | flèche de baisse sur la pastille — **livré**. La barre de tri/filtre a été retirée : elle ne triait que la page chargée et parasitait la page hôte | — |
 | D · Site adscope v0 | `web/`, servi par l'API sous `/app` : **Mes suivis** (baisses, seuils 30/60/90 j, disparitions, sur 24 h ou 7 j) et **Le marché** (toute la base : famille, ancienneté, baisse, pro/particulier) — **livré**, connexion par clé en attendant le lot Comptes | — |
 | E · Republication | empreinte rare **et** annonce disparue → « même véhicule » | `disappeared_at` alimenté, donc revisites qui tournent |
-| F · Alertes — **décidé le 2026-09-20** | recherches enregistrées (un jeu de filtres du marché, nommé) · règles : nouvelle annonce dans la recherche, baisse sur une annonce ancienne, mouvement sur un suivi · **un email par matin**, pas un par événement | lot 4 relu (le format des filtres) ; l'envoi réel attend le fournisseur d'email, d'ici là une boîte d'envoi locale |
+| F1 · Alertes — **lancé le 2026-09-21** | recherches enregistrées (un jeu de filtres du marché, nommé) · règle phare : **baisse sur une annonce ancienne** (l'argument de négociation, ce que nous seuls savons) · « nouvelle annonce » existe mais décochée : les sites la font déjà, en temps réel, et nous arrivons après eux · mouvements sur les suivis · **un email par matin**, 15 lignes, rien si rien à dire · point de départ à l'enregistrement, une baisse n'est dite qu'une fois, jamais d'alerte sur une annonce pas vue depuis 48 h · boîte d'envoi locale en attendant le fournisseur d'email · visites venues de l'email comptées côté serveur (l'essai des cinq marchands se juge là-dessus) · tri de Mes suivis | — |
+| F2 · Balayage par recherche | les recherches enregistrées deviennent le périmètre : traduites en URL de recherche leboncoin, listées sur une page du site que la session cowork parcourt chaque matin (35 annonces par page de résultats : 30 fois moins cher que fiche par fiche) · indicateur de couverture par recherche · runbook, Alexis met à jour sa tâche cowork une fois · remplace la « liste des familles » attendue d'Alexis | F1 relu |
 | Store puis Render | inchangé, en dernier | — |
 
 **Pourquoi le lot F** : le panneau seul, Castorus le donne gratuitement. Ce qui se facture est le
@@ -50,6 +51,11 @@ sourcing — le marché filtré, les suivis — et un marchand n'ouvre pas une p
 lui-même. Modèle visé : extension gratuite (acquisition, et chaque utilisateur enrichit la
 base), site payant. Avant Stripe : cinq marchands, deux semaines, gratuit — s'ils rouvrent le
 site sans relance, le prix passe.
+
+**« Pas de télémétrie », précisé le 2026-09-21** : aucun traceur tiers, aucun suivi de
+comportement dans l'extension (ses observations sont le produit, rien de plus). Sur le site,
+une mesure d'usage interne, côté serveur, rattachée aux comptes, déclarée dans la politique de
+confidentialité — sans elle, ni prix ni priorités ne se décident sur des faits.
 
 ## Programme « recherche filtrée » — décidé le 2026-09-18, un lot à la fois, revue d'Alexis entre chaque
 
