@@ -23,8 +23,8 @@
 .suivis-entete .bascule,.suivis-entete .tri-suivis{margin:0}
 
 /* ── L'interrupteur — piste + pastille à l'accent, une case native dessous ── */
-.switch-bloc{padding:12px 0}
-.switch-bloc + .switch-bloc{border-top:1px solid var(--gris-pale)}
+/* Aucun filet (registre) : les blocs se séparent par l'air, pas par un trait. */
+.switch-bloc{padding:14px 0}
 /* `flex-start`, pas `center` : une phrase qui passe sur deux lignes (mobile,
    « Inclure mes annonces suivies ») centrerait sinon la piste entre les deux
    lignes au lieu de l'aligner sur le titre. */
@@ -49,7 +49,9 @@
 
 /* L'email du matin */
 .ed-info{font-size:13.5px; color:var(--faible); margin:2px 0 12px 54px}
-.ed-off{color:var(--orange)}
+/* L'orangé est réservé à « ce que le site cache » (fiche annonce) : l'email
+   coupé se dit par le poids du texte, pas par une couleur de statut. */
+.ed-off{color:var(--douce); font-weight:600}
 
 /* Mes recherches */
 .as-entete{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px}
@@ -57,20 +59,22 @@
 .as-section-erreur{font-size:13px; color:#B4243A; margin:0 0 12px}
 .as-tout{color:var(--douce); font-size:14.5px}
 .as-vide{display:flex; flex-direction:column; align-items:flex-start; gap:14px}
-.as-carte{transition:opacity .15s}
-.as-carte-pause{opacity:.6}
 .as-tete{display:flex; align-items:center; gap:10px; margin-bottom:12px}
 .as-nom{font-size:16.5px; font-weight:700; letter-spacing:-.01em}
+/* Badge de statut, pas « ce que le site cache » : gris neutre, jamais l'orangé. */
 .as-badge{
-  font-size:12px; font-weight:700; color:var(--orange); background:var(--orange-pale);
+  font-size:12px; font-weight:700; color:var(--douce); background:var(--gris-pale);
   border-radius:999px; padding:3px 10px;
 }
 .pastille-lecture{cursor:default; padding:7px 13px}
 .as-compte{display:flex; align-items:center; gap:14px; font-size:13.5px; color:var(--faible); margin:14px 0 4px}
-.as-regles{margin-top:6px}
-.as-regle{padding:6px 0}
-.as-regle + .as-regle{border-top:1px solid var(--gris-pale)}
-.as-regle .switch-bloc{padding-bottom:2px}
+/* En pause : le corps s'atténue, jamais la carte elle-même (« cartes
+   blanches » du registre — un `opacity` sur la carte entière la teinterait
+   de gris au contact du sol). L'entête (nom + badge) reste lisible. */
+.as-carte-corps{transition:opacity .15s}
+.as-carte-pause .as-carte-corps{opacity:.55}
+.as-regles{margin-top:6px; display:flex; flex-direction:column; gap:16px}
+.as-regle .switch-bloc{padding:0}
 .as-seuils{
   display:flex; align-items:center; flex-wrap:wrap; gap:6px 4px;
   margin:0 0 8px 54px; font-size:13px; color:var(--faible);
@@ -78,7 +82,7 @@
 .as-select{padding:5px 28px 5px 12px; font-size:12.5px}
 .as-actions{
   display:flex; align-items:center; justify-content:space-between; gap:16px;
-  margin-top:14px; padding-top:14px; border-top:1px solid var(--gris-pale);
+  margin-top:22px;
 }
 .as-actions > div{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
 .as-discret{font-size:13px; font-weight:600; color:var(--faible); white-space:nowrap}
@@ -86,17 +90,27 @@
 .as-arme{color:#B4243A}
 .as-note{font-size:12.5px; color:var(--grise)}
 
-/* Emails envoyés */
-.ao-liste{display:flex; flex-direction:column}
+/* Emails envoyés — chaque ligne est un bouton (ouvre l'aperçu dessous) : un
+   fond au survol le dit, un fond à l'accent dit laquelle est ouverte, et un
+   chevron reprend l'affordance déjà utilisée pour les sections repliables
+   (views.css, `.chev`). Aucun filet : les lignes se séparent par un `gap`. */
+.ao-liste{display:flex; flex-direction:column; gap:2px}
 .ao-ligne{
   display:flex; align-items:center; gap:16px; width:100%; text-align:left;
-  padding:13px 0; border-bottom:1px solid var(--gris-pale); font-size:13.5px;
+  padding:12px 14px; margin:0 -14px; border-radius:14px; font-size:13.5px;
+  transition:background .15s;
 }
-.ao-liste .ao-ligne:last-child{border-bottom:0}
+.ao-ligne:hover,.ao-ligne:focus-visible{background:var(--gris-pale)}
+.ao-ligne-ouverte,.ao-ligne-ouverte:hover{background:var(--accent-pale)}
 .ao-jour{color:var(--faible); white-space:nowrap; width:76px; flex:none}
 .ao-sujet{flex:1; min-width:0; font-weight:600}
+.ao-ligne-ouverte .ao-sujet{color:var(--accent-encre)}
+.ao-meta{display:flex; align-items:center; gap:10px; flex:none}
 .ao-visites{color:var(--faible); white-space:nowrap}
+.ao-chev{color:var(--grise); transition:transform .15s; flex:none}
+.ao-ligne-ouverte .ao-chev{color:var(--accent-encre); transform:rotate(90deg)}
 .ao-apercu{margin-top:18px}
+.ao-apercu-titre{font-size:13px; font-weight:700; color:var(--douce); margin:0 0 10px}
 .ao-iframe{
   width:100%; height:520px; border:0; border-radius:16px; background:var(--gris-pale);
 }
@@ -108,6 +122,9 @@
   .as-actions{flex-direction:column; align-items:flex-start; gap:10px}
   .ed-info{margin-left:0}
   .switch-erreur,.as-seuils{margin-left:0}
-  .ao-ligne{flex-wrap:wrap}
+  /* Le sujet ne rétrécit pas mot par mot : `ao-meta` (visites + chevron)
+     passe entier sur sa propre ligne, aligné à droite comme sur desktop. */
+  .ao-ligne{flex-wrap:wrap; row-gap:4px}
+  .ao-meta{flex-basis:100%; justify-content:flex-end}
   .ao-iframe{height:420px}
 }

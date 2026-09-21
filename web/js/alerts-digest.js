@@ -6,8 +6,8 @@
 import { clear, el } from './dom.js'
 import { renderSwitch } from './switch.js'
 
-const FOLLOWS_SENTENCE = 'Ajoute, sur les annonces que vous suivez : baisses, seuils de 30, '
-  + '60 et 90 jours franchis, disparitions.'
+const FOLLOWS_SENTENCE = 'Ajoute, sur les annonces que vous suivez : une baisse de prix, '
+  + 'un passage à 30, 60 ou 90 jours en ligne, une disparition.'
 const OFF_NOTICE = "L'email est coupé : vos recherches restent enregistrées, mais rien ne partira."
 
 export function renderDigestCard(root, settings, email, api) {
@@ -30,6 +30,7 @@ export function renderDigestCard(root, settings, email, api) {
       renderSwitch({
         id: 'alerts-digest-follows',
         checked: settings.include_follows,
+        disabled: !settings.digest_enabled,
         onChange: async (value) => {
           await api.putAlertSettings({ ...settings, include_follows: value })
           settings.include_follows = value

@@ -57,13 +57,11 @@ function actions(search, { onTogglePause, onDelete }) {
   ])
 }
 
+// En pause, seul le corps s'atténue (`as-carte-corps`) : la carte reste
+// blanche (registre), l'entête et les actions restent lisibles.
 function carte(search, facetsById, callbacks) {
   const facets = facetsById[search.id]
-  return el('section', { class: `carte as-carte${search.paused ? ' as-carte-pause' : ''}` }, [
-    el('div', { class: 'as-tete' }, [
-      el('h3', { class: 'as-nom', text: search.name }),
-      search.paused && el('span', { class: 'as-badge', text: 'En pause' }),
-    ]),
+  const corps = el('div', { class: 'as-carte-corps' }, [
     pastilles(search, facets),
     el('p', { class: 'as-compte' }, [
       el('span', { text: countLabel(facets && facets.total) }),
@@ -79,6 +77,13 @@ function carte(search, facetsById, callbacks) {
         el('p', { class: 'switch-phrase as-seuils', text: NEW_SENTENCE }),
       ]),
     ]),
+  ])
+  return el('section', { class: `carte as-carte${search.paused ? ' as-carte-pause' : ''}` }, [
+    el('div', { class: 'as-tete' }, [
+      el('h3', { class: 'as-nom', text: search.name }),
+      search.paused && el('span', { class: 'as-badge', text: 'En pause' }),
+    ]),
+    corps,
     actions(search, callbacks),
   ])
 }

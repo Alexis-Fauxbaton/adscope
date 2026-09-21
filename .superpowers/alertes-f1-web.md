@@ -385,3 +385,110 @@ sur un port éphémère, arrêté par son propre PID.
    recharger « Mes alertes » montrerait un compte figé jusqu'au prochain chargement.
 5. **`api/tests/test_digest_html.py` n'exerce pas `digest_send.py`** (déjà couvert par
    `test_digest.py`, non touché) — lecture de contrat, pas d'exécution croisée.
+
+---
+
+## 2026-09-21 — Un regard neuf refuse la page : trois bloquants
+
+Relecture des quatre captures du lot précédent par un œil neuf, avec la place de Karim.
+Trois points bloquants, tous du même genre : des détails que la refonte du matin avait
+laissés passer parce qu'ils ne sautent pas aux yeux dans le code, seulement sur l'image
+rendue.
+
+### Les trois bloquants, relus depuis la place de Karim
+
+1. **Des filets partout, alors que le registre en interdit** (`switch-bloc + switch-bloc`,
+   `as-regle + as-regle`, `as-actions`, `ao-ligne`). Karim ne les nomme pas « filets » —
+   il dirait juste que la page a un petit côté tableau Excel, pas appli. Le trait entre
+   les deux règles d'une carte, en particulier, donne l'impression que « Baisses » et
+   « Nouvelles annonces » sont deux zones administratives séparées plutôt que deux
+   phrases qu'on lit à la suite.
+2. **L'orangé du badge « En pause » et de l'email coupé** — Karim n'a aucune raison de
+   savoir que l'orangé est réservé ailleurs sur le site à « ce que le site cache » (la
+   fenêtre des 60 jours sur une fiche). Mais s'il croise les deux usages, l'orangé cesse
+   de vouloir dire une seule chose, et un badge de statut ne doit pas emprunter la
+   couleur d'un autre message.
+3. **Les lignes d'« Emails envoyés » ouvrent un aperçu sans le dire.** Rejoué à la place
+   de Karim : « Je clique sur *18 sept.* parce que la ligne entière est un bouton — mais
+   rien ne me dit que c'est cliquable avant que je clique, et une fois l'aperçu ouvert en
+   dessous, rien sur la ligne elle-même ne me dit que c'est *celle-là* que je regarde. »
+   Exactement l'ambiguïté relevée à la première lecture des captures.
+
+### Corrections
+
+- **Aucun filet.** Les quatre `border-top`/`border-bottom` retirés ; la séparation se
+  fait par l'air (padding/gap plus généreux), jamais par un trait — `web/css/alerts.css`.
+- **Orangé retiré des deux usages de statut.** `.as-badge` (« En pause ») passe en gris
+  neutre (`--douce`/`--gris-pale`, le pastillage déjà utilisé ailleurs pour un statut
+  neutre) ; `.ed-off` (email coupé) passe en `--douce` + gras plutôt qu'en couleur
+  réservée. L'orangé reste unique à la fiche annonce.
+- **Carte en pause : le corps s'atténue, jamais la carte.** Trouvé en écrivant cette
+  section : l'ancien `.as-carte-pause{opacity:.6}` sur la carte entière la teintait de
+  gris au contact du sol (une carte blanche à 60 % d'opacité sur un fond gris *devient*
+  grise) — à l'écart du registre « cartes blanches ». Le badge et le nom restent à pleine
+  lisibilité, seul le corps (`as-carte-corps`, pastilles + compte + règles) descend à
+  55 % — `alerts-searches.js`, `alerts.css`.
+- **Ligne « Emails envoyés » : affordance + état ouvert.** Chevron (même signe que la
+  section repliable de Mes suivis, `.chev`) qui tourne à 90° sur la ligne ouverte ; fond
+  au survol (gris) et fond à l'accent sur la ligne ouverte, sujet en accent ; un titre
+  *Aperçu de l'email du 18 sept.* au-dessus de l'iframe, daté avec la même aide
+  (`format.shortDate`) que les lignes elles-mêmes — `alerts-outbox.js`, `alerts.css`.
+
+### Deux mineurs, bon marché
+
+- **« seuils … franchis » reformulé** : « un passage à 30, 60 ou 90 jours en ligne » —
+  moins abstrait pour qui ne lit jamais le mot « seuil » — `alerts-digest.js`.
+- **« Inclure mes annonces suivies » se grise quand l'email est coupé** (`disabled` du
+  switch lié à `digest_enabled`) : cocher un réglage sur un email qui ne part pas ne
+  disait rien de faux, mais laissait deviner — `alerts-digest.js`.
+
+Le mineur du fond gris de la carte en pause est traité ci-dessus (bloquant connexe, même
+cause). Le mineur sur l'état « email coupé » non capturé reste : aucune des quatre
+captures requises ne montre ce compte ; vérifié seulement par lecture du code et par la
+règle CSS `.switch-input:disabled ~ .switch-track{opacity:.6}`, déjà en place avant ce
+lot — pas de capture supplémentaire hors périmètre.
+
+### Bug trouvé en refaisant les captures, avant livraison
+
+Le chevron ajouté à `ao-ligne` a cassé le rendu mobile : `flex-wrap` sur quatre éléments
+(jour, sujet, visites, chevron) laissait le sujet se rétrécir mot par mot jusqu'à 51 px
+de large plutôt que de céder la ligne, et « Pas encore ouvert » se retrouvait imprimé
+par-dessus « mouvement » (16 sept., capture mobile). Confirmé en comparant à la capture
+mobile du lot précédent (pas de chevauchement) : régression de cette correction, pas un
+défaut préexistant. Corrigé en groupant visites + chevron dans un seul bloc `ao-meta`
+qui passe entier sous jour/sujet en mobile (`flex-basis:100%`, aligné à droite) plutôt
+que de laisser le sujet et les trois autres éléments se disputer la largeur mot par mot
+— revérifié par une capture rapprochée (`.ao-liste` seul, échelle 2×) avant et après.
+
+### Captures
+
+Les quatre refaites (`docs/site-v0-alertes.png`, `-vide.png`, `-alerte-email.png`,
+`-mobile.png`), même procédé que le lot précédent (§ 5 plus haut) : Chromium mis en
+cache par Playwright, piloté en Node (`executablePath` pointé directement sur le
+binaire en cache — la commande `npx playwright screenshot` embarquée ne pilote pas de
+clic, nécessaire pour ouvrir une ligne d'email avant la capture), servi par
+`python3 -m http.server 0` sur `web/`, arrêté par son propre PID. Relues à l'outil
+`Read`, comparées ligne à ligne à la version précédente : aucun filet restant, badge et
+état coupé en gris, ligne d'email ouverte visiblement distincte, aucun débordement
+mobile.
+
+### Tests
+
+`node --test web/tests/*.test.mjs` → **150 passés**, inchangé (aucun test ne verrouillait
+les classes CSS ni le texte de `FOLLOWS_SENTENCE`). `cd api && ./.venv/bin/pytest
+tests/ -q` → **816 passés**, inchangé (`api/` non touché ce tour-ci). Aucun test neuf :
+ce tour ne change ni logique pure ni contrat, seulement CSS et structure DOM d'affichage
+— même limite déjà notée au lot précédent sur les vues non testables en environnement
+Node (pas de DOM).
+
+### Réserves
+
+1. **État « email coupé » non capturé** (mineur ci-dessus) : les quatre captures
+   requises ne couvrent pas ce compte, vérifié par lecture de code seulement.
+2. **`as-carte-pause`** : le choix de dimmer le corps plutôt que la carte n'a pas été
+   revalidé par le propriétaire — c'est ma lecture du registre (« cartes blanches »),
+   pas une confirmation explicite qu'il préfère ce rendu à l'ancien.
+3. Mêmes réserves qu'au lot précédent (§ 6 plus haut), non rouvertes ici : compteur par
+   recherche non testé directement, écriture optimiste des seuils/email non testée
+   automatiquement, confirmation après *Enregistrer cette recherche* non capturable en
+   mode démo.
