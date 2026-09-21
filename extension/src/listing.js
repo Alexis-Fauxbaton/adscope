@@ -8,6 +8,9 @@
   // L'ancienneté écrite sur la pastille : la seule mesure que la carte porte,
   // pour que la fiche ouverte la relise sans en refaire le calcul.
   const DAYS = 'data-adscope-days'
+  // Le picto est muet pour un lecteur d'écran (aria-hidden) : c'est ce title
+  // qui porte la marque à sa place.
+  const TITLE = 'adscope — suivi de cette annonce'
 
   const span = (cls, text) => {
     const el = document.createElement('span')
@@ -53,6 +56,7 @@
       el.replaceChildren(ADS.authNotice.mention())
       return true
     }
+    el.setAttribute('title', TITLE)
     // L'ancienneté, une fois calculée, est écrite sur la pastille : c'est là que
     // les deux cartes d'une même annonce vont la relire pour rester d'accord.
     // Une annonce sans date n'en porte pas plutôt que d'en porter une fausse.
@@ -68,6 +72,7 @@
       (listing.sellerType === 'private' ? ' adscope-badge--private' : '')
     // Un nœud par origine : le suivi mutualisé ne se fond pas dans la page.
     el.replaceChildren(
+      ADS.icons.mark(),
       span('adscope-badge-page', page),
       ...(tracked ? [span('adscope-badge-tracked', tracked)] : []),
     )

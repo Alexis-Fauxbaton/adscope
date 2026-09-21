@@ -27,7 +27,10 @@ ADS.staleNotice = (() => {
   const mention = () => {
     const n = document.createElement('span')
     n.className = 'ads-stale-msg'
-    n.textContent = TEXT
+    n.setAttribute('title', TEXT)
+    const label = document.createElement('span')
+    label.textContent = TEXT
+    n.append(ADS.icons.mark(), label)
     return n
   }
 

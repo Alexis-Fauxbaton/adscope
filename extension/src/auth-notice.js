@@ -22,7 +22,10 @@ ADS.authNotice = (() => {
     const n = document.createElement('button')
     n.type = 'button'
     n.className = 'ads-auth-msg'
-    n.textContent = TEXT
+    n.setAttribute('title', TEXT)
+    const label = document.createElement('span')
+    label.textContent = TEXT
+    n.append(ADS.icons.mark(), label)
     n.addEventListener('click', () => window.open(`${apiBase}/app`, '_blank'))
     return n
   }

@@ -40,6 +40,10 @@
 .adscope-head-row { display: flex; align-items: center; gap: 12px; margin: 0 4px 12px; }
 .adscope-head { color: #9aa0ae; font-size: 12.5px; font-weight: 500; margin: 0; }
 
+/* Le picto de marque, repris tel quel dans l'en-tête et dans la mention de
+   reconnexion (src/auth-notice.js), qui remplace parfois cette racine. */
+.ads-picto { vertical-align: -2px; margin-right: 4px; flex: none; }
+
 /* Le seul geste du panneau : l'accent de la mesure d'adscope, jamais l'orangé —
    suivre une annonce ne dit rien de ce que le site cache. */
 .adscope-follow {

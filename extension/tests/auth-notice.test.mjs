@@ -36,6 +36,18 @@ test('la mention ne satisfait pas [class*="adscope-"]', () => {
   assert.equal(w.doc.querySelectorAll('[class*="adscope-"]').length, 0)
 })
 
+// Le picto est aria-hidden : c'est le title, sur le bouton lui-même, qui porte
+// la marque pour un lecteur d'écran. Rouge sur `n.setAttribute('title', TEXT)`
+// et `n.append(ADS.icons.mark(), label)` dans `mention` de src/auth-notice.js.
+test('la mention de reconnexion porte le picto et son title', () => {
+  const w = listing()
+  w.load('listing.js')
+  w.denySession()
+  const button = w.badge().children[0]
+  assert.equal(button.getAttribute('title'), 'adscope — reconnectez-vous')
+  assert.equal(button.children[0].getAttribute('class'), 'ads-picto')
+})
+
 test("la mention ouvre l'application, pas la page hôte", () => {
   const w = listing()
   w.load('listing.js')
@@ -68,7 +80,7 @@ test("un appel réussi qui suit efface la mention et rend la pastille", () => {
   recover(w)
   const badge = w.badge()
   assert.notEqual(badge.className, '')
-  assert.equal(badge.children[0].className, 'adscope-badge-page')
+  assert.equal(badge.children[1].className, 'adscope-badge-page')
 })
 
 test('le panneau de la fiche se remplace lui aussi par la mention', () => {
@@ -150,7 +162,7 @@ test("La Centrale : un appel réussi rend les deux pastilles", () => {
   recover(w)
   for (const badge of w.badgesOf(TWICE)) {
     assert.ok(badge.className.includes('adscope-badge'))
-    assert.equal(badge.children[0].className, 'adscope-badge-page')
+    assert.equal(badge.children[1].className, 'adscope-badge-page')
   }
 })
 

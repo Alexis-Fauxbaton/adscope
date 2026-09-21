@@ -41,6 +41,14 @@ test('une clé de machine ne fait pas passer la popup pour un compte connecté',
   assert.equal(nodes['open-app'].textContent, 'Se connecter')
 })
 
+// Le même picto que sur une pastille et dans le panneau, cette fois dans le
+// nom de la fenêtre. Rouge sur `el('brand-mark').append(ADS.icons.mark())` en
+// tête de popup/popup.js.
+test('la fenêtre porte le picto de marque en tête de son nom', async () => {
+  const { nodes } = await open({ status: detail() })
+  assert.equal(nodes['brand-mark'].children[0].getAttribute('class'), 'ads-picto')
+})
+
 // Le lot de la refonte : la fenêtre ne répète plus ce que le panneau montre
 // déjà dans la page. Rouge sur la liste de `<script>` de popup/popup.html et
 // sur `showFiche` de popup/popup.js — y remettre la courbe, le relevé ou le

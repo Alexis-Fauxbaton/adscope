@@ -38,6 +38,18 @@ test('sur une page de résultats, chaque carte porte son ancienneté réelle', (
   assert.match(w.badge(FRESH).textContent, /\d+ j en ligne/)
 })
 
+// Le picto posé sur la pastille est aria-hidden : ce title, commun aux deux
+// sites, porte la marque à sa place. Rouge sur `el.setAttribute('title', TITLE)`
+// de src/listing.js.
+test('la pastille de La Centrale porte elle aussi un title « adscope — »', () => {
+  const w = at(RELEVE, () => {
+    const w = listing()
+    w.load('listing.js')
+    return w
+  })
+  assert.match(w.badge(FRESH).getAttribute('title'), /^adscope — /)
+})
+
 // Le diagnostic disait « Données trouvées : non » en rouge sur les deux pages de
 // La Centrale, suivi de « la structure du site a changé » — au-dessus d'un panneau
 // montrant 23 annonces lues et 23 pastilles posées. La sonde cherchait le bloc

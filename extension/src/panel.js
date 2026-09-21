@@ -59,7 +59,7 @@ ADS.panel = (() => {
   // rien ne saurait dire si elle est déjà suivie.
   const head = (ctx, state) => {
     const row = el('div', 'adscope-head-row')
-    row.append(el('p', 'adscope-head', `adscope · ${ctx.site.name} · ${stamp(ctx.now)}`))
+    row.append(ADS.icons.mark(), el('p', 'adscope-head', `adscope · ${ctx.site.name} · ${stamp(ctx.now)}`))
     if (state) row.append(ADS.cards.follow(state, 'adscope-follow'))
     return row
   }

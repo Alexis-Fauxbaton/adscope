@@ -13,6 +13,17 @@ test("la carte chiffre épelle l'âge, le compte en jours et le date", () => {
   })
 })
 
+// Le même picto qu'une pastille, en tête de l'en-tête : c'est lui qui dit
+// que le panneau posé dans la page vient d'adscope. Rouge sur
+// `row.append(ADS.icons.mark(), ...)` dans `head` de src/panel.js.
+test("l'en-tête du panneau porte le picto de marque", () => {
+  fiche((w) => {
+    const row = w.panel().querySelector('.adscope-head-row')
+    assert.equal(row.children[0].getAttribute('class'), 'ads-picto')
+    assert.match(row.children[1].textContent, /^adscope · /)
+  })
+})
+
 // Le panneau se pose où le site le déclare. Rouge sur le `mount` de
 // src/sites/leboncoin.js : sans lui, il retombe sur le titre de la page, à
 // deux écrans du prix que le lecteur est en train de regarder.

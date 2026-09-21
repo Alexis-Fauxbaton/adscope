@@ -3,6 +3,12 @@
   "name": "adscope",
   "version": "0.1.0",
   "description": "Affiche l'ancienneté réelle des annonces automobiles et signale celles qui ont été réactualisées.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "permissions": [
     "storage"
   ],
@@ -19,7 +25,13 @@
   },
   "action": {
     "default_title": "adscope",
-    "default_popup": "popup/popup.html"
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
   },
   "content_scripts": [
     {
@@ -28,6 +40,8 @@
       ],
       "js": [
         "src/context.js",
+        "src/panel-node.js",
+        "src/panel-icons.js",
         "src/stale-notice.js",
         "src/sites.js",
         "src/sites/read.js",
@@ -44,8 +58,6 @@
         "src/feed.js",
         "src/auth-notice.js",
         "src/listing.js",
-        "src/panel-node.js",
-        "src/panel-icons.js",
         "src/panel-labels.js",
         "src/panel-curve.js",
         "src/panel-note.js",
@@ -77,6 +89,8 @@
       ],
       "js": [
         "src/context.js",
+        "src/panel-node.js",
+        "src/panel-icons.js",
         "src/stale-notice.js",
         "src/sites.js",
         "src/sites/read.js",
@@ -93,8 +107,6 @@
         "src/feed.js",
         "src/auth-notice.js",
         "src/listing.js",
-        "src/panel-node.js",
-        "src/panel-icons.js",
         "src/panel-labels.js",
         "src/panel-curve.js",
         "src/panel-note.js",

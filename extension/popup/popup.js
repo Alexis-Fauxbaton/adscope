@@ -1,6 +1,11 @@
 const { rows, trouble, occupancy } = ADS.report
 const { el, row, hint, note } = ADS.dom
 
+// Le picto de marque, en tête du nom de la fenêtre : le même qui se pose sur
+// chaque pastille de la page.
+el('brand-mark').append(ADS.icons.mark())
+
+
 // La fenêtre ne connaît aucun site : elle demande au registre le nom de celui
 // que le diagnostic désigne, et la liste de ceux qu'on couvre.
 const named = (id) => (ADS.sites.all().find((s) => s.id === id) || {}).name || ''

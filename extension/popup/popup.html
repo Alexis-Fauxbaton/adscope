@@ -4,7 +4,7 @@
 <link rel="stylesheet" href="popup.css" />
 
 <header class="head">
-  <p class="brand">adscope</p>
+  <p class="brand"><span id="brand-mark" aria-hidden="true"></span>adscope</p>
   <p id="site" class="site"></p>
 </header>
 
@@ -91,6 +91,9 @@
 <script src="../src/format.js"></script>
 <!-- Le vocabulaire des problèmes, partagé avec le service worker qui les tient. -->
 <script src="../src/health.js"></script>
+<!-- Le picto de marque : un seul endroit le fabrique, ici comme dans la page. -->
+<script src="../src/panel-node.js"></script>
+<script src="../src/panel-icons.js"></script>
 
 <script src="dom.js"></script>
 <script src="config.js"></script>

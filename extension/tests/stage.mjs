@@ -189,13 +189,16 @@ export const stage = (body, { origin, path, cache = {}, site, byId = () => null 
   globalThis.ADS = undefined
   const load = (f) => { delete require.cache[require.resolve(src(f))]; require(src(f)) }
   // L'ordre du manifeste : chaque module trouve ceux dont il se sert au chargement.
+  // Le picto (panel-node.js, panel-icons.js) vient tôt : la mention posée par
+  // stale-notice.js comme la pastille de listing.js en ont besoin dès leur
+  // premier rendu, avant même que le site ne soit choisi.
   const MODULES = [
-    'context.js', 'stale-notice.js', 'sites.js', 'sites/read.js', 'format.js', 'curve.js', 'view.js', 'diag.js',
-    'sync.js', 'market.js', 'follow.js', 'feed.js', 'auth-notice.js', 'panel-node.js',
-    'panel-icons.js', 'panel-labels.js', 'panel-curve.js', 'panel-note.js', 'panel-sections.js', 'panel-cards.js',
-    'panel.js',
+    'context.js', 'panel-node.js', 'panel-icons.js', 'stale-notice.js', 'sites.js', 'sites/read.js',
+    'sites/vehicle-fields.js', ...[].concat(site), 'format.js', 'curve.js', 'view.js', 'diag.js',
+    'sync.js', 'market.js', 'follow.js', 'feed.js', 'auth-notice.js',
+    'panel-labels.js', 'panel-curve.js', 'panel-note.js', 'panel-sections.js', 'panel-cards.js', 'panel.js',
   ]
-  for (const f of ['context.js', 'stale-notice.js', 'sites.js', 'sites/read.js', 'sites/vehicle-fields.js', ...[].concat(site), ...MODULES.slice(4)]) load(f)
+  for (const f of MODULES) load(f)
   // Le travail lourd, compté à travers le registre : le code partagé y accède
   // de la même façon, par le site que l'origine désigne.
   const current = ADS.sites.current()

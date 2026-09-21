@@ -40,6 +40,19 @@ test("un onglet périmé remplace la pastille par sa mention", () => {
 // le contrôle de santé du crawl (crawler/RUNBOOK.md) compte les
 // `[class*="adscope-"]` et doit échouer quand l'extension ne travaille plus.
 // Une mention qui porterait ce préfixe ferait tourner le crawl à vide.
+// Même règle que la mention de reconnexion : le picto est aria-hidden, le
+// title sur la mention porte la marque à sa place. Rouge sur
+// `n.setAttribute('title', TEXT)` et `n.append(ADS.icons.mark(), label)` dans
+// `mention` de src/stale-notice.js.
+test('la mention de mise à jour porte le picto et son title', () => {
+  const w = world(ID, { path: '/voitures/occasions', data: block(ad(ID)) })
+  w.load('listing.js')
+  replaced(w)
+  const mention = w.badge().children[0]
+  assert.match(mention.getAttribute('title'), TEXT)
+  assert.equal(mention.children[0].getAttribute('class'), 'ads-picto')
+})
+
 test('la mention ne satisfait pas [class*="adscope-"]', () => {
   const w = world(ID, { path: '/voitures/occasions', data: block(ad(ID)) })
   w.load('listing.js')

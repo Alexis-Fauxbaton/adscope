@@ -14,4 +14,24 @@ ADS.icons = {
   chevron: ['M9 5l7 7-7 7'],
 }
 
+// Le picto de marque, repris tel quel du favicon du site (web/index.html) :
+// carré indigo, anneau blanc. Un seul endroit le fabrique, posé en tête de
+// toute pastille et de tout en-tête — c'est lui qui dit que ce qu'on regarde
+// vient d'adscope.
+//
+// Classe `ads-picto`, jamais `adscope-` : le contrôle de santé du crawl
+// (crawler/RUNBOOK.md) compte les `[class*="adscope-"]` pour juger la collecte
+// vivante sur une page. Le picto se pose sur chaque pastille déjà comptée —
+// lui donner ce préfixe doublerait le compte sans qu'une annonce de plus ne
+// soit suivie.
+ADS.icons.mark = (size = 12) => {
+  const { svg } = ADS.node
+  const box = svg('svg', { class: 'ads-picto', width: size, height: size, viewBox: '0 0 32 32', 'aria-hidden': 'true' })
+  box.append(
+    svg('rect', { width: 32, height: 32, rx: 9, fill: '#4F46E5' }),
+    svg('circle', { cx: 16, cy: 16, r: 5.5, fill: 'none', stroke: 'white', 'stroke-width': 3 }),
+  )
+  return box
+}
+
 if (typeof module !== 'undefined') module.exports = ADS.icons

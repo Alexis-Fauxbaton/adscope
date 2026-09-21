@@ -29,14 +29,24 @@ test('la fiche ne refait pas le travail lourd à chaque lot de mutations', () =>
 test('la pastille pose un nœud par origine', () => {
   const w = world('3254194817')
   w.load('listing.js')
-  const first = w.badge().children
-  assert.deepEqual(first.map((c) => c.className), ['adscope-badge-page'])
+  const [mark, first] = w.badge().children
+  assert.equal(mark.getAttribute('class'), 'ads-picto')
+  assert.equal(first.className, 'adscope-badge-page')
 
   w.arrive({ 3254194817: { price: 29190, price_delta_since_first: -800, price_delta_days_since_first: 12 } })
-  const [page, tracked] = w.badge().children
+  const [, page, tracked] = w.badge().children
   assert.equal(tracked.className, 'adscope-badge-tracked')
   assert.match(tracked.textContent, /^↓ 800/)
   assert.ok(!page.textContent.includes('↓'))
+})
+
+// Le picto de la pastille est aria-hidden : c'est ce title qui porte la
+// marque à sa place pour un lecteur d'écran. Rouge sur `el.setAttribute('title', TITLE)`
+// de src/listing.js.
+test('la pastille porte un title qui commence par « adscope — »', () => {
+  const w = world('3254194817')
+  w.load('listing.js')
+  assert.match(w.badge().getAttribute('title'), /^adscope — /)
 })
 
 // Ce site ne double aucune carte : `card` de src/sites/leboncoin.js rend
@@ -60,7 +70,7 @@ test("la flèche de baisse ne met pas la carte en alerte", () => {
     w.arrive({ 3254194817: { price: 29190, price_delta_since_first: -1200, price_delta_days_since_first: 9 } })
     return w
   })
-  assert.match(w.badge().children[1].textContent, /^↓ 1/)
+  assert.match(w.badge().children[2].textContent, /^↓ 1/)
   assert.doesNotMatch(w.badge().className, /adscope-badge--notable/)
 })
 
@@ -73,7 +83,9 @@ test("sans baisse, la carte ne porte que ce que la page dit", () => {
     w.arrive({ 3254194817: { price: 29990, price_delta_since_first: 800, price_delta_days_since_first: 12 } })
     return w
   })
-  assert.deepEqual(w.badge().children.map((c) => c.className), ['adscope-badge-page'])
+  const [mark, page] = w.badge().children
+  assert.equal(mark.getAttribute('class'), 'ads-picto')
+  assert.equal(page.className, 'adscope-badge-page')
   assert.ok(!w.badge().textContent.includes('↓'))
 })
 

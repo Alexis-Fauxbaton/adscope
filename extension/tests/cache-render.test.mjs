@@ -14,7 +14,7 @@ const detail = () => world(ID, { path: `/ad/voitures/${ID}`, data: block(ad(ID))
 test('la pastille montre le suivi connu avant toute réponse du réseau', () => {
   const w = listing()
   w.load('listing.js')
-  const [, tracked] = w.badge().children
+  const [, , tracked] = w.badge().children
   assert.equal(tracked.className, 'adscope-badge-tracked')
   assert.match(tracked.textContent, /^↓ 800/)
 })
@@ -23,7 +23,7 @@ test('la réponse du réseau réécrit la pastille posée depuis le cache', () =
   const w = listing()
   w.load('listing.js')
   w.arrive({ [ID]: FRESHER })
-  assert.match(w.badge().children[1].textContent, /^↓ 1/)
+  assert.match(w.badge().children[2].textContent, /^↓ 1/)
 })
 
 // Le panneau ne porte plus la baisse (décision de revue : la légende de suivi
@@ -50,5 +50,5 @@ test("une page dont rien n'est connu ne prétend pas venir du cache", () => {
   const w = world(ID, { path: '/voitures/occasions', data: block(ad(ID)) })
   w.load('listing.js')
   assert.deepEqual(w.status().sources, { cache: 0, network: 0 })
-  assert.equal(w.badge().children.length, 1)
+  assert.equal(w.badge().children.length, 2)
 })

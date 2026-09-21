@@ -1,3 +1,6 @@
+/* Le picto de marque, sur toute pastille posée dans la page. */
+.ads-picto { vertical-align: -2px; margin-right: 4px; }
+
 .adscope-badge {
   display: inline-block;
   margin: 6px 0 2px;
