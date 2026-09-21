@@ -72,7 +72,7 @@ boîte, département (et la région, déduite du département). Lot 3 : sur 4 87
 « Autres », 1 086 ont un vrai modèle (déduit de la version — 3a —, puis d'après la liste des
 modèles que les sites n'ont pas, validée par Alexis — 3b). Restent 3 500 annonces sans aucune
 version : seul le titre pourrait les résoudre (ancien « 3b », devenu 3c, non décidé).
-**Lot 4 livré le 2026-09-20, en attente de la revue d'Alexis** : filtres du marché avec
+**Lot 4 livré le 2026-09-20, relu par Alexis le 21 (« la recherche est bien »)** : filtres du marché avec
 compteurs, cascades marque → modèle et région → département, fourchettes, départements nommés.
 Le même jour : popup v2 (validée « good enough », à revoir aux tests finaux) et panneau
 La Centrale remonté en tête de la colonne principale (placement retenu par Alexis).
