@@ -44,7 +44,10 @@ def body_of(candidate: dict) -> str:
             window = (f"constatée entre le {short_date(candidate['window_from'])}"
                       f" et le {short_date(candidate['window_to'])}")
         delta = candidate["price_delta_since_first"]
-        cumulative = f"{money(delta)} depuis le premier prix" if delta is not None else ""
+        # Signe explicite : `money` ne préfixe que le négatif, un cumul
+        # positif (prix remonté avant cette baisse) se lirait comme une baisse.
+        sign = "+" if delta is not None and delta > 0 else ""
+        cumulative = f"{sign}{money(delta)} depuis le premier prix" if delta is not None else ""
         return " · ".join(p for p in (
             f"{money(candidate['price_before'])} → {money(candidate['price_after'])}",
             cumulative, age, window,

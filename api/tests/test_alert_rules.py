@@ -160,6 +160,61 @@ def test_the_cumulative_drop_is_since_the_first_price(session):
     assert candidate["price_delta_since_first"] == -4000
 
 
+# Fait rougir `.distinct(windowed.c.listing_id)` : cinq relevés en baisse sur
+# la même annonce ne rendent qu'une ligne, la plus récente — pas une par
+# relevé (sinon le quota de 15 lignes se mange en 3-4 voitures).
+def test_several_drops_on_the_same_listing_produce_one_line(session):
+    account, key = account_and_license(session)
+    s = saved(session, account.id)
+    car(session, "1", published=NOW - timedelta(days=200), prices=[
+        (NOW - timedelta(days=9), 20000, False), (NOW - timedelta(days=7), 19000, False),
+        (NOW - timedelta(days=5), 18000, False), (NOW - timedelta(days=3), 17000, False),
+        (NOW - timedelta(days=1), 16000, False),
+    ])
+    results = drops_for(session, s, resolve(session, key), NOW)
+    assert len(results) == 1
+    assert (results[0]["price_before"], results[0]["price_after"]) == (17000, 16000)
+
+
+# Fait rougir `price_delta_since_first=row.price - row.first_price` : le
+# cumul est daté au relevé de la ligne, pas à la valeur du jour — une hausse
+# survenue après la baisse alertée ne doit pas en maquiller le cumul en signe
+# positif.
+def test_the_cumulative_is_dated_to_the_drop_not_to_todays_price(session):
+    account, key = account_and_license(session)
+    s = saved(session, account.id)
+    car(session, "1", published=NOW - timedelta(days=200), prices=[
+        (NOW - timedelta(days=20), 10000, False), (NOW - timedelta(days=9), 12000, False),
+        (NOW - timedelta(days=5), 9000, False), (NOW - timedelta(days=1), 11000, False),
+    ])
+    [candidate] = drops_for(session, s, resolve(session, key), NOW)
+    assert (candidate["price_before"], candidate["price_after"]) == (12000, 9000)
+    assert candidate["price_delta_since_first"] == -1000
+
+
+# Fait rougir `Listing.disappeared_at.is_(None)` (`market_query.core`),
+# gardé ici pour que le lot réponde de son propre comportement si la ligne
+# bougeait ailleurs : une annonce disparue n'alerte pas.
+def test_a_disappeared_listing_does_not_alert(session):
+    account, key = account_and_license(session)
+    s = saved(session, account.id)
+    car(session, "1", **old_prices())
+    session.query(Listing).filter_by(site_id="1").one().disappeared_at = NOW - timedelta(hours=1)
+    session.commit()
+    assert drops_for(session, s, resolve(session, key), NOW) == []
+
+
+# Fait rougir `kwargs["min_age_days"] = threshold or None` : un seuil nul
+# n'exclut plus les annonces d'âge inconnu (`age` NULL).
+def test_min_age_days_zero_does_not_exclude_unknown_age(session):
+    account, key = account_and_license(session)
+    s = saved(session, account.id, notify_new=True, min_age_days=0,
+             created_at=NOW - timedelta(days=1))
+    car(session, "1", first_seen=NOW - timedelta(hours=1), last_seen=NOW, published=None)
+    [candidate] = new_for(session, s, resolve(session, key), NOW)
+    assert candidate["age_days"] is None
+
+
 # Fait rougir `where(paused.is_(False))` — en fait, le filtre est côté
 # appelant (`digest_build`) : une recherche en pause reste testée ici via
 # `drops_for` directement, en pause elle n'est simplement jamais interrogée.

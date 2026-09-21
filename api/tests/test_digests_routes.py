@@ -74,5 +74,14 @@ def test_an_unknown_visit_token_is_404(client, session):
     assert client.post("/v1/digests/visit", json={"token": "n'importe quoi"}, headers=XA).status_code == 404
 
 
+# Fait rougir `check_csrf(request)` dans `post_visit` : sans l'en-tête, une
+# page tierce ne peut pas gonfler le compteur à la place du visiteur.
+def test_a_visit_without_x_adscope_header_is_403(client, session, clock):
+    account, _ = enrolled(session)
+    d = digest(session, account.id)
+    resp = client.post("/v1/digests/visit", json={"token": d.token})
+    assert resp.status_code == 403
+
+
 def test_the_digest_routes_need_a_license(client, session):
     assert client.get("/v1/digests").status_code == 401

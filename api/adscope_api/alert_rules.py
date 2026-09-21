@@ -43,8 +43,11 @@ def _alert_query(search, license_, now):
     params = MarketParams.from_query(search.query)
     kwargs = params.core_kwargs()
     # `min_age_days` désigne deux choses — le filtre du marché, le seuil de
-    # la règle — les deux s'appliquent.
-    kwargs["min_age_days"] = max(kwargs.get("min_age_days") or 0, search.min_age_days)
+    # la règle — les deux s'appliquent. `None` si les deux valent zéro : forcer
+    # un entier ferait exclure les annonces d'âge inconnu (`age` NULL) même
+    # sans seuil demandé (`market_query.core:110`).
+    threshold = max(kwargs.get("min_age_days") or 0, search.min_age_days)
+    kwargs["min_age_days"] = threshold or None
     query, _age, _delta = market_core(license_, now, **kwargs)
     return query.where(
         Listing.last_seen >= now - SEEN_WINDOW,
@@ -53,23 +56,27 @@ def _alert_query(search, license_, now):
 
 
 def drops_for(session, search, license_, now) -> list[dict]:
-    """Les baisses d'une recherche enregistrée. La fenêtre (`lag`) porte sur
-    toute la série ; le filtre `created_at` de la recherche s'applique après,
-    sur le relevé qui constate la baisse — sinon le premier relevé postérieur
-    à l'enregistrement n'aurait pas de prédécesseur."""
+    """Les baisses d'une recherche enregistrée — une ligne par annonce, la
+    plus récente postérieure à `created_at`. La fenêtre (`lag`) porte sur
+    toute la série ; le filtre `created_at` s'applique après, sur le relevé
+    qui constate la baisse — sinon le premier relevé postérieur à
+    l'enregistrement n'aurait pas de prédécesseur. Le cumul est daté à ce
+    relevé (`first_price`, le tout premier prix confirmé de la série) : celui
+    de `market_query.core` porte la valeur du jour, fausse sur toute ligne qui
+    n'est pas la dernière baisse connue."""
     rows = session.execute(_alert_query(search, license_, now)).all()
     items = {row.id: _item(row) for row in rows}
     if not items:
         return []
-    lag_price = func.lag(PricePoint.price).over(
-        partition_by=PricePoint.listing_id, order_by=(PricePoint.observed_at, PricePoint.id)
-    )
-    lag_at = func.lag(PricePoint.observed_at).over(
-        partition_by=PricePoint.listing_id, order_by=(PricePoint.observed_at, PricePoint.id)
+    order = (PricePoint.observed_at, PricePoint.id)
+    lag_price = func.lag(PricePoint.price).over(partition_by=PricePoint.listing_id, order_by=order)
+    lag_at = func.lag(PricePoint.observed_at).over(partition_by=PricePoint.listing_id, order_by=order)
+    first_price = func.first_value(PricePoint.price).over(
+        partition_by=PricePoint.listing_id, order_by=order
     )
     windowed = (
-        select(PricePoint.listing_id, PricePoint.price, PricePoint.observed_at,
-              lag_price.label("prev"), lag_at.label("prev_at"))
+        select(PricePoint.listing_id, PricePoint.id, PricePoint.price, PricePoint.observed_at,
+              lag_price.label("prev"), lag_at.label("prev_at"), first_price.label("first_price"))
         .where(PricePoint.confirmation.is_(False), PricePoint.listing_id.in_(items.keys()))
     ).subquery()
     drop_rows = session.execute(
@@ -79,11 +86,14 @@ def drops_for(session, search, license_, now) -> list[dict]:
             windowed.c.observed_at > search.created_at,
             (windowed.c.prev - windowed.c.price) * 100 >= search.min_drop_pct * windowed.c.prev,
         )
+        .distinct(windowed.c.listing_id)
+        .order_by(windowed.c.listing_id, windowed.c.observed_at.desc(), windowed.c.id.desc())
     ).all()
     return [
         {**items[row.listing_id], "kind": "drop", "ref": ref_at(row.observed_at),
          "price_before": row.prev, "price_after": row.price,
          "window_from": row.prev_at, "window_to": row.observed_at,
+         "price_delta_since_first": row.price - row.first_price,
          "search_query": search.query}
         for row in drop_rows
     ]

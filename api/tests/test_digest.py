@@ -89,6 +89,23 @@ def test_the_journal_does_not_move_on_the_second_run_of_the_day(session):
     assert count_after_first == count_after_second == 1
 
 
+# Fait rougir `session.rollback()` sur la branche `row_id is None` : une
+# course (un autre passage a déjà posé la ligne du jour, journal pas encore
+# marqué) ne doit ni dupliquer `digests` ni marquer le journal pour un email
+# qui n'a pas été écrit — les deux tests ci-dessus l'atteignent par une autre
+# voie (le journal, marqué en premier, vide `build` avant l'INSERT).
+def test_a_conflicting_digest_row_rolls_back_without_marking_the_journal(session):
+    account, key = account_and_license(session)
+    saved(session, account.id)
+    dropping_car(session, "1")
+    session.add(Digest(account_id=account.id, day=NOW.date(), token="deja-la-1234567890",
+                       subject="x", text="x", html="x", created_at=NOW))
+    session.commit()
+    assert send_for_account(session, account.id, NOW) is None
+    assert session.scalar(select(func.count()).select_from(Digest)) == 1
+    assert session.scalar(select(func.count()).select_from(AlertSent)) == 0
+
+
 # Fait rougir `lines = candidates_for(...)[:MAX_LINES]`.
 def test_at_most_fifteen_lines(session):
     account, key = account_and_license(session)

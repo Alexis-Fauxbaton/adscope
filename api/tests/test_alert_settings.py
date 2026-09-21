@@ -75,15 +75,30 @@ def test_unsubscribe_with_an_unknown_token_is_404(client, session):
     assert resp.status_code == 404
 
 
-# Se réabonner avec le même jeton rallume.
+# Se réabonner exige le compte, jamais le jeton seul (lui ne tourne pas —
+# voir `alert_settings.resubscribe`).
 def test_resubscribe_turns_the_digest_back_on(client, session, clock):
     key = enrolled(session)
     client.get("/v1/alerts/settings", headers=auth(key))
     account_id = session.query(License).one().account_id
     token = _token_of(session, account_id)
     client.post("/v1/alerts/unsubscribe", json={"token": token}, headers=XA)
-    resp = client.post("/v1/alerts/resubscribe", json={"token": token}, headers=XA)
+    resp = client.post("/v1/alerts/resubscribe", headers=headers(key))
     assert resp.json()["digest_enabled"] is True
+
+
+# Fait rougir `Depends(require_account)` sur `resubscribe` : le jeton seul,
+# sans session ni clé, ne rallume plus rien — quiconque a un vieil email
+# transféré ne peut pas réabonner un compte désinscrit.
+def test_resubscribe_with_only_the_unsubscribe_token_is_rejected(client, session, clock):
+    key = enrolled(session)
+    client.get("/v1/alerts/settings", headers=auth(key))
+    account_id = session.query(License).one().account_id
+    token = _token_of(session, account_id)
+    client.post("/v1/alerts/unsubscribe", json={"token": token}, headers=XA)
+    resp = client.post("/v1/alerts/resubscribe", json={"token": token}, headers=XA)
+    assert resp.status_code == 401
+    assert session.get(AccountSettings, account_id).digest_enabled is False
 
 
 # Fait rougir `check_csrf(request)` dans `unsubscribe` : sans l'en-tête,

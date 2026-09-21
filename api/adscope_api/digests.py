@@ -9,14 +9,14 @@ la première visite si elle est encore nulle.
 
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 
 from .alert_models import Digest
 from .auth import require_account
 from .db import get_session
-from .sessions import now_utc
+from .sessions import check_csrf, now_utc
 
 router = APIRouter()
 
@@ -58,7 +58,9 @@ def get_digest(digest_id: int, session=Depends(get_session), account_id=Depends(
 
 
 @router.post("/v1/digests/visit", status_code=204)
-def post_visit(payload: VisitIn, session=Depends(get_session), now=Depends(now_utc)):
+def post_visit(payload: VisitIn, request: Request, session=Depends(get_session),
+              now=Depends(now_utc)):
+    check_csrf(request)
     row = session.scalar(select(Digest).where(Digest.token == payload.token))
     if row is None:
         raise HTTPException(status_code=404, detail="jeton inconnu")
