@@ -15,7 +15,7 @@ globalThis.ADS = globalThis.ADS || {}
 ADS.plot = (() => {
   const { el, svg } = ADS.node
   const { number, days } = ADS.format
-  const { fits } = ADS.marks
+  const { fits, box: inked } = ADS.marks
 
   // WIDE : la largeur de la maquette, dessinée avant d'avoir mesuré. NARROW :
   // le plancher, en deçà duquel la courbe déborderait son propre sens — il ne
@@ -62,13 +62,18 @@ ADS.plot = (() => {
 
   // Ce que le site montre de son côté, et rien d'autre : un seul usage pour
   // l'orangé. Une fenêtre qui couvre tout l'axe ne cache rien — elle ne se
-  // dessine pas.
+  // dessine pas. Une fenêtre réduite à aujourd'hui non plus : elle n'a pas de
+  // largeur, et son libellé sortait du tracé, coupé en « Affi ». Entre les deux,
+  // le libellé ne s'écrit que s'il tient dans l'aplat.
+  const CLAIM = 'Affiché par le site'
   const window_ = (plot, g, band) => {
-    if (!band || band.x < 0.02) return
-    plot.append(svg('rect', {
-      x: g.px(band.x), y: TOP, width: g.px(1) - g.px(band.x), height: BOT - TOP, rx: 10, class: 'adscope-window',
-    }))
-    plot.append(svg('text', { x: g.px(band.x) + 12, y: TOP + 17, class: 'adscope-window-label' }, 'Affiché par le site'))
+    const x = band && g.px(band.x)
+    const w = g.px(1) - x
+    if (!band || band.x < 0.02 || w < 8) return
+    plot.append(svg('rect', { x, y: TOP, width: w, height: BOT - TOP, rx: 10, class: 'adscope-window' }))
+    const at = inked({ x: x + 12, y: TOP + 17, text: CLAIM, size: DATE, anchor: 'start' })
+    if (at.x2 + 9 > g.px(1)) return
+    plot.append(svg('text', { x: x + 12, y: TOP + 17, class: 'adscope-window-label' }, CLAIM))
   }
 
   const label = (m) =>
