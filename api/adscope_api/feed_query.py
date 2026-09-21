@@ -71,6 +71,11 @@ def _feed_item(listing, followed_at, since_days, since, now) -> dict:
     delta = changes[-1].price - changes[0].price if len(changes) >= 2 else None
     age = age_days(listing, now)
     return {
+        # `FeedItemOut` ne le déclare pas : silencieusement écarté par
+        # `response_model` sur `/v1/follows/feed`, comme `Listing.id` sur
+        # `/v1/market` (`market_query.core`). `alert_rules.follows_for` en a
+        # besoin pour le journal d'unicité (`alerts_sent.listing_id`).
+        "listing_id": listing.id,
         "site": listing.site, "site_id": listing.site_id,
         "url": build_url(listing.site, listing.site_id),
         "brand": listing.brand, "model": listing.model, "version": listing.version,

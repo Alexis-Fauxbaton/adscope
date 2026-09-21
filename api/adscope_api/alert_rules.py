@@ -1,0 +1,109 @@
+"""Les règles d'alerte sur une recherche enregistrée : baisse et nouvelle
+annonce, évaluées pour un « maintenant » donné — aucune fonction ne lit
+l'horloge, `now` est toujours un paramètre. Les candidats des suivis vivent
+à part, dans `alert_follows.py` (limite de longueur).
+
+Rejouent la recherche contre `market_query.core`, comme `/v1/market` : la
+traduction filtres → `core` (`market_params.MarketParams`) n'existe qu'à un
+seul endroit, les deux chemins ne peuvent plus diverger.
+"""
+
+from datetime import timedelta
+
+from sqlalchemy import func, select
+
+from .alert_journal import ref_at
+from .market_params import MarketParams
+from .market_query import core as market_core
+from .models import Listing, PricePoint
+from .naming import label as naming_label
+from .taxonomy import inferred_model
+from .urls import build as build_url
+
+# « Vue il y a moins de 48 h » : sur `last_seen`, jamais `last_revisit_at` —
+# le second dit seulement que la file a servi la fiche, pas qu'on l'a vue
+# vivante (voir `models.Listing`).
+SEEN_WINDOW = timedelta(hours=48)
+
+
+def _item(row) -> dict:
+    return {
+        "listing_id": row.id, "site": row.site, "site_id": row.site_id,
+        "url": build_url(row.site, row.site_id),
+        "label": naming_label(row.brand, row.model, row.version,
+                              inferred_model(row.canon_model, row.canon_model_source), row.year),
+        "department": row.department, "age_days": row.age_days, "price": row.price,
+        "price_delta_since_first": row.price_delta_since_first,
+    }
+
+
+def _alert_query(search, license_, now):
+    """La requête filtrée d'une recherche enregistrée, rejouée contre
+    `market_query.core`, restreinte aux deux conditions propres à l'alerte."""
+    params = MarketParams.from_query(search.query)
+    kwargs = params.core_kwargs()
+    # `min_age_days` désigne deux choses — le filtre du marché, le seuil de
+    # la règle — les deux s'appliquent.
+    kwargs["min_age_days"] = max(kwargs.get("min_age_days") or 0, search.min_age_days)
+    query, _age, _delta = market_core(license_, now, **kwargs)
+    return query.where(
+        Listing.last_seen >= now - SEEN_WINDOW,
+        Listing.absent_since.is_(None),
+    )
+
+
+def drops_for(session, search, license_, now) -> list[dict]:
+    """Les baisses d'une recherche enregistrée. La fenêtre (`lag`) porte sur
+    toute la série ; le filtre `created_at` de la recherche s'applique après,
+    sur le relevé qui constate la baisse — sinon le premier relevé postérieur
+    à l'enregistrement n'aurait pas de prédécesseur."""
+    rows = session.execute(_alert_query(search, license_, now)).all()
+    items = {row.id: _item(row) for row in rows}
+    if not items:
+        return []
+    lag_price = func.lag(PricePoint.price).over(
+        partition_by=PricePoint.listing_id, order_by=(PricePoint.observed_at, PricePoint.id)
+    )
+    lag_at = func.lag(PricePoint.observed_at).over(
+        partition_by=PricePoint.listing_id, order_by=(PricePoint.observed_at, PricePoint.id)
+    )
+    windowed = (
+        select(PricePoint.listing_id, PricePoint.price, PricePoint.observed_at,
+              lag_price.label("prev"), lag_at.label("prev_at"))
+        .where(PricePoint.confirmation.is_(False), PricePoint.listing_id.in_(items.keys()))
+    ).subquery()
+    drop_rows = session.execute(
+        select(windowed).where(
+            windowed.c.prev.is_not(None),
+            windowed.c.price < windowed.c.prev,
+            windowed.c.observed_at > search.created_at,
+            (windowed.c.prev - windowed.c.price) * 100 >= search.min_drop_pct * windowed.c.prev,
+        )
+    ).all()
+    return [
+        {**items[row.listing_id], "kind": "drop", "ref": ref_at(row.observed_at),
+         "price_before": row.prev, "price_after": row.price,
+         "window_from": row.prev_at, "window_to": row.observed_at,
+         "search_query": search.query}
+        for row in drop_rows
+    ]
+
+
+def new_for(session, search, license_, now) -> list[dict]:
+    """Les annonces neuves depuis l'enregistrement — seulement si
+    `search.notify_new` : les sites sources alertent déjà dessus, en temps
+    réel."""
+    if not search.notify_new:
+        return []
+    query = (
+        _alert_query(search, license_, now)
+        .add_columns(Listing.first_seen)
+        .where(Listing.first_seen > search.created_at)
+    )
+    rows = session.execute(query).all()
+    return [
+        {**_item(row), "kind": "new", "ref": ref_at(row.first_seen),
+         "price_before": None, "price_after": row.price,
+         "window_from": None, "window_to": row.first_seen, "search_query": search.query}
+        for row in rows
+    ]
