@@ -9,6 +9,7 @@ ce qui ne change jamais.
 """
 
 from .migration_sql import ADD_LICENSE_FK, LEDGER
+from .migration_sql_alerts import ALERTS_TABLES
 
 __all__ = ["LEDGER", "MIGRATIONS"]
 
@@ -144,4 +145,6 @@ MIGRATIONS = (
     ("012_listings_canon_model_source", (
         "ALTER TABLE listings ADD COLUMN IF NOT EXISTS canon_model_source varchar(8)",
     )),
+    # Les alertes (lot F1) : quatre tables neuves, rien des annonces touché.
+    ("013_alerts", ALERTS_TABLES),
 )

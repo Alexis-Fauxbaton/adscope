@@ -9,6 +9,10 @@ from adscope_api.migrations import MIGRATIONS, apply_migrations
 
 
 def to_old_shape(session):
+    session.execute(text("DROP TABLE IF EXISTS digests"))
+    session.execute(text("DROP TABLE IF EXISTS alerts_sent"))
+    session.execute(text("DROP TABLE IF EXISTS account_settings"))
+    session.execute(text("DROP TABLE IF EXISTS saved_searches"))
     session.execute(text("DROP INDEX IF EXISTS ix_listings_canon"))
     session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS canon_brand"))
     session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS canon_model"))
@@ -380,3 +384,41 @@ def test_the_listings_already_recorded_keep_an_empty_canon_model_source(session)
         text("SELECT site_id, canon_model_source FROM listings")
     ).all()
     assert rows == [("87103336930", None)]
+
+
+# Les alertes (lot F1) arrivent sur une base vide : quatre tables neuves.
+def test_the_013_migration_applies_on_an_empty_schema(session):
+    to_old_shape(session)
+    assert not {"saved_searches", "account_settings", "alerts_sent", "digests"} & tables(session)
+    apply_migrations(session.connection())
+    assert {"saved_searches", "account_settings", "alerts_sent", "digests"} <= tables(session)
+
+
+# Rejouée, la 013 ne lève pas — même garantie que le reste du registre.
+def test_the_013_migration_is_replayable(session):
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    assert apply_migrations(session.connection()) == []
+
+
+# La migration et `create_all` doivent produire le même schéma pour les
+# quatre tables des alertes aussi.
+def test_the_013_migration_produces_the_columns_that_create_all_produces(session):
+    from adscope_api.alert_models import AccountSettings, AlertSent, Digest, SavedSearch
+
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    for model in (SavedSearch, AccountSettings, AlertSent, Digest):
+        assert columns(session, model.__tablename__) == set(model.__table__.c.keys())
+
+
+# Sans cet index, supprimer une annonce balaierait `alerts_sent` en entier
+# pour honorer la cascade — la colonne qui référence, que Postgres n'indexe
+# pas seule.
+def test_the_index_on_alerts_sent_listing_id_exists(session):
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    indexes = session.execute(text(
+        "SELECT indexname FROM pg_indexes WHERE tablename = 'alerts_sent'"
+    ))
+    assert "ix_alerts_sent_listing" in {row[0] for row in indexes}
