@@ -10,8 +10,10 @@
      100 % de sa colonne PLUS ses 40 px de marge intérieure, et débordait
      d'autant — franc dans une colonne étroite, le tracé sortant de sa carte. */
   box-sizing: border-box;
+  /* Pas de plafond : le panneau prend la colonne où le site le pose et s'aligne
+     sur ses voisins. Plafonné à 620 px, il laissait un vide à droite dès que la
+     colonne de La Centrale s'élargissait (≈ 745 px sur un écran de 1 710). */
   width: 100%;
-  max-width: 620px;
   margin: 20px 0;
   padding: 20px;
   border-radius: 26px;
