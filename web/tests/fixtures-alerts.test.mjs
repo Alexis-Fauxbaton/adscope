@@ -2,6 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as fixtures from '../js/fixtures-alerts.js'
 
+// `videDemande()` lit `location.search` : sans cette pose, l'import seul
+// (avant toute capture d'écran réelle) ferait planter le fichier en Node.
+globalThis.location = { search: '', href: 'http://localhost:8000/app/', origin: 'http://localhost:8000' }
+
 const SEARCH_FIELDS = [
   'id', 'name', 'query', 'notify_drops', 'notify_new', 'min_age_days', 'min_drop_pct', 'paused', 'created_at',
 ]
@@ -57,4 +61,17 @@ test('écrire un seul réglage ne touche pas l’autre', () => {
   fixtures.putAlertSettings({ digest_enabled: false, include_follows: true })
   fixtures.putAlertSettings({ include_follows: false, digest_enabled: false })
   assert.deepEqual(fixtures.alertSettings(), { digest_enabled: false, include_follows: false })
+})
+
+// Rouge sur `videDemande()` : `?demo=1&vide=1` sert le compte du premier
+// jour pour la capture de l'état vide — sans lui, cette page ne se
+// distinguerait jamais de la démo par défaut.
+test('« vide=1 » rend des recherches et des envois vides', () => {
+  globalThis.location.search = '?demo=1&vide=1'
+  try {
+    assert.deepEqual(fixtures.searches(), [])
+    assert.deepEqual(fixtures.digests(), [])
+  } finally {
+    globalThis.location.search = ''
+  }
 })

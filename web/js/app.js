@@ -84,9 +84,9 @@ function montrerConnexion() {
 // Connecté ou non se sait par ce que rend `/v1/me` — jamais par un secret
 // gardé côté navigateur. Une panne d'API se traite pareil qu'une session
 // absente : sans identité confirmée, il n'y a que l'écran de connexion à
-// montrer.
+// montrer. En démo, `api.me()` rend `fixtures.me()` sans réseau : « Mes
+// alertes » y affiche la même adresse que la vraie page, pas un blanc.
 async function demarrer() {
-  if (api.isDemo()) { vue(); return }
   try {
     const moi = await api.me()
     state.email = moi.email

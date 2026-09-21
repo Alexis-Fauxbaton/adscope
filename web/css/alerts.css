@@ -11,41 +11,80 @@
 .save-search-nom{width:auto; min-width:200px; flex:1}
 .save-search-go{padding:11px 18px; font-size:13.5px}
 .save-search-annuler{font-size:13.5px; font-weight:600; color:var(--faible)}
-.save-search-ok{font-size:13.5px; font-weight:600; color:var(--vert)}
 .save-search .erreur{width:100%; margin:2px 0 0; font-size:13px}
+.save-search-ok{display:flex; flex-direction:column; gap:3px; max-width:420px}
+.save-search-fait{font-size:13.5px; font-weight:700; color:var(--vert)}
+.save-search-suite{font-size:13px; color:var(--douce); line-height:1.5}
+.save-search-lien{font-size:13px; font-weight:700; color:var(--accent); text-decoration:none}
+.save-search-lien:hover{text-decoration:underline}
 
 /* ── Mes suivis : le segment de tri, à côté de la bascule 24 h / 7 j ── */
 .suivis-entete{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:22px 0 26px}
 .suivis-entete .bascule,.suivis-entete .tri-suivis{margin:0}
 
-/* ── Mes alertes : trois cartes ── */
-.alerts-grille{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:24px}
-.alerts-carte-large{grid-column:1 / -1}
-.alerts-h{font-size:16px; font-weight:700; letter-spacing:-.01em; margin-bottom:16px}
-
-/* Mes recherches */
-.as-liste{display:flex; flex-direction:column; gap:18px}
-.as-ligne{
-  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
-  padding-bottom:16px; border-bottom:1px solid var(--gris-pale);
+/* ── L'interrupteur — piste + pastille à l'accent, une case native dessous ── */
+.switch-bloc{padding:12px 0}
+.switch-bloc + .switch-bloc{border-top:1px solid var(--gris-pale)}
+/* `flex-start`, pas `center` : une phrase qui passe sur deux lignes (mobile,
+   « Inclure mes annonces suivies ») centrerait sinon la piste entre les deux
+   lignes au lieu de l'aligner sur le titre. */
+.switch{position:relative; display:flex; align-items:flex-start; gap:14px; cursor:pointer; padding-top:1px}
+.switch-input{position:absolute; inset:0 auto auto 0; width:40px; height:24px; margin:0; opacity:0; cursor:pointer}
+.switch-track{position:relative; flex:none; width:40px; height:24px; border-radius:999px; background:var(--gris-pale); transition:background .15s}
+.switch-thumb{
+  position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%;
+  background:#fff; box-shadow:0 1px 2px rgba(16,20,40,.25); transition:transform .15s;
 }
-.as-ligne:last-child{border-bottom:0; padding-bottom:0}
-.as-info{flex:1 1 220px; min-width:0}
-.as-nom{font-size:14.5px; font-weight:700; text-decoration:none; display:block}
-.as-nom:hover{text-decoration:underline}
-.as-resume{font-size:13px; color:var(--faible); margin-top:4px}
-.as-regles{display:flex; gap:14px; flex-wrap:wrap}
-.as-case{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--douce); cursor:pointer}
-.as-suppr{font-size:13px; font-weight:600; color:var(--faible); white-space:nowrap}
-.as-suppr:hover{color:var(--douce)}
-.as-suppr-arme{color:#B4243A}
+.switch-input:checked ~ .switch-track{background:var(--accent)}
+.switch-input:checked ~ .switch-track .switch-thumb{transform:translateX(16px)}
+.switch-input:focus-visible ~ .switch-track{outline:2px solid var(--accent); outline-offset:2px}
+.switch-input:disabled ~ .switch-track{opacity:.6; cursor:default}
+.switch-texte{display:flex; flex-direction:column; gap:3px; font-size:14.5px; font-weight:700}
+.switch-phrase{font-size:13px; font-weight:400; color:var(--faible); line-height:1.5}
+.switch-erreur{font-size:12.5px; color:#B4243A; margin:4px 0 0 54px}
+
+/* ── Mes alertes — l'empilement des cartes ── */
+.alerts-h{font-size:16px; font-weight:700; letter-spacing:-.01em; margin-bottom:14px}
+.alerts-pile{margin-top:22px}
 
 /* L'email du matin */
-.alerts-bascule{
-  display:flex; align-items:center; justify-content:space-between; gap:16px;
-  padding:12px 0; font-size:14.5px;
+.ed-info{font-size:13.5px; color:var(--faible); margin:2px 0 12px 54px}
+.ed-off{color:var(--orange)}
+
+/* Mes recherches */
+.as-entete{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px}
+.as-aide{font-size:13.5px; color:var(--faible); margin-top:4px}
+.as-section-erreur{font-size:13px; color:#B4243A; margin:0 0 12px}
+.as-tout{color:var(--douce); font-size:14.5px}
+.as-vide{display:flex; flex-direction:column; align-items:flex-start; gap:14px}
+.as-carte{transition:opacity .15s}
+.as-carte-pause{opacity:.6}
+.as-tete{display:flex; align-items:center; gap:10px; margin-bottom:12px}
+.as-nom{font-size:16.5px; font-weight:700; letter-spacing:-.01em}
+.as-badge{
+  font-size:12px; font-weight:700; color:var(--orange); background:var(--orange-pale);
+  border-radius:999px; padding:3px 10px;
 }
-.alerts-bascule + .alerts-bascule{border-top:1px solid var(--gris-pale)}
+.pastille-lecture{cursor:default; padding:7px 13px}
+.as-compte{display:flex; align-items:center; gap:14px; font-size:13.5px; color:var(--faible); margin:14px 0 4px}
+.as-regles{margin-top:6px}
+.as-regle{padding:6px 0}
+.as-regle + .as-regle{border-top:1px solid var(--gris-pale)}
+.as-regle .switch-bloc{padding-bottom:2px}
+.as-seuils{
+  display:flex; align-items:center; flex-wrap:wrap; gap:6px 4px;
+  margin:0 0 8px 54px; font-size:13px; color:var(--faible);
+}
+.as-select{padding:5px 28px 5px 12px; font-size:12.5px}
+.as-actions{
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  margin-top:14px; padding-top:14px; border-top:1px solid var(--gris-pale);
+}
+.as-actions > div{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.as-discret{font-size:13px; font-weight:600; color:var(--faible); white-space:nowrap}
+.as-discret:hover{color:var(--douce)}
+.as-arme{color:#B4243A}
+.as-note{font-size:12.5px; color:var(--grise)}
 
 /* Emails envoyés */
 .ao-liste{display:flex; flex-direction:column}
@@ -62,18 +101,13 @@
   width:100%; height:520px; border:0; border-radius:16px; background:var(--gris-pale);
 }
 
-@media (max-width:900px){
-  .alerts-grille{grid-template-columns:1fr}
-}
-
 @media (max-width:640px){
   .save-search-form{width:100%}
   .save-search-nom{min-width:0; width:100%}
-  /* `flex:1 1 220px` vaut une largeur en rangée, mais devient une *hauteur*
-     minimale de 220 px dès que la ligne passe en colonne — sans ce correctif
-     chaque recherche laissait un grand vide sous son résumé. */
-  .as-ligne{flex-direction:column; align-items:flex-start}
-  .as-info{flex:none; width:100%}
+  .as-entete{flex-direction:column; align-items:stretch}
+  .as-actions{flex-direction:column; align-items:flex-start; gap:10px}
+  .ed-info{margin-left:0}
+  .switch-erreur,.as-seuils{margin-left:0}
   .ao-ligne{flex-wrap:wrap}
   .ao-iframe{height:420px}
 }

@@ -1,48 +1,30 @@
-// « Mes alertes » — trois cartes : les recherches enregistrées, le réglage de
-// l'email du matin, la boîte d'envoi. Un seul chargement à l'affichage ; les
-// écritures rechargent la page plutôt que de retoucher l'état à la main — la
-// vue est légère, ça ne coûte rien.
+// « Mes alertes » — ce que reçoit un compte chaque matin, et comment le
+// régler : l'email du matin d'abord (c'est lui qui prévient), puis les
+// recherches qui l'alimentent, puis ce qui a déjà été envoyé. Un seul
+// chargement à l'affichage ; chaque carte gère ensuite ses propres écritures
+// sans recharger les autres (`alerts-digest.js`, `alerts-searches.js`).
 
 import * as alertsApi from './api-alerts.js'
 import * as api from './api.js'
+import { renderDigestCard } from './alerts-digest.js'
 import { renderOutbox } from './alerts-outbox.js'
-import { payloadFor, renderSearches } from './alerts-searches.js'
+import { renderSearchSection } from './alerts-searches.js'
 import { clear, el } from './dom.js'
+import { facetsQuery } from './query.js'
+import { filtersFromQuery } from './url-state.js'
 
-function carteRecherches(root, state, rows) {
-  async function patch(id, correctif) {
-    await alertsApi.updateSearch(id, payloadFor(rows.find((r) => r.id === id), correctif))
-    renderAlerts(root, state)
-  }
-  async function del(id) {
-    await alertsApi.deleteSearch(id)
-    renderAlerts(root, state)
-  }
-  return el('section', { class: 'carte alerts-carte' }, [
-    el('h2', { class: 'alerts-h', text: 'Mes recherches' }),
-    renderSearches(rows, { onPatch: patch, onDelete: del }),
-  ])
-}
+const INTRO = 'Chaque matin, un email avec ce qui a bougé sur vos recherches et vos annonces '
+  + "suivies ; rien s'il n'y a rien à dire."
 
-function bascule(label, field, settings, onChange) {
-  const id = `alerts-set-${field}`
-  const input = el('input', {
-    type: 'checkbox', id, checked: settings[field] || null,
-    onchange: () => onChange({ ...settings, [field]: input.checked }),
-  })
-  return el('label', { class: 'alerts-bascule', for: id }, [el('span', { text: label }), input])
-}
-
-function carteReglage(root, state, settings) {
-  async function change(payload) {
-    await alertsApi.putAlertSettings(payload)
-    renderAlerts(root, state)
-  }
-  return el('section', { class: 'carte alerts-carte' }, [
-    el('h2', { class: 'alerts-h', text: "L'email du matin" }),
-    bascule('Email actif', 'digest_enabled', settings, change),
-    bascule('Suivis inclus', 'include_follows', settings, change),
-  ])
+// Le marché que couvre chaque recherche aujourd'hui — la même route que Le
+// marché (`/v1/market/facets`), rejouée sur les filtres de la recherche. Une
+// panne sur l'une ne bloque pas les autres ni le reste de la page.
+async function facetsPerSearch(rows) {
+  const entries = await Promise.all(rows.map(async (row) => {
+    try { return [row.id, await api.facets(facetsQuery(filtersFromQuery(row.query)))] }
+    catch { return [row.id, null] }
+  }))
+  return Object.fromEntries(entries)
 }
 
 export async function renderAlerts(root, state) {
@@ -52,14 +34,22 @@ export async function renderAlerts(root, state) {
     const [rows, settings, digests] = await Promise.all([
       alertsApi.searches(), alertsApi.alertSettings(), alertsApi.digests(),
     ])
+    const facetsById = await facetsPerSearch(rows)
+
+    const zoneEmail = el('div')
+    const zoneRecherches = el('div')
+
     clear(root).append(
       el('h1', { class: 'vue-t', text: 'Mes alertes' }),
-      el('div', { class: 'alerts-grille' }, [
-        carteRecherches(root, state, rows),
-        carteReglage(root, state, settings),
+      el('p', { class: 'vue-s', text: INTRO }),
+      el('div', { class: 'pile alerts-pile' }, [
+        zoneEmail,
+        zoneRecherches,
         renderOutbox(digests, alertsApi.digest),
       ]),
     )
+    renderDigestCard(zoneEmail, settings, state.email, alertsApi)
+    renderSearchSection(zoneRecherches, rows, facetsById, alertsApi)
   } catch (err) {
     if (err instanceof api.AuthError) { state.onAuthError(); return }
     clear(root).append(el('div', {

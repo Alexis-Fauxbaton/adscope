@@ -2,13 +2,24 @@
 // `/v1/alerts/settings` et `/v1/digests`, sans réseau. Séparé de
 // `fixtures.js` (149 lignes, au plafond) — `api-alerts.js` importe ce fichier
 // directement.
+//
+// `?demo=1&vide=1` : le compte du premier jour — aucune recherche, aucun
+// email envoyé. Un second drapeau, pas un second fichier : c'est la même
+// page, un autre compte, utile pour la capture de l'état vide.
 
 import { DEMO_NOW, isoDaysBefore } from './fixtures-data.js'
 
+function videDemande() {
+  return new URLSearchParams(location.search).get('vide') === '1'
+}
+
+// Les trois requêtes correspondent à de vraies lignes de `fixtures-rows.js` :
+// un compte d'annonces à zéro sur la carte vedette de la démo se lirait comme
+// une panne du compteur, pas comme un marché honnêtement calme.
 let searchesStore = [
   {
-    id: 1, name: 'Clio IV diesel 59-62',
-    query: 'brand=Renault&department=59&department=62&fuel=diesel&model=Clio',
+    id: 1, name: 'Clio diesel',
+    query: 'brand=Renault&fuel=diesel&model=Clio',
     notify_drops: true, notify_new: false, min_age_days: 30, min_drop_pct: 3,
     paused: false, created_at: isoDaysBefore(21),
   },
@@ -19,8 +30,8 @@ let searchesStore = [
     paused: false, created_at: isoDaysBefore(9),
   },
   {
-    id: 3, name: 'Duster diesel — en pause',
-    query: 'brand=Dacia&fuel=diesel&model=Duster',
+    id: 3, name: 'Dacia Duster — en pause',
+    query: 'brand=Dacia&model=Duster',
     notify_drops: true, notify_new: false, min_age_days: 30, min_drop_pct: 3,
     paused: true, created_at: isoDaysBefore(40),
   },
@@ -29,7 +40,7 @@ let searchesStore = [
 let settingsStore = { digest_enabled: true, include_follows: true }
 
 export function searches() {
-  return searchesStore.map((s) => ({ ...s }))
+  return videDemande() ? [] : searchesStore.map((s) => ({ ...s }))
 }
 
 export function createSearch(payload) {
@@ -58,19 +69,23 @@ export function putAlertSettings(payload) {
   return { ...settingsStore }
 }
 
-const CARD = (label, body, dept, sourceUrl) => `
+// Registre aligné sur `api/adscope_api/digest_html.py` : chaque `<a>` porte
+// sa propre police (un client mail n'hérite rien sur un lien), et le prix
+// tient sa propre ligne sombre quand la carte en a un — les faits restent
+// en gris, sans le répéter.
+const FONT = "font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
+const LIEN = (href, texte, couleur = '#4F46E5') => `<a href="${href}" style="${FONT};color:${couleur};text-decoration:none">${texte}</a>`
+
+const CARD = (label, priceLine, facts, dept, sourceUrl) => `
     <tr><td style="padding:8px 0">
       <table role="presentation" width="100%" style="background:#fff;border-radius:22px;
         box-shadow:0 1px 3px rgba(0,0,0,0.08)">
         <tr><td style="padding:20px 24px">
-          <div style="font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-            font-size:16px;font-weight:700;color:#111">${label}</div>
-          <div style="font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-            font-size:14px;color:#555;margin-top:4px">${body} · ${dept}</div>
+          <div style="${FONT};font-size:16px;font-weight:700;color:#111">${label}</div>
+          ${priceLine ? `<div style="${FONT};font-size:15px;font-weight:700;color:#111;margin-top:4px">${priceLine}</div>` : ''}
+          <div style="${FONT};font-size:14px;color:#555;margin-top:4px">${facts} · ${dept}</div>
           <div style="font-size:13px;margin-top:10px">
-            <a href="${sourceUrl}" style="color:#4F46E5;text-decoration:none">Voir l'annonce</a>
-            &nbsp;·&nbsp;
-            <a href="/app/?d=demo#/marche" style="color:#4F46E5;text-decoration:none">Voir sur adscope</a>
+            ${LIEN(sourceUrl, "Voir l'annonce")} &nbsp;·&nbsp; ${LIEN('/app/?d=demo#/marche', 'Voir sur adscope')}
           </div>
         </td></tr>
       </table>
@@ -81,17 +96,14 @@ const DIGEST_HTML = `<!DOCTYPE html>
 <table role="presentation" width="100%" style="background:#F4F5F7">
 <tr><td align="center">
 <table role="presentation" width="600" style="max-width:600px;width:100%;padding:24px 16px">
-  <tr><td style="font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    font-size:20px;font-weight:800;color:#111;padding:0 8px 8px">adscope</td></tr>
-  ${CARD('Peugeot 208 II PureTech 100 Allure', '23 900 € → 22 700 € · −1 200 € depuis le premier prix · en ligne depuis 412 jours · constatée entre le 14 et le 17 sept.', 'Hauts-de-Seine (92)', 'https://www.lacentrale.fr/auto-occasion-annonce-C6123456.html')}
-  ${CARD('Renault Clio V 1.0 TCe 90 Evolution', '15 900 € → 15 300 € · −600 € depuis le premier prix · en ligne depuis 71 jours · constatée entre le 16 et le 18 sept.', 'Nord (59)', 'https://www.lacentrale.fr/auto-occasion-annonce-C6123457.html')}
-  ${CARD('Volkswagen Polo VI 1.0 TSI 95 Life', 'passe 90 jours en ligne', 'Bas-Rhin (67)', 'https://www.lacentrale.fr/auto-occasion-annonce-C6123458.html')}
-  <tr><td style="padding:20px 8px 0">
-    <a href="/app/?d=demo#/alertes" style="font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-      color:#4F46E5;font-size:14px;text-decoration:none">Tout voir sur adscope →</a>
-  </td></tr>
-  <tr><td style="font-size:12px;color:#999;padding:24px 8px 0">
-    <a href="/app/desabonnement.html?t=demo" style="color:#999">Se désabonner de l'email du matin</a>
+  <tr><td style="${FONT};font-size:20px;font-weight:800;color:#111;padding:0 8px 8px">adscope</td></tr>
+  ${CARD('Peugeot 208 II PureTech 100 Allure', '23 900 € → 22 700 €', '−1 200 € depuis le premier prix · en ligne depuis 412 jours · constatée entre le 14 et le 17 sept.', 'Hauts-de-Seine (92)', 'https://www.lacentrale.fr/auto-occasion-annonce-C6123456.html')}
+  ${CARD('Renault Clio V 1.0 TCe 90 Evolution', '15 900 € → 15 300 €', '−600 € depuis le premier prix · en ligne depuis 71 jours · constatée entre le 16 et le 18 sept.', 'Nord (59)', 'https://www.lacentrale.fr/auto-occasion-annonce-C6123457.html')}
+  ${CARD('Volkswagen Polo VI 1.0 TSI 95 Life', '', 'passe 90 jours en ligne', 'Bas-Rhin (67)', 'https://www.lacentrale.fr/auto-occasion-annonce-C6123458.html')}
+  <tr><td style="${FONT};font-size:12px;color:#999;padding:24px 8px 0;line-height:1.7">
+    Vous recevez cet email parce que vous avez enregistré une recherche ou suivez des
+    annonces sur adscope.<br>
+    ${LIEN('/app/?d=demo#/alertes', 'Gérer mes alertes')} &nbsp;·&nbsp; ${LIEN('/app/desabonnement.html?t=demo', 'Me désabonner', '#999')}
   </td></tr>
 </table>
 </td></tr>
@@ -122,7 +134,7 @@ const DIGESTS = [
 ]
 
 export function digests() {
-  return DIGESTS.map(({ text, html, ...rest }) => rest)
+  return videDemande() ? [] : DIGESTS.map(({ text, html, ...rest }) => rest)
 }
 
 export function digest(id) {

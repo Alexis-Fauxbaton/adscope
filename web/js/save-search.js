@@ -6,6 +6,7 @@
 
 import * as alertsApi from './api-alerts.js'
 import * as api from './api.js'
+import { dropsSentence } from './alerts-search-rules.js'
 import { clear, el } from './dom.js'
 import { familyLabel, filterParams } from './query.js'
 
@@ -52,8 +53,12 @@ export function renderSaveSearch(ui, requireLogin) {
         return
       }
       try {
-        await alertsApi.createSearch(searchPayload(nom.value, ui.filters))
-        clear(wrap).append(el('span', { class: 'save-search-ok', text: 'Recherche enregistrée.' }))
+        const created = await alertsApi.createSearch(searchPayload(nom.value, ui.filters))
+        clear(wrap).append(el('div', { class: 'save-search-ok' }, [
+          el('p', { class: 'save-search-fait', text: 'Recherche enregistrée.' }),
+          el('p', { class: 'save-search-suite', text: `Vous serez alerté dans l'email du matin : ${dropsSentence(created)}` }),
+          el('a', { class: 'save-search-lien', href: '#/alertes', text: 'Régler cette alerte →' }),
+        ]))
       } catch (err) {
         if (err instanceof api.AuthError) { requireLogin(); return }
         erreur.textContent = "L'enregistrement a échoué. Réessayez."
