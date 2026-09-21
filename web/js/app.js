@@ -1,19 +1,22 @@
 // L'assemblage : deux entrées en haut, une vue dessous, la session en garde.
 
 import * as api from './api.js'
+import { renderAlerts } from './alerts.js'
 import { clear, el } from './dom.js'
+import { runDigestVisit } from './digest-visit.js'
 import { renderFollows } from './follows.js'
 import { renderLogin } from './login.js'
 import { renderMarket } from './market.js'
 import { EMPTY_FILTERS } from './query.js'
 import { filtersFromHash, splitHash } from './url-state.js'
 
-const ROUTES = [['#/suivis', 'Mes suivis'], ['#/marche', 'Le marché']]
+const ROUTES = [['#/suivis', 'Mes suivis'], ['#/marche', 'Le marché'], ['#/alertes', 'Mes alertes']]
 
 const racine = document.getElementById('racine')
 
 const state = {
   sinceDays: 7,
+  followSort: 'drop',
   filters: { ...EMPTY_FILTERS },
   items: [],
   total: 0,
@@ -67,7 +70,9 @@ function vue() {
   // marcher le bouton retour du navigateur, puisque revenir en arrière émet
   // `hashchange` et repasse ici.
   state.filters = filtersFromHash(location.hash)
-  if (route() === '#/marche') renderMarket(zone, state)
+  const courante = route()
+  if (courante === '#/marche') renderMarket(zone, state)
+  else if (courante === '#/alertes') renderAlerts(zone, state)
   else renderFollows(zone, state)
 }
 
@@ -92,4 +97,7 @@ async function demarrer() {
 }
 
 addEventListener('hashchange', vue)
+// Hors auth, hors route : un lien d'email compte sa visite dès l'arrivée,
+// avant même de savoir si la session tient.
+runDigestVisit()
 demarrer()

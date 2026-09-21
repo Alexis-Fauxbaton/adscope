@@ -1,0 +1,79 @@
+/* Lot F1 — Alertes : la page « Mes alertes », le bouton du marché, le segment
+   de tri de Mes suivis. Registre inchangé (base.css/views.css) : ce fichier
+   n'invente pas de nouvelles couleurs. */
+
+/* ── Le marché : « Enregistrer cette recherche » ── */
+.save-search-b{
+  font-size:13.5px; font-weight:700; color:var(--accent); white-space:nowrap;
+}
+.save-search-b:hover{text-decoration:underline}
+.save-search-form{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.save-search-nom{width:auto; min-width:200px; flex:1}
+.save-search-go{padding:11px 18px; font-size:13.5px}
+.save-search-annuler{font-size:13.5px; font-weight:600; color:var(--faible)}
+.save-search-ok{font-size:13.5px; font-weight:600; color:var(--vert)}
+.save-search .erreur{width:100%; margin:2px 0 0; font-size:13px}
+
+/* ── Mes suivis : le segment de tri, à côté de la bascule 24 h / 7 j ── */
+.suivis-entete{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:22px 0 26px}
+.suivis-entete .bascule,.suivis-entete .tri-suivis{margin:0}
+
+/* ── Mes alertes : trois cartes ── */
+.alerts-grille{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:24px}
+.alerts-carte-large{grid-column:1 / -1}
+.alerts-h{font-size:16px; font-weight:700; letter-spacing:-.01em; margin-bottom:16px}
+
+/* Mes recherches */
+.as-liste{display:flex; flex-direction:column; gap:18px}
+.as-ligne{
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  padding-bottom:16px; border-bottom:1px solid var(--gris-pale);
+}
+.as-ligne:last-child{border-bottom:0; padding-bottom:0}
+.as-info{flex:1 1 220px; min-width:0}
+.as-nom{font-size:14.5px; font-weight:700; text-decoration:none; display:block}
+.as-nom:hover{text-decoration:underline}
+.as-resume{font-size:13px; color:var(--faible); margin-top:4px}
+.as-regles{display:flex; gap:14px; flex-wrap:wrap}
+.as-case{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--douce); cursor:pointer}
+.as-suppr{font-size:13px; font-weight:600; color:var(--faible); white-space:nowrap}
+.as-suppr:hover{color:var(--douce)}
+.as-suppr-arme{color:#B4243A}
+
+/* L'email du matin */
+.alerts-bascule{
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:12px 0; font-size:14.5px;
+}
+.alerts-bascule + .alerts-bascule{border-top:1px solid var(--gris-pale)}
+
+/* Emails envoyés */
+.ao-liste{display:flex; flex-direction:column}
+.ao-ligne{
+  display:flex; align-items:center; gap:16px; width:100%; text-align:left;
+  padding:13px 0; border-bottom:1px solid var(--gris-pale); font-size:13.5px;
+}
+.ao-liste .ao-ligne:last-child{border-bottom:0}
+.ao-jour{color:var(--faible); white-space:nowrap; width:76px; flex:none}
+.ao-sujet{flex:1; min-width:0; font-weight:600}
+.ao-visites{color:var(--faible); white-space:nowrap}
+.ao-apercu{margin-top:18px}
+.ao-iframe{
+  width:100%; height:520px; border:0; border-radius:16px; background:var(--gris-pale);
+}
+
+@media (max-width:900px){
+  .alerts-grille{grid-template-columns:1fr}
+}
+
+@media (max-width:640px){
+  .save-search-form{width:100%}
+  .save-search-nom{min-width:0; width:100%}
+  /* `flex:1 1 220px` vaut une largeur en rangée, mais devient une *hauteur*
+     minimale de 220 px dès que la ligne passe en colonne — sans ce correctif
+     chaque recherche laissait un grand vide sous son résumé. */
+  .as-ligne{flex-direction:column; align-items:flex-start}
+  .as-info{flex:none; width:100%}
+  .ao-ligne{flex-wrap:wrap}
+  .ao-iframe{height:420px}
+}
