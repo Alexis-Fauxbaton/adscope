@@ -25,15 +25,15 @@ function menu(id, value, choices, onChange, ariaLabel) {
   return select
 }
 
-// « Une annonce en ligne depuis plus de [30 jours] : [une baisse de 3 % ou
-// plus]. » — deux menus, une seule phrase, qui reste grammaticale quel que
-// soit le choix (« dès la moindre baisse » compris).
+// « Une annonce en ligne depuis plus de [30 jours] baisse [de 3 % ou plus]. »
+// — deux menus, une seule phrase, qui reste grammaticale quel que soit le
+// choix (« baisse même de peu » compris).
 export function renderThresholds(search, onPatch) {
   return el('p', { class: 'switch-phrase as-seuils' }, [
     el('span', { text: 'Une annonce en ligne depuis plus de ' }),
     menu(`as-age-${search.id}`, search.min_age_days, AGE_CHOICES,
       (v) => onPatch(search.id, { min_age_days: v }), "Ancienneté minimale avant qu'une baisse alerte"),
-    el('span', { text: ' : ' }),
+    el('span', { text: ' baisse ' }),
     menu(`as-pct-${search.id}`, search.min_drop_pct, DROP_CHOICES,
       (v) => onPatch(search.id, { min_drop_pct: v }), 'Seuil de baisse qui alerte'),
     el('span', { text: '.' }),

@@ -78,6 +78,8 @@ a{color:inherit}
   border-radius:14px; padding:13px 22px;
 }
 .bouton:disabled{background:var(--grise); cursor:default}
+/* Un bouton qui est un lien (« Nouvelle recherche ») ne se souligne pas. */
+a.bouton{display:inline-block; text-decoration:none}
 .lien-sortant{
   color:var(--accent); font-size:14px; font-weight:700; text-decoration:none;
   white-space:nowrap;

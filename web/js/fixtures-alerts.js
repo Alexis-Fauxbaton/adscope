@@ -30,7 +30,7 @@ let searchesStore = [
     paused: false, created_at: isoDaysBefore(9),
   },
   {
-    id: 3, name: 'Dacia Duster — en pause',
+    id: 3, name: 'Dacia Duster',
     query: 'brand=Dacia&model=Duster',
     notify_drops: true, notify_new: false, min_age_days: 30, min_drop_pct: 3,
     paused: true, created_at: isoDaysBefore(40),

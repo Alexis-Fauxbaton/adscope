@@ -16,7 +16,7 @@ export const RESUME_HINT = 'Relance les alertes de cette recherche.'
 // choisit dans une liste, il ne devine pas une valeur à taper.
 export const AGE_CHOICES = [[15, '15 jours'], [30, '30 jours'], [60, '60 jours']]
 export const DROP_CHOICES = [
-  [1, 'dès la moindre baisse'], [3, 'une baisse de 3 % ou plus'], [5, 'une baisse de 5 % ou plus'],
+  [1, 'même de peu'], [3, 'de 3 % ou plus'], [5, 'de 5 % ou plus'],
 ]
 
 // Une valeur déjà enregistrée mais absente des choix proposés (réglage plus
