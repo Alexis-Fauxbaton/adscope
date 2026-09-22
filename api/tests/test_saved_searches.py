@@ -159,15 +159,21 @@ def test_the_search_routes_need_a_license(client, session):
     assert client.get("/v1/searches").status_code == 401
 
 
-# Fait rougir `with_coverage` sur la route liste (lot F2) : sans lui, la
-# recherche relue afficherait le défaut de `SearchOut` (`seen_total == 0`)
-# plutôt que le compte réel de son périmètre.
-def test_get_searches_carries_the_coverage_fields(client, session, clock):
+# Une annonce du périmètre de `BODY` (Renault, département 59) : les tests
+# de couverture ci-dessous la comparent au défaut de `SearchOut` (`0`).
+def _renault_59(session, clock):
     row = Listing(site="lbc", site_id="1", first_seen=clock.now, last_seen=clock.now,
                   observations=1, brand="Renault", department="59")
     derive(row)
     session.add(row)
     session.commit()
+
+
+# Fait rougir `with_coverage` sur la route liste (lot F2) : sans lui, la
+# recherche relue afficherait le défaut de `SearchOut` (`seen_total == 0`)
+# plutôt que le compte réel de son périmètre.
+def test_get_searches_carries_the_coverage_fields(client, session, clock):
+    _renault_59(session, clock)
     key = enrolled(session)
     post(client, key)
     got = client.get("/v1/searches", headers=auth(key)).json()
@@ -184,15 +190,10 @@ def test_a_search_without_a_model_is_too_wide_for_the_sweep(client, session, clo
 
 
 # Fait rougir `with_coverage` sur la route de création : sans lui, `POST`
-# rendrait les valeurs par défaut de `SearchOut` (0, None, "ok") au lieu du
-# compte réel — une seule annonce du périmètre suffit à les distinguer, ici
-# `seen_total == 1` plutôt que le défaut `0`.
+# rendrait les valeurs par défaut de `SearchOut` (`seen_total == 0`) plutôt
+# que le compte réel.
 def test_post_search_already_renders_coverage(client, session, clock):
-    row = Listing(site="lbc", site_id="1", first_seen=clock.now, last_seen=clock.now,
-                  observations=1, brand="Renault", department="59")
-    derive(row)
-    session.add(row)
-    session.commit()
+    _renault_59(session, clock)
     key = enrolled(session)
     created = post(client, key).json()
     assert created["seen_total"] == 1
