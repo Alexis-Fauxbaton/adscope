@@ -119,6 +119,48 @@ def test_change_closes_other_sessions_and_keeps_the_current_one(client, session,
     assert len(remaining) == 1
 
 
-def test_change_by_bearer_key_without_an_account_is_403(client, session, clock, key):
+def test_change_without_a_session_cookie_is_401(client, session, clock, key):
     response = change(client, headers={**XA, **auth(key)})
-    assert response.status_code == 403
+    assert response.status_code == 401
+
+
+# Fait rougir `require_account_by_cookie` (route restreinte au cookie de
+# session) : une clé de machine — même rattachée au compte, comme celle du
+# crawler dans `crawler/.license` en clair — ne change plus le mot de passe
+# d'un humain (revue de code, prise de compte prouvée par sonde).
+def test_change_is_refused_for_a_machine_key_even_one_attached_to_the_account(
+    client, session, clock
+):
+    account = verified(session)
+    raw = new_key()
+    session.add(License(key_hash=hash_key(raw), label="crawler", account_id=account.id))
+    session.commit()
+    response = change(client, headers={**XA, **auth(raw)})
+    assert response.status_code == 401
+
+
+# Fait rougir `login_tokens.invalidate_pending` dans `accounts.reset_password` :
+# un lien de réinitialisation oublié dans la boîte ne survit pas à celui
+# qu'on vient d'utiliser.
+def test_reset_invalidates_the_other_outstanding_reset_links(client, session, clock):
+    verified(session)
+    forgot(client)
+    first = mailed_token(session)
+    forgot(client)
+    second = mailed_token(session)
+    assert reset(client, first).status_code == 204
+    stale = reset(client, second, password="un-troisieme-garage-solide")
+    assert stale.status_code == 400
+
+
+# Même correctif, côté changement de mot de passe connecté : un lien
+# « oublié » resté dans la boîte ne doit pas survivre à un changement fait
+# la main.
+def test_change_invalidates_an_outstanding_reset_link(client, session, clock):
+    account = verified(session)
+    sign_in(client, session, account.id, clock.now)
+    forgot(client)
+    token = mailed_token(session)
+    assert change(client, headers=XA).status_code == 204
+    stale = reset(client, token, password="un-troisieme-garage-solide")
+    assert stale.status_code == 400

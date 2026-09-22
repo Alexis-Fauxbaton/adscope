@@ -28,9 +28,9 @@ def enrolled_without_password(session, email=EMAIL, label="alexis"):
     return account
 
 
-# Fait rougir `account.pending_password_hash = hashed` et `_send(...)` dans
-# `accounts.signup` : l'inscription crée un compte non vérifié et une ligne
-# `mails`, sans jamais rendre de jeton dans le corps.
+# Fait rougir `_send(...)` dans `accounts.signup` : l'inscription crée un
+# compte non vérifié et une ligne `mails`, sans jamais rendre de jeton dans
+# le corps.
 def test_signup_creates_an_unverified_account_and_a_mail(client, session, clock):
     response = signup(client)
     assert response.status_code == 202
@@ -60,9 +60,9 @@ def mailed_token(session):
     return text.split("token=")[1].split()[0]
 
 
-# Fait rougir `account.password_hash = account.pending_password_hash` dans
-# `accounts.verify` : le clic promeut le mot de passe en attente et ouvre une
-# session, dans le même geste.
+# Fait rougir `account.password_hash = pending_password_hash` dans
+# `accounts.verify` : le clic promeut le mot de passe porté par LE JETON et
+# ouvre une session, dans le même geste.
 def test_verify_promotes_the_password_and_opens_a_session(client, session, clock):
     signup(client)
     token = mailed_token(session)
@@ -108,10 +108,10 @@ def test_signing_up_twice_on_the_same_address_is_a_409(client, session, clock):
     assert again.json() == {"detail": accounts.ALREADY_EXISTS}
 
 
-# Fait rougir `account.pending_password_hash = hashed` sur un compte déjà là
-# sans mot de passe (cas Alexis) : D2 — le mot de passe reste en attente, la
-# connexion refuse (403, le mot de passe est le bon) tant que le lien n'a pas
-# été suivi.
+# Fait rougir `pending_password_hash=hashed` dans `accounts.signup` sur un
+# compte déjà là sans mot de passe (cas Alexis) : D2 — le mot de passe reste
+# en attente, la connexion refuse (403, le mot de passe est le bon) tant que
+# le lien n'a pas été suivi.
 def test_signup_on_a_passwordless_account_stays_pending_until_the_click(client, session, clock):
     enrolled_without_password(session)
     response = signup(client)
@@ -171,3 +171,72 @@ def test_a_short_password_is_refused_with_the_rule(client, session, clock):
 def test_signup_without_x_adscope_header_is_refused(client, session, clock):
     response = client.post("/v1/auth/signup", json={"email": EMAIL, "password": PASSWORD})
     assert response.status_code == 403
+
+
+# Fait rougir `account.password_hash = pending_password_hash` (le mot de
+# passe du JETON qu'on brûle, pas celui d'une case du compte) dans
+# `accounts.verify` : une inscription concurrente sur la même adresse, avant
+# le clic de Karim, ne doit pas pouvoir détourner SON lien vers LE mot de
+# passe de l'attaquant (revue de code, prise de compte prouvée par sonde).
+def test_a_concurrent_signup_cannot_hijack_the_original_link(client, session, clock):
+    signup(client, password="mot-de-passe-victime")
+    victim_token = mailed_token(session)
+    signup(client, password="mot-de-passe-attaquant")  # même adresse, avant le clic
+    response = verify(client, victim_token)
+    assert response.status_code == 204
+    account = session.scalar(select(Account).where(Account.email == EMAIL))
+    assert passwords.verify_password(account.password_hash, "mot-de-passe-victime")
+    assert not passwords.verify_password(account.password_hash, "mot-de-passe-attaquant")
+
+
+# Même sonde que ci-dessus, sur un compte préexistant sans mot de passe (cas
+# Alexis) : c'est exactement le scénario confirmé par la relecture.
+def test_a_concurrent_signup_cannot_hijack_a_passwordless_accounts_link(client, session, clock):
+    enrolled_without_password(session)
+    signup(client, password="mot-de-passe-victime")
+    victim_token = mailed_token(session)
+    signup(client, password="mot-de-passe-attaquant")
+    assert verify(client, victim_token).status_code == 204
+    account = session.scalar(select(Account).where(Account.email == EMAIL))
+    assert passwords.verify_password(account.password_hash, "mot-de-passe-victime")
+
+
+# Fait rougir `if account is not None and account.password_hash is not None:`
+# dans `accounts.login` : un mot de passe en attente n'ouvre jamais de
+# session, même si `email_verified_at` traîne déjà (état hérité de la
+# migration 014, requalifiant d'anciens jetons de lien magique — prise sans
+# clic prouvée par sonde sur la relecture).
+def test_login_never_opens_a_session_on_a_pending_password_alone(client, session, clock):
+    account = enrolled_without_password(session)
+    account.email_verified_at = clock.now
+    session.commit()
+    signup(client)  # pose un mot de passe en attente, aucun clic
+    response = client.post("/v1/auth/login", json={"email": EMAIL, "password": PASSWORD},
+                           headers=XA)
+    assert response.status_code != 204
+
+
+# Fait rougir `email: EmailStr = Field(...)` dans `auth_signup.EmailIn` :
+# une adresse mal formée est refusée avant de créer quoi que ce soit.
+def test_a_malformed_email_is_refused_before_creating_an_account(client, session, clock):
+    for bad in ("", "  ", "pas-une-adresse", "a@"):
+        response = client.post("/v1/auth/signup", json={"email": bad, "password": PASSWORD},
+                               headers=XA)
+        assert response.status_code == 422
+    assert session.scalar(select(func.count()).select_from(Account)) == 0
+
+
+# Fait rougir `login_tokens.latest_pending_password` dans `accounts.resend` :
+# le lien renvoyé est un second email, qui active le même mot de passe que
+# le premier.
+def test_resend_sends_a_second_link_that_still_activates_the_same_password(
+    client, session, clock
+):
+    signup(client)
+    resent = client.post("/v1/auth/resend", json={"email": EMAIL}, headers=XA)
+    assert resent.status_code == 202
+    assert session.scalar(select(func.count()).select_from(Mail)) == 2
+    token = mailed_token(session)
+    assert verify(client, token).status_code == 204
+    account = session.scalar(select(Account).where(Account.email == EMAIL))
+    assert passwords.verify_password(account.password_hash, PASSWORD)

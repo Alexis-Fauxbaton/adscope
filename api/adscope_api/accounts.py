@@ -32,8 +32,9 @@ def _link(kind: str, token: str) -> str:
     return f"{public_url()}/app/#/{page}?token={token}"
 
 
-def _send(session, account_id: int, purpose: str, kind: str, subject: str, now: datetime) -> None:
-    token = login_tokens.mint(session, account_id, purpose, now)
+def _send(session, account_id: int, purpose: str, kind: str, subject: str, now: datetime,
+         pending_password_hash: str | None = None) -> None:
+    token = login_tokens.mint(session, account_id, purpose, now, pending_password_hash)
     if token is None:
         return  # plafond de jetons en vol atteint (login_tokens.MAX_PENDING)
     text = f"Bonjour,\n\nSuivez ce lien : {_link(kind, token)}\n\nL'équipe adscope."
@@ -55,49 +56,57 @@ def signup(session, email: str, password: str, now: datetime) -> None:
     account = session.scalar(select(Account).where(Account.email == email))
     if account.password_hash is not None:
         raise HTTPException(status_code=409, detail=ALREADY_EXISTS)
-    # Le mot de passe reste en attente : seul le clic du lien l'active (D2) —
-    # sinon connaître une adresse suffirait à en prendre le compte.
-    account.pending_password_hash = hashed
-    _send(session, account.id, "verify", "verification", "Vérifiez votre email", now)
+    # Le mot de passe voyage sur le jeton qu'on envoie, pas sur une case du
+    # compte (D2, revue de code) : seul le clic du lien qui le porte promeut
+    # CE mot de passe — jamais celui d'une inscription concurrente sur la
+    # même adresse, qui aurait écrasé une case partagée.
+    _send(session, account.id, "verify", "verification", "Vérifiez votre email", now,
+         pending_password_hash=hashed)
 
 
 def resend(session, email: str, now: datetime) -> None:
     account = session.scalar(select(Account).where(Account.email == email))
-    if account is not None and account.email_verified_at is None and account.pending_password_hash:
-        _send(session, account.id, "verify", "verification", "Vérifiez votre email", now)
+    if account is None or account.password_hash is not None:
+        return
+    pending = login_tokens.latest_pending_password(session, account.id, "verify", now)
+    if pending is not None:
+        _send(session, account.id, "verify", "verification", "Vérifiez votre email", now,
+             pending_password_hash=pending)
 
 
 def verify(session, token: str, now: datetime) -> str:
-    """Consomme le jeton, promeut le mot de passe en attente, ouvre une
+    """Consomme le jeton, promeut le mot de passe qu'IL portait, ouvre une
     session ; rend le secret de session (jamais rendu par HTTP ailleurs)."""
-    account_id = login_tokens.consume(session, token, "verify", now)
-    if account_id is None:
+    consumed = login_tokens.consume(session, token, "verify", now)
+    if consumed is None:
         raise HTTPException(status_code=400, detail=BAD_TOKEN)
+    account_id, pending_password_hash = consumed
     account = session.get(Account, account_id)
-    if account.pending_password_hash is not None:
-        account.password_hash = account.pending_password_hash
-        account.pending_password_hash = None
+    if pending_password_hash is not None:
+        account.password_hash = pending_password_hash
     account.email_verified_at = now
     return sessions.create(session, account_id, now)
 
 
 def login(session, email: str, password: str, now: datetime) -> str:
     account = session.scalar(select(Account).where(Account.email == email))
-    # Le mot de passe à vérifier est celui qui est vrai *pour Karim en ce
-    # moment* : actif s'il l'a déjà activé, en attente sinon — un seul des
-    # deux est jamais posé à la fois (D2). Sans quoi un compte fraîchement
-    # inscrit répondrait « mot de passe incorrect » au bon mot de passe.
-    candidate = (account.password_hash or account.pending_password_hash) if account else None
-    if candidate is None:
-        passwords.waste_time()
+    if account is not None and account.password_hash is not None:
+        if passwords.verify_password(account.password_hash, password):
+            return sessions.create(session, account.id, now)
         raise HTTPException(status_code=401, detail=BAD_CREDENTIALS)
-    if not passwords.verify_password(candidate, password):
+    # Pas de mot de passe actif : jamais de session sur la seule foi d'un mot
+    # de passe en attente (D2/revue de code — un mot de passe en attente
+    # n'est prouvé par aucun clic). Le vérifier ici ne fait que choisir le
+    # message, sans jamais rendre de session : un tiers qui devine le mot de
+    # passe en attente apprend seulement ce qu'il savait déjà en le devinant.
+    pending = (login_tokens.latest_pending_password(session, account.id, "verify", now)
+              if account is not None else None)
+    if pending is not None:
+        if passwords.verify_password(pending, password):
+            raise HTTPException(status_code=403, detail=NOT_VERIFIED)
         raise HTTPException(status_code=401, detail=BAD_CREDENTIALS)
-    # Rendu seulement après vérification du mot de passe : sinon ce 403
-    # apprendrait à un tiers qu'une adresse est cliente (D3/#4 du plan).
-    if account.email_verified_at is None:
-        raise HTTPException(status_code=403, detail=NOT_VERIFIED)
-    return sessions.create(session, account.id, now)
+    passwords.waste_time()
+    raise HTTPException(status_code=401, detail=BAD_CREDENTIALS)
 
 
 def forgot(session, email: str, now: datetime) -> None:
@@ -108,21 +117,24 @@ def forgot(session, email: str, now: datetime) -> None:
 
 
 def reset_password(session, token: str, password: str, now: datetime) -> str:
-    account_id = login_tokens.consume(session, token, "reset", now)
-    if account_id is None:
+    consumed = login_tokens.consume(session, token, "reset", now)
+    if consumed is None:
         raise HTTPException(status_code=400, detail=BAD_TOKEN)
+    account_id, _ = consumed
     account = session.get(Account, account_id)
     account.password_hash = passwords.hash_password(password)
+    login_tokens.invalidate_pending(session, account_id, "reset", now)
     sessions.close_all(session, account_id)
     return sessions.create(session, account_id, now)
 
 
 def change_password(session, account_id: int, current: str, password: str,
-                    keep_token_hash: str) -> None:
+                    keep_token_hash: str, now: datetime) -> None:
     account = session.get(Account, account_id)
     if account is None or account.password_hash is None or not passwords.verify_password(
         account.password_hash, current
     ):
         raise HTTPException(status_code=401, detail=BAD_CURRENT_PASSWORD)
     account.password_hash = passwords.hash_password(password)
+    login_tokens.invalidate_pending(session, account_id, "reset", now)
     sessions.close_others(session, account_id, keep_token_hash)

@@ -105,3 +105,19 @@ def require_account(license_=Depends(require_license)) -> int:
     if license_.account_id is None:
         raise HTTPException(status_code=403, detail="compte requis")
     return license_.account_id
+
+
+# Changer son mot de passe (`/v1/auth/password`) est un geste humain, jamais
+# celui d'une clé de machine : `require_account`, via `require_license`,
+# accepte pourtant un `Bearer` (revue de code — la clé de licence du crawler,
+# en clair dans `crawler/.license`, suffirait sinon). Cette porte n'ouvre
+# qu'au cookie de session, comme `require_license` le fait pour lui.
+def require_account_by_cookie(request: Request, session=Depends(get_session),
+                              now=Depends(sessions.now_utc)) -> int:
+    row = sessions.resolve(session, request.cookies.get(sessions.COOKIE, ""), now)
+    if row is None:
+        raise HTTPException(status_code=401, detail="session invalide")
+    sessions.check_csrf(request)
+    if sessions.touch(row, now):
+        session.commit()
+    return row.account_id

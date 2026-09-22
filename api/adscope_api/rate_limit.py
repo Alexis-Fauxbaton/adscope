@@ -27,12 +27,25 @@ LIMITS = {
     "reset": (None, 30, timedelta(minutes=15)),
 }
 
+# La plus large fenêtre posée (`signup`, `forgot`, `resend` : une heure) :
+# passé ce délai, une entrée n'a plus aucune chance d'entrer dans le calcul
+# d'un `hit`, quel que soit son bucket — elle peut être oubliée sans risque.
+MAX_WINDOW = max(window for *_, window in LIMITS.values())
+
 _hits: dict[tuple[str, str], list[datetime]] = {}
 
 
 class Limiter:
     def hit(self, bucket: str, key: str, limit: int, now: datetime, window: timedelta) -> bool:
-        """Enregistre un essai ; rend `False` si le plafond est déjà atteint."""
+        """Enregistre un essai ; rend `False` si le plafond est déjà atteint.
+
+        Une adresse ou une IP jamais revue n'appelle plus jamais `hit` pour sa
+        propre clé — rien ne la purgerait. Le balayage porte donc sur tout
+        `_hits`, à chaque appel : gratuit ici (une IP par requête), et une clé
+        morte ne survit jamais plus d'un appel d'écart (revue de code).
+        """
+        for dead in [k for k, seen in _hits.items() if now - seen[-1] >= MAX_WINDOW]:
+            del _hits[dead]
         entry = (bucket, key)
         recent = [seen for seen in _hits.get(entry, []) if now - seen < window]
         if len(recent) >= limit:

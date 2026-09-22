@@ -28,4 +28,5 @@ COMMON_PASSWORDS = frozenset({
     "voiture123", "garage1234", "adscope123", "leboncoin1", "occasion12",
     "123123123", "111111111", "000000000", "999999999", "121212121",
     "aaaaaaaaa1", "qwerty12345", "iloveyou12", "sunshine12", "starwars12",
+    "azertyuiop123", "12345678910",
 })

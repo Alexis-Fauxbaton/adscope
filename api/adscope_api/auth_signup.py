@@ -13,7 +13,7 @@ unique avant que Karim clique. La page qui les reçoit POSTe ici.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 from . import accounts
 from .db import get_session
@@ -23,13 +23,20 @@ from .sessions import check_csrf, is_secure, now_utc, set_cookie
 
 router = APIRouter()
 
+# 256, pas 128 : `policy_error` refuse déjà au-delà de 128 avec le message
+# français (`TOO_LONG`) — un plafond pydantic identique le court-circuitait
+# avec un message générique, jamais vu par Karim (revue de code). Le plafond
+# pydantic reste une borne dure, plus large, contre un corps énorme avant
+# même d'atteindre `policy_error`.
+PASSWORD_FIELD_MAX = 256
+
 
 class EmailIn(BaseModel):
-    email: str = Field(max_length=254)
+    email: EmailStr = Field(max_length=254)
 
 
 class SignupIn(EmailIn):
-    password: str = Field(max_length=128)
+    password: str = Field(max_length=PASSWORD_FIELD_MAX)
 
 
 class TokenIn(BaseModel):
@@ -37,7 +44,7 @@ class TokenIn(BaseModel):
 
 
 class ResetIn(TokenIn):
-    password: str = Field(max_length=128)
+    password: str = Field(max_length=PASSWORD_FIELD_MAX)
 
 
 def _cookie_response(raw: str) -> Response:

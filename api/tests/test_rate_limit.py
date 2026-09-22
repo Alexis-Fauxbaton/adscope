@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
+from adscope_api import rate_limit
 from adscope_api.rate_limit import RATE_LIMITED, guard, limiter
 
 NOW = datetime(2026, 9, 22, 12, 0, tzinfo=timezone.utc)
@@ -75,3 +76,14 @@ def test_limiter_reset_clears_every_bucket():
         guard("login", "karim@garage.fr", request(), NOW)
     limiter.reset()
     guard("login", "karim@garage.fr", request(), NOW)  # ne lève pas
+
+
+# Fait rougir le balayage `for dead in [...]: del _hits[dead]` dans
+# `Limiter.hit` : une IP jamais revue ne doit pas rester dans `_hits`
+# indéfiniment (croissance non bornée, revue de code).
+def test_a_stale_entry_is_purged_after_the_widest_window():
+    guard("signup", "jamais-revu@garage.fr", request("9.9.9.9"), NOW)
+    assert ("signup", "ip:9.9.9.9") in rate_limit._hits
+    later = NOW + rate_limit.MAX_WINDOW
+    guard("login", "quelquun@garage.fr", request("1.1.1.1"), later)
+    assert ("signup", "ip:9.9.9.9") not in rate_limit._hits

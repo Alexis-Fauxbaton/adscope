@@ -8,7 +8,7 @@ connexion sur celui d'un vrai échec de mot de passe.
 """
 
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
+from argon2.exceptions import InvalidHashError, VerifyMismatchError
 
 from .common_passwords import COMMON_PASSWORDS
 
@@ -49,9 +49,13 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(hashed: str, password: str) -> bool:
+    # `InvalidHashError` (pas une sous-classe de `VerifyMismatchError`) sort
+    # d'un `hashed` qui n'est pas un encodage Argon2 valide — une colonne
+    # corrompue ne doit pas faire un 500 là où un mauvais mot de passe fait
+    # un 401 (revue de code).
     try:
         return _hasher.verify(hashed, password)
-    except VerifyMismatchError:
+    except (VerifyMismatchError, InvalidHashError):
         return False
 
 

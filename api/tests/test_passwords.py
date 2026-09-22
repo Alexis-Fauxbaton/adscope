@@ -20,6 +20,13 @@ def test_verify_refuses_the_wrong_password():
     assert passwords.verify_password(hashed, "autre-chose-du-tout") is False
 
 
+# Fait rougir `except (VerifyMismatchError, InvalidHashError)` : une colonne
+# corrompue (pas un encodage Argon2 valide) refuse comme un mauvais mot de
+# passe, jamais un 500 (revue de code).
+def test_a_corrupted_hash_is_refused_not_a_crash():
+    assert passwords.verify_password("pas-un-hash-argon2", "peu-importe") is False
+
+
 # Fait rougir `if len(password) < MIN_LENGTH` : neuf caractères refusés, dix
 # acceptés — la limite posée par le lot.
 def test_nine_characters_are_refused():

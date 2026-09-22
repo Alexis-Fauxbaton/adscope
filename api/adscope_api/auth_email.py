@@ -7,10 +7,11 @@ session, une clé de machine continue de porter la licence en clair.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 from . import accounts, sessions
-from .auth import require_account, require_license
+from .auth import require_account_by_cookie, require_license
+from .auth_signup import PASSWORD_FIELD_MAX
 from .db import get_session
 from .passwords import policy_error
 from .rate_limit import guard
@@ -20,13 +21,13 @@ router = APIRouter()
 
 
 class LoginIn(BaseModel):
-    email: str = Field(max_length=254)
-    password: str = Field(max_length=128)
+    email: EmailStr = Field(max_length=254)
+    password: str = Field(max_length=PASSWORD_FIELD_MAX)
 
 
 class ChangeIn(BaseModel):
-    current: str = Field(max_length=128)
-    password: str = Field(max_length=128)
+    current: str = Field(max_length=PASSWORD_FIELD_MAX)
+    password: str = Field(max_length=PASSWORD_FIELD_MAX)
 
 
 @router.post("/v1/auth/login", status_code=204)
@@ -54,15 +55,15 @@ def post_logout(request: Request, session=Depends(get_session)):
 
 @router.post("/v1/auth/password", status_code=204)
 def post_change_password(payload: ChangeIn, request: Request, session=Depends(get_session),
-                         account_id=Depends(require_account)):
-    # Pas d'appel direct à `check_csrf` ici : `require_account` (via
-    # `require_license`) le fait déjà pour une session cookie, et en dispense
-    # une clé `Bearer` — comme le reste des routes authentifiées de l'API.
+                         now=Depends(now_utc), account_id=Depends(require_account_by_cookie)):
+    # `require_account_by_cookie`, jamais `require_account` : changer un mot
+    # de passe est un geste humain, une clé de machine n'y a pas sa place
+    # (revue de code) — et il fait déjà le CSRF pour la session cookie.
     error = policy_error(payload.password)
     if error:
         raise HTTPException(status_code=422, detail=error)
     keep = sessions.hash_token(request.cookies.get(sessions.COOKIE, ""))
-    accounts.change_password(session, account_id, payload.current, payload.password, keep)
+    accounts.change_password(session, account_id, payload.current, payload.password, keep, now)
     session.commit()
     return Response(status_code=204)
 
