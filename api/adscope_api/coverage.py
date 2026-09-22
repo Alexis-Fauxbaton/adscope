@@ -13,6 +13,7 @@ from datetime import timedelta
 from sqlalchemy import func, select
 
 from .market_query import core as market_core
+from .models import Listing
 
 # « Vue il y a moins de 24 h » — pas les 48 h d'`alert_rules.SEEN_WINDOW` :
 # c'est la fenêtre du balayage quotidien (F2), pas celle d'une alerte.
@@ -22,8 +23,15 @@ FRESH = timedelta(hours=24)
 def counts(session, license_, now, params) -> tuple[int, int]:
     """`(total, fraîches)` sur le périmètre complet de la recherche — filtres
     intacts, contrairement à `sweep_url`/`sweep_split`, qui retirent
-    `min_age_days`/`dropped` et un `fuel` non traduisible avant de compter."""
+    `min_age_days`/`dropped` et un `fuel` non traduisible avant de compter.
+
+    Restreint à `site == "lbc"` : le balayage quotidien (F2) ne revoit que
+    leboncoin (`crawler/RUNBOOK-balayage.md`, La Centrale hors lot, DataDome).
+    Mélanger les deux sites plafonnerait la couverture d'une recherche
+    parfaitement balayée au ratio de La Centrale, jamais rafraîchie au même
+    rythme — le chiffre mentirait en permanence plutôt que de dire « balayée »."""
     query, _age, _delta = market_core(license_, now, **params.core_kwargs())
+    query = query.where(Listing.site == "lbc")
     sub = query.subquery()
     total, fresh = session.execute(
         select(func.count(), func.count().filter(sub.c.last_seen >= now - FRESH))

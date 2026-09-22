@@ -9,8 +9,8 @@ from adscope_api.taxonomy import derive
 NOW = datetime(2026, 9, 18, 9, 0, tzinfo=timezone.utc)
 
 
-def car(session, site_id, *, brand="Renault", model="Clio", last_seen=NOW):
-    row = Listing(site="lbc", site_id=site_id, first_seen=last_seen, last_seen=last_seen,
+def car(session, site_id, *, brand="Renault", model="Clio", last_seen=NOW, site="lbc"):
+    row = Listing(site=site, site_id=site_id, first_seen=last_seen, last_seen=last_seen,
                   observations=1, brand=brand, model=model)
     derive(row)
     session.add(row)
@@ -60,3 +60,13 @@ def test_a_listing_outside_the_perimeter_counts_in_neither_number(session, key):
 def test_an_empty_perimeter_is_none_not_zero(session, key):
     seen_total, coverage_24h = clio(session, key)
     assert (seen_total, coverage_24h) == (0, None)
+
+
+# Fait rougir `query.where(Listing.site == "lbc")` : le balayage quotidien
+# (F2) ne revoit que leboncoin, une annonce La Centrale fraîche ne doit ni
+# gonfler le dénominateur ni compter comme balayée.
+def test_a_lacentrale_listing_does_not_count_toward_lbc_coverage(session, key):
+    car(session, "1", last_seen=NOW - timedelta(hours=1))
+    car(session, "2", site="lc", last_seen=NOW - timedelta(hours=1))
+    seen_total, coverage_24h = clio(session, key)
+    assert (seen_total, coverage_24h) == (1, 1.0)
