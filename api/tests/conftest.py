@@ -4,11 +4,12 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
+from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-from adscope_api import usage
+from adscope_api import passwords, usage
 from adscope_api.auth import hash_key, new_key
 from adscope_api.db import create_all, get_session
 from adscope_api.main import app
@@ -80,6 +81,17 @@ def clock():
 @pytest.fixture(autouse=True)
 def _day_not_closed_yet():
     usage._closed_on = None
+
+
+# Argon2id en production coûte ~60 ms par hachage (voir `passwords.py`) : à ce
+# prix, la suite entière deviendrait interminable. Les tests hachent avec des
+# paramètres au rabais ; `test_passwords.py` garde, lui, les paramètres forts
+# en vérifiant les constantes (`ARGON2_TIME_COST` etc.), jamais l'instance
+# patchée ici.
+@pytest.fixture(autouse=True)
+def _cheap_hasher(monkeypatch):
+    monkeypatch.setattr(passwords, "_hasher",
+                        PasswordHasher(time_cost=1, memory_cost=8, parallelism=1))
 
 
 # Les tests de concurrence demandent de vraies connexions distinctes : deux
