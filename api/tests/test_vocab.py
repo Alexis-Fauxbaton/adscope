@@ -56,11 +56,14 @@ def test_gnv_and_hydrogen_are_not_lumped_into_autre():
 # (`extension/src/sites/leboncoin.js`, table `FUEL`, et
 # `tests/vehicle-fields.test.mjs` qui le fige à son tour) faute d'un fichier
 # `shared/` commun pour ce genre de liste aujourd'hui — un écart entre les deux
-# doit se voir au diff des deux tests, pas rester silencieux.
+# doit se voir au diff des deux tests, pas rester silencieux. `ethanol` (F2)
+# n'a pas de code leboncoin connu (`sweep_url.FUEL_CODES`) : il entre au
+# vocabulaire de l'API sans entrer dans la table `FUEL` de l'extension, donc
+# `vehicle-fields.test.mjs` reste à neuf valeurs, celui-ci en gagne une.
 def test_the_fuel_vocabulary_matches_what_the_extension_sends():
     assert FUEL_VALUES == (
         "essence", "diesel", "hybride", "hybride_rechargeable", "electrique",
-        "gpl", "gnv", "hydrogene", "autre",
+        "gpl", "gnv", "hydrogene", "ethanol", "autre",
     )
 
 

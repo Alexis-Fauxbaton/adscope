@@ -11,7 +11,11 @@ cette liste est un 422, jamais un seau muet qui ne rend jamais rien.
 leboncoin sert neuf codes fuel. Sept avaient une case ; GNV (code 7, 600 à 700
 annonces) et Hydrogène (code 9, une trentaine) n'en avaient pas et retombaient
 sur `autre` — ajoutés au vocabulaire le même jour, sur le même relevé, `autre`
-ne gardant plus que le code 5 (« Autre »). `gearbox` n'a que deux valeurs
+ne gardant plus que le code 5 (« Autre »). `ethanol` (E85) entre à son tour
+(lot F2) pour la Centrale (`BICARBURATION_ESSENCE_BIOETHANOL`) : la table
+`FUEL` 1..9 de leboncoin n'a aucun code pour lui, et on n'en invente pas —
+`sweep_url.translate` retire le paramètre `fuel` entier plutôt que de filtrer
+plus étroit qu'une recherche qui le demande. `gearbox` n'a que deux valeurs
 observées (manuelle, automatique) sur les deux sites ; `autre` reste néanmoins
 la case de repli, pour la même raison que côté fuel : une boîte non reconnue
 ne doit pas faire échouer l'observation.
@@ -34,13 +38,13 @@ OTHER = "autre"
 
 FUEL_VALUES = (
     "essence", "diesel", "hybride", "hybride_rechargeable", "electrique", "gpl",
-    "gnv", "hydrogene", OTHER,
+    "gnv", "hydrogene", "ethanol", OTHER,
 )
 GEARBOX_VALUES = ("manuelle", "automatique", OTHER)
 
 Fuel = Literal[
     "essence", "diesel", "hybride", "hybride_rechargeable", "electrique", "gpl",
-    "gnv", "hydrogene", "autre",
+    "gnv", "hydrogene", "ethanol", "autre",
 ]
 Gearbox = Literal["manuelle", "automatique", "autre"]
 
@@ -50,7 +54,8 @@ Gearbox = Literal["manuelle", "automatique", "autre"]
 FUEL_LABELS = {
     "essence": "Essence", "diesel": "Diesel", "hybride": "Hybride",
     "hybride_rechargeable": "Hybride rechargeable", "electrique": "Électrique",
-    "gpl": "GPL", "gnv": "GNV", "hydrogene": "Hydrogène", OTHER: "Autre",
+    "gpl": "GPL", "gnv": "GNV", "hydrogene": "Hydrogène", "ethanol": "Éthanol",
+    OTHER: "Autre",
 }
 GEARBOX_LABELS = {"manuelle": "Manuelle", "automatique": "Automatique", OTHER: "Autre"}
 
