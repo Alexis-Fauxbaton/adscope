@@ -18,6 +18,7 @@ from .follows import followed_ids
 from .models import Listing
 from .observations import record
 from .intake import AbsenceIn, ObservationsIn
+from .operator import require_operator
 from .revisit import due
 from .schemas import (
     BatchIn, ComparablesOut, RevisitIn, RevisitOut, SellerStatsOut, SignalsOut,
@@ -129,12 +130,12 @@ def get_seller(site: str, seller_id: str, session=Depends(get_session),
     return stats
 
 
-# La file de revisite, et la constatation qui en revient. Les deux se tiennent
-# derrière la même licence que le reste : c'est le crawler local qui prend la
-# file, l'extension qui rapporte ce que la page ouverte a dit.
+# La file de revisite, derrière la clé du crawler ou le cookie de l'opérateur
+# (`require_operator`) — comme `/v1/sweep`, elle rend le périmètre de tous les
+# marchands.
 @app.post("/v1/revisits", response_model=list[RevisitOut])
 def post_revisits(payload: RevisitIn, session=Depends(get_session),
-                  _=Depends(require_license)):
+                  _=Depends(require_operator)):
     items = due(session, payload.site, payload.limit, datetime.now(timezone.utc))
     session.commit()
     return items

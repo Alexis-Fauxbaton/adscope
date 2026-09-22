@@ -1,6 +1,9 @@
 """`GET /v1/sweep` : la file des recherches à balayer, commune à tous les
-comptes et servie derrière une licence quelconque (`require_license`, jamais
-`require_account`) — comme `revisit.due`, la file ne connaît pas l'appelant.
+comptes et servie derrière une clé de licence ou le cookie du compte
+opérateur (`require_operator`, jamais `require_account`) — comme
+`revisit.due`, la file ne connaît pas l'appelant, mais un cookie qui
+l'appelle doit être celui d'Alexis : le périmètre de tous les marchands
+(marque, modèle, prix, département) sort de chaque entrée.
 
 `GET`, pas `POST`, et rien n'est consommé : deux appels de suite rendent la
 même file tant que rien n'a été ouvert. La couverture se mesure sur les
@@ -16,10 +19,10 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 
 from .alert_models import SavedSearch
-from .auth import require_license
 from .coverage import coverage_of
 from .db import get_session
 from .market_params import MarketParams
+from .operator import require_operator
 from .sessions import now_utc
 from .sweep_split import cut
 from .sweep_url import translate
@@ -87,7 +90,7 @@ def _budget(items, pages):
 
 @router.get("/v1/sweep")
 def get_sweep(pages: int = Query(default=DEFAULT_PAGES, ge=1, le=400),
-             session=Depends(get_session), license_=Depends(require_license),
+             session=Depends(get_session), license_=Depends(require_operator),
              now=Depends(now_utc)):
     items, skipped = _entries(session, license_, now)
     kept, used = _budget(items, pages)
