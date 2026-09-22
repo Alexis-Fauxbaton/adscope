@@ -77,7 +77,10 @@ test('leboncoin — chaque code fuel connu se traduit dans le vocabulaire fermé
 // l'empreinte véhicule, `shared/fingerprint-vectors.json` — rien d'équivalent
 // ici). Ce test fige la liste traduite ici pour qu'un écart avec l'API
 // (`test_the_fuel_vocabulary_matches_what_the_extension_sends`) se voie au
-// diff plutôt qu'en silence.
+// diff plutôt qu'en silence. `ethanol` (lot F2) entre côté API sans entrer ici :
+// la table `FUEL` de leboncoin (1..9) n'a aucun code pour lui — rien inventé,
+// voir `extension/tests/lacentrale-fuel.test.mjs` pour La Centrale, qui l'a.
+// Neuf valeurs ici, dix côté API : l'écart est celui-là, et lui seul.
 test('leboncoin — le vocabulaire fuel traduit correspond à celui que l\'API accepte', () => {
   const EXPECTED = { 1: 'essence', 2: 'diesel', 3: 'gpl', 4: 'electrique', 5: 'autre', 6: 'hybride', 7: 'gnv', 8: 'hybride_rechargeable', 9: 'hydrogene' }
   const translated = new Set(Object.keys(EXPECTED).map((code) => leboncoin.normalize(

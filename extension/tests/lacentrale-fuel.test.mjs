@@ -23,6 +23,9 @@ const OBSERVED = [
   ['ELECTRIC', 'electrique'],
   ['BIO_ESSENCE_GPL', 'gpl'],
   ['PLUGIN_HYBRID_DIESEL_ELECTRIC', 'hybride_rechargeable'],
+  // Lot F2 (2026-09-22) : l'éthanol entre au vocabulaire fermé (`api/adscope_api/vocab.py`) ;
+  // ce couple, qui partait en `autre`, gagne sa case dans `FUEL`.
+  ['BICARBURATION_ESSENCE_BIOETHANOL', 'ethanol'],
 ]
 
 const cardFor = (energy) => {
@@ -50,10 +53,10 @@ test('HYBRID_DIESEL_ELECTRIC (non observé) est traduit par symétrie', () => {
 
 // Le mécanisme qui a produit ce lot : une valeur hors table part telle quelle, brute — c'est
 // ainsi que le journal de l'API a vu ces codes. Casse `canon` (le repli sur `fallback`) pour
-// vérifier que ce test rougit ; BICARBURATION_ESSENCE_BIOETHANOL n'est délibérément pas ajouté.
+// vérifier que ce test rougit ; `MYSTERE` n'a jamais été vu ni ajouté à `FUEL`.
 test('une valeur inconnue part brute, non traduite', () => {
-  assert.equal(cardFor('BICARBURATION_ESSENCE_BIOETHANOL').fuel, 'BICARBURATION_ESSENCE_BIOETHANOL')
-  assert.equal(detailFor('BICARBURATION_ESSENCE_BIOETHANOL').fuel, 'BICARBURATION_ESSENCE_BIOETHANOL')
+  assert.equal(cardFor('MYSTERE').fuel, 'MYSTERE')
+  assert.equal(detailFor('MYSTERE').fuel, 'MYSTERE')
 })
 
 // ESSENCE/DIESEL restent traduits : le lot n'a rien cassé de l'existant.

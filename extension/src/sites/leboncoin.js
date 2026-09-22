@@ -32,7 +32,7 @@ ADS.leboncoin = ADS.sites.register((() => {
     return out
   }
 
-  // Vocabulaire fermé, relevé le 2026-09-19 (.superpowers/recherche-lot2-ext.md) ; GNV (7) et Hydrogène (9) ont leur propre case depuis le 2026-09-19, « autre » ne garde plus que le code 5.
+  // Vocabulaire fermé, relevé le 2026-09-19 (.superpowers/recherche-lot2-ext.md) ; GNV (7) et Hydrogène (9) ont leur propre case depuis le 2026-09-19, « autre » ne garde plus que le code 5. Éthanol (E85, lot F2) : aucun code 1..9 connu ici — rien inventé, voir `api/adscope_api/vocab.py`.
   const FUEL = { 1: 'essence', 2: 'diesel', 3: 'gpl', 4: 'electrique', 5: 'autre', 6: 'hybride', 7: 'gnv', 8: 'hybride_rechargeable', 9: 'hydrogene' }
   const GEARBOX = { 1: 'manuelle', 2: 'automatique' }
   // Relevé le 2026-09-06 sur une page réelle : `owner` porte `store_id`, `name`,
