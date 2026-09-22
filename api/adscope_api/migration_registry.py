@@ -2,14 +2,14 @@
 
 Extrait de `migrations.py`, que ce registre faisait grossir d'un lot à
 l'autre — `apply_migrations` et `migrate` restent seuls dans ce dernier. Les
-deux fragments SQL qui ne tiennent pas sur une ligne (`LEDGER`, la clé
-étrangère de la 001) sont dans `migration_sql.py`, sortis pour la même
-raison : le registre gagne une migration par lot, il n'a pas à porter en plus
-ce qui ne change jamais.
+fragments SQL trop longs pour une ligne vivent à part (`migration_sql.py` et
+consorts) : le registre gagne une migration par lot, il n'a pas à porter en
+plus ce qui ne change jamais.
 """
 
 from .migration_sql import ADD_LICENSE_FK, LEDGER
 from .migration_sql_alerts import ALERTS_TABLES
+from .migration_sql_passwords import PASSWORDS_TABLES
 
 __all__ = ["LEDGER", "MIGRATIONS"]
 
@@ -28,11 +28,8 @@ MIGRATIONS = (
         "CREATE INDEX IF NOT EXISTS ix_listings_seller ON listings (site, seller_id)",
     )),
     # Un émetteur automatique n'est pas un utilisateur. La colonne s'ajoute ;
-    # qui elle marque ne se devine pas. Le libellé n'est pas une identité — la
-    # base porte deux licences homonymes, et l'émetteur qui produit sept mille
-    # lignes par jour ne s'appelle pas « crawler » : `UPDATE ... WHERE label =
-    # 'crawler'` marquait au hasard. `scripts/mark_automated.py` la met sur une
-    # licence désignée par sa clé.
+    # qui elle marque ne se devine pas — le libellé n'est pas une identité,
+    # `scripts/mark_automated.py` la pose sur une licence désignée par sa clé.
     ("003_licenses_automated", (
         "ALTER TABLE licenses ADD COLUMN IF NOT EXISTS automated boolean"
         " NOT NULL DEFAULT false",
@@ -147,4 +144,7 @@ MIGRATIONS = (
     )),
     # Les alertes (lot F1) : quatre tables neuves, rien des annonces touché.
     ("013_alerts", ALERTS_TABLES),
+    # Le compte avec mot de passe : trois colonnes vides sur accounts,
+    # `purpose` sur login_tokens, la table mails. Aucun UPDATE.
+    ("014_passwords", PASSWORDS_TABLES),
 )

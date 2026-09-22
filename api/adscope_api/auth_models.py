@@ -13,7 +13,7 @@ le secret lui-même ne rencontre aucune comparaison.
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, func
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
@@ -28,15 +28,31 @@ class Account(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    # `NULL` = pas de mot de passe (compte du lot Comptes, dont celui
+    # d'Alexis) ; la connexion par mot de passe le refuse simplement.
+    password_hash: Mapped[str | None] = mapped_column(String(128), default=None)
+    # Posé à l'inscription sur un compte existant sans mot de passe, promu en
+    # `password_hash` au seul clic sur le lien de vérification — jamais
+    # avant, sinon connaître une adresse suffit à en prendre le compte.
+    pending_password_hash: Mapped[str | None] = mapped_column(String(128), default=None)
+    # `NULL` = email non vérifié : la connexion par mot de passe le refuse
+    # (403) tant que le lien n'a pas été suivi.
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
 
 
 class LoginToken(Base):
-    """Le jeton du lien magique : un usage, un quart d'heure.
+    """Le jeton à usage unique : un lien de vérification ou de
+    réinitialisation, jamais les deux à la fois.
 
     `used_at` marque la consommation plutôt que de supprimer la ligne : un lien
     rejoué doit être refusé, et une ligne effacée ne refuse rien — elle est
     seulement introuvable, ce qui est le même verdict rendu pour une autre
     raison. L'index sert le plafond, qui compte les jetons encore valables.
+    `purpose` (`'verify'` ou `'reset'`) empêche qu'un jeton serve l'autre
+    usage — un lien de vérification qui réinitialiserait un mot de passe
+    serait une porte que Karim n'a jamais ouverte.
     """
 
     __tablename__ = "login_tokens"
@@ -50,6 +66,31 @@ class LoginToken(Base):
     used_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None
     )
+    purpose: Mapped[str] = mapped_column(String(16), default="verify",
+                                         server_default="verify")
+
+
+class Mail(Base):
+    """La boîte d'envoi transactionnelle locale : un email « écrit », pas
+    envoyé — même chemin que l'email du matin (`digest_send.py`), pour que
+    les liens de vérification et de réinitialisation ne dépendent d'aucun
+    fournisseur en développement. `api/scripts/mail_outbox.py --tail` les lit.
+
+    Pas de colonne d'adresse : elle se résout à la lecture (`accounts.email`),
+    comme `digests` le fait déjà, pour ne jamais garder une copie périmée.
+    """
+
+    __tablename__ = "mails"
+    __table_args__ = (Index("ix_mails_account", "account_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE")
+    )
+    kind: Mapped[str] = mapped_column(String(16))
+    subject: Mapped[str] = mapped_column(String(200))
+    text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class SessionToken(Base):

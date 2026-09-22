@@ -9,6 +9,15 @@ from adscope_api.migrations import MIGRATIONS, apply_migrations
 
 
 def to_old_shape(session):
+    session.execute(text("DROP TABLE IF EXISTS mails"))
+    session.execute(text("ALTER TABLE login_tokens DROP COLUMN IF EXISTS purpose"))
+    session.execute(text("ALTER TABLE accounts DROP COLUMN IF EXISTS password_hash"))
+    session.execute(
+        text("ALTER TABLE accounts DROP COLUMN IF EXISTS pending_password_hash")
+    )
+    session.execute(
+        text("ALTER TABLE accounts DROP COLUMN IF EXISTS email_verified_at")
+    )
     session.execute(text("DROP TABLE IF EXISTS digests"))
     session.execute(text("DROP TABLE IF EXISTS alerts_sent"))
     session.execute(text("DROP TABLE IF EXISTS account_settings"))
@@ -422,3 +431,99 @@ def test_the_index_on_alerts_sent_listing_id_exists(session):
         "SELECT indexname FROM pg_indexes WHERE tablename = 'alerts_sent'"
     ))
     assert "ix_alerts_sent_listing" in {row[0] for row in indexes}
+
+
+# Le compte avec mot de passe (ce lot) arrive sur une base qui porte des
+# comptes et des jetons existants : les trois colonnes s'ajoutent vides.
+def test_migration_adds_the_password_columns(session):
+    to_old_shape(session)
+    assert not {"password_hash", "pending_password_hash", "email_verified_at"} & columns(
+        session, "accounts"
+    )
+    apply_migrations(session.connection())
+    assert {"password_hash", "pending_password_hash", "email_verified_at"} <= columns(
+        session, "accounts"
+    )
+
+
+# `purpose` a un défaut : un jeton frappé avant la migration (encore en vol)
+# reste valide, et se comporte comme un jeton de vérification.
+def test_migration_adds_purpose_with_a_verify_default(session):
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    session.execute(text(
+        "INSERT INTO accounts (email) VALUES ('avant@garage.fr')"
+    ))
+    session.execute(text(
+        "INSERT INTO login_tokens (token_hash, account_id, expires_at)"
+        " SELECT 'h', id, now() FROM accounts WHERE email = 'avant@garage.fr'"
+    ))
+    assert session.execute(
+        text("SELECT purpose FROM login_tokens WHERE token_hash = 'h'")
+    ).scalar() == "verify"
+
+
+def test_migration_adds_the_mails_table_and_its_index(session):
+    to_old_shape(session)
+    assert "mails" not in tables(session)
+    apply_migrations(session.connection())
+    assert "mails" in tables(session)
+    indexes = session.execute(text(
+        "SELECT indexname FROM pg_indexes WHERE tablename = 'mails'"
+    ))
+    assert "ix_mails_account" in {row[0] for row in indexes}
+
+
+# Rien n'est rétro-marqué vérifié : la migration ne contient aucun UPDATE, un
+# compte d'avant ce lot (dont celui d'Alexis) garde sa session et sa licence.
+# Seules les additions de la 014 sont défaites ici — le compte, lui, existait
+# déjà avant ce lot (migration 009), inutile de rejouer toute l'histoire.
+def test_an_existing_account_keeps_its_session_and_license_untouched(session):
+    session.execute(text("INSERT INTO accounts (email) VALUES ('alexis@garage.fr')"))
+    session.execute(text("DROP TABLE IF EXISTS mails"))
+    session.execute(text("ALTER TABLE login_tokens DROP COLUMN IF EXISTS purpose"))
+    session.execute(text("ALTER TABLE accounts DROP COLUMN IF EXISTS password_hash"))
+    session.execute(
+        text("ALTER TABLE accounts DROP COLUMN IF EXISTS pending_password_hash")
+    )
+    session.execute(
+        text("ALTER TABLE accounts DROP COLUMN IF EXISTS email_verified_at")
+    )
+    account_id = session.execute(
+        text("SELECT id FROM accounts WHERE email = 'alexis@garage.fr'")
+    ).scalar()
+    session.execute(text(
+        "INSERT INTO licenses (key_hash, label, account_id, active)"
+        " VALUES ('lic', 'alexis', :account_id, true)"
+    ), {"account_id": account_id})
+    session.execute(text(
+        "INSERT INTO sessions (token_hash, account_id, created_at, last_seen_at,"
+        " expires_at) VALUES ('sess', :account_id, now(), now(), now() + interval '90 days')"
+    ), {"account_id": account_id})
+    apply_migrations(session.connection())
+    assert session.execute(
+        text("SELECT password_hash, email_verified_at FROM accounts WHERE id = :i"),
+        {"i": account_id},
+    ).one() == (None, None)
+    assert session.execute(
+        text("SELECT count(*) FROM sessions WHERE account_id = :i"), {"i": account_id}
+    ).scalar() == 1
+    assert session.execute(
+        text("SELECT active FROM licenses WHERE account_id = :i"), {"i": account_id}
+    ).scalar() is True
+
+
+def test_the_014_migration_produces_the_columns_that_create_all_produces(session):
+    from adscope_api.auth_models import Account, LoginToken, Mail
+
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    assert columns(session, "accounts") == set(Account.__table__.c.keys())
+    assert columns(session, "login_tokens") == set(LoginToken.__table__.c.keys())
+    assert columns(session, "mails") == set(Mail.__table__.c.keys())
+
+
+def test_the_014_migration_is_replayable(session):
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    assert apply_migrations(session.connection()) == []
