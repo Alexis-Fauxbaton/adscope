@@ -10,6 +10,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from adscope_api import passwords, usage
+from adscope_api import sessions as sessions_module
 from adscope_api.rate_limit import limiter
 from adscope_api.auth import hash_key, new_key
 from adscope_api.db import create_all, get_session
@@ -61,6 +62,17 @@ def client(session):
 
 def auth(key):
     return {"Authorization": f"Bearer {key}"}
+
+
+# Pose une session directement (sans passer par la route de connexion) et
+# l'installe sur le client de test : sert les tests qui éprouvent le cookie et
+# ce qu'il ouvre, pas le parcours d'authentification lui-même — celui-ci est
+# éprouvé de bout en bout dans `test_auth_signup.py` et `test_auth_login.py`.
+def sign_in(client, session, account_id, now):
+    raw = sessions_module.create(session, account_id, now)
+    session.commit()
+    client.cookies.set(sessions_module.COOKIE, raw)
+    return client
 
 
 NOW = datetime(2026, 9, 18, 12, 0, tzinfo=timezone.utc)

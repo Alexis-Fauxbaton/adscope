@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from adscope_api import login_tokens
 from adscope_api.auth import hash_key, new_key
 from adscope_api.auth_models import Account, SessionToken
 from adscope_api.db import get_session
@@ -19,14 +20,10 @@ from adscope_api.models import License, Listing
 from adscope_api.sessions import COOKIE
 
 from conftest import NOW, auth
+from conftest import sign_in as pose_session
 
 MINE = "3263259495"
 XA = {"X-Adscope": "1"}
-
-
-@pytest.fixture(autouse=True)
-def _dev(monkeypatch):
-    monkeypatch.setenv("ADSCOPE_DEV_LOGIN", "1")
 
 
 # Le navigateur du marchand : `is_secure` ne regarde plus l'hôte de la
@@ -50,11 +47,25 @@ def enrolled(session, email="pro@garage.fr", label="garage"):
     return account, key
 
 
-def sign_in(browser, email="pro@garage.fr"):
-    """Le parcours entier, comme un navigateur : lien, vérification, cookie."""
-    link = browser.post("/v1/auth/login", json={"email": email}).json()["dev_link"]
-    browser.get(link, follow_redirects=False)
-    return browser
+# Ce dossier éprouve le cookie et ce qu'il ouvre, pas le parcours
+# d'authentification lui-même (voir `test_auth_signup.py`, `test_auth_login.py`
+# et `test_auth_reset.py`) : `sign_in` pose donc la session directement,
+# `pose_session` de `conftest.py`, sur un compte déjà inscrit par `enrolled`.
+def sign_in(browser, session, now, email="pro@garage.fr"):
+    account = session.scalar(select(Account).where(Account.email == email))
+    return pose_session(browser, session, account.id, now)
+
+
+def posed_cookie(opened, session, now, headers=None):
+    """Le `Set-Cookie` d'une vraie route — `/v1/auth/verify` — pour éprouver
+    les attributs que `sessions.set_cookie` y pose face à un `Host` forgé.
+    Le compte est déjà posé par l'appelant (`enrolled`)."""
+    account = session.scalar(select(Account).where(Account.email == "pro@garage.fr"))
+    token = login_tokens.mint(session, account.id, "verify", now)
+    session.commit()
+    merged = {**XA, **(headers or {})}
+    return opened.post("/v1/auth/verify", json={"token": token},
+                       headers=merged).headers["set-cookie"]
 
 
 def listed(session, site_id=MINE):
@@ -70,7 +81,7 @@ def listed(session, site_id=MINE):
 # recommence à chaque page.
 def test_the_cookie_opens_the_routes_without_a_key(browser, session, clock):
     enrolled(session)
-    sign_in(browser)
+    sign_in(browser, session, clock.now)
     assert browser.get("/v1/follows").status_code == 200
 
 
@@ -78,16 +89,9 @@ def test_the_cookie_opens_the_routes_without_a_key(browser, session, clock):
 # de session vaut la clé, une base lue ne doit pas en livrer un seul en clair.
 def test_the_session_id_is_never_stored_in_the_clear(browser, session, clock):
     enrolled(session)
-    sign_in(browser)
+    sign_in(browser, session, clock.now)
     stored = session.scalars(select(SessionToken.token_hash)).all()
     assert stored and browser.cookies[COOKIE] not in stored
-
-
-def posed_cookie(opened, headers=None):
-    link = opened.post("/v1/auth/login", json={"email": "pro@garage.fr"},
-                        headers=headers).json()["dev_link"]
-    return opened.get(link, follow_redirects=False,
-                       headers=headers).headers["set-cookie"]
 
 
 # Fait rougir chaque attribut posé par `sessions.set_cookie` : `HttpOnly` tient
@@ -102,7 +106,7 @@ def posed_cookie(opened, headers=None):
 def test_the_cookie_carries_its_attributes(client, session, clock, monkeypatch):
     monkeypatch.setenv("ADSCOPE_PUBLIC_URL", "https://app.adscope.fr")
     enrolled(session)
-    posed = posed_cookie(client)
+    posed = posed_cookie(client, session, clock.now)
     assert "adscope_session=" in posed
     assert "HttpOnly" in posed and "Path=/" in posed
     assert "Max-Age=7776000" in posed and "SameSite=lax" in posed
@@ -115,7 +119,7 @@ def test_the_cookie_carries_its_attributes(client, session, clock, monkeypatch):
 # fois puis plus jamais.
 def test_the_cookie_is_not_secure_on_the_local_machine(browser, session, clock):
     enrolled(session)
-    assert "Secure" not in posed_cookie(browser)
+    assert "Secure" not in posed_cookie(browser, session, clock.now)
 
 
 # Fait rougir `is_secure` en le cassant pour lire `request.url.hostname` (la
@@ -124,7 +128,7 @@ def test_the_cookie_is_not_secure_on_the_local_machine(browser, session, clock):
 # exact de la faille : `POST /v1/auth/logout` avec `Host: app.adscope.fr`.
 def test_a_forged_host_does_not_add_secure_when_public_url_is_local(client, session, clock):
     enrolled(session)
-    posed = posed_cookie(client, headers={"Host": "app.adscope.fr"})
+    posed = posed_cookie(client, session, clock.now, headers={"Host": "app.adscope.fr"})
     assert "Secure" not in posed
 
 
@@ -134,7 +138,7 @@ def test_a_forged_host_does_not_add_secure_when_public_url_is_local(client, sess
 def test_a_forged_host_does_not_remove_secure_when_public_url_is_https(client, session, clock, monkeypatch):
     monkeypatch.setenv("ADSCOPE_PUBLIC_URL", "https://app.adscope.fr")
     enrolled(session)
-    posed = posed_cookie(client, headers={"Host": "localhost"})
+    posed = posed_cookie(client, session, clock.now, headers={"Host": "localhost"})
     assert "Secure" in posed
 
 
@@ -142,7 +146,7 @@ def test_a_forged_host_does_not_remove_secure_when_public_url_is_https(client, s
 # est longue, elle n'est pas éternelle.
 def test_an_expired_session_is_refused(browser, session, clock):
     enrolled(session)
-    sign_in(browser)
+    sign_in(browser, session, clock.now)
     clock.now = NOW + timedelta(days=91)
     assert browser.get("/v1/follows").status_code == 401
 
@@ -152,7 +156,7 @@ def test_an_expired_session_is_refused(browser, session, clock):
 # s'il s'est servi du site tous les jours.
 def test_a_session_in_use_slides(browser, session, clock):
     enrolled(session)
-    sign_in(browser)
+    sign_in(browser, session, clock.now)
     clock.now = NOW + timedelta(days=89)
     assert browser.get("/v1/follows").status_code == 200
     clock.now = NOW + timedelta(days=178)
@@ -164,7 +168,7 @@ def test_a_session_in_use_slides(browser, session, clock):
 # chaque lecture du marché une écriture sur la ligne de session.
 def test_last_seen_is_refreshed_once_a_day_at_most(browser, session, clock):
     enrolled(session)
-    sign_in(browser)
+    sign_in(browser, session, clock.now)
     clock.now = NOW + timedelta(hours=5)
     browser.get("/v1/follows")
     session.expire_all()
@@ -180,7 +184,7 @@ def test_last_seen_is_refreshed_once_a_day_at_most(browser, session, clock):
 # oublier le cookie du côté du navigateur.
 def test_logout_closes_the_session(browser, session, clock):
     enrolled(session)
-    sign_in(browser)
+    sign_in(browser, session, clock.now)
     kept = browser.cookies[COOKIE]
     assert browser.post("/v1/auth/logout", headers=XA).status_code == 204
     assert session.scalars(select(SessionToken)).all() == []
@@ -197,7 +201,7 @@ def test_logout_closes_the_session(browser, session, clock):
 # précisément sur cette requête.
 def test_logout_clears_the_cookie_ignoring_a_forged_host(browser, session, clock):
     enrolled(session)
-    sign_in(browser)
+    sign_in(browser, session, clock.now)
     cleared = browser.post("/v1/auth/logout",
                             headers={**XA, "Host": "app.adscope.fr"})
     assert "Secure" not in cleared.headers["set-cookie"]
@@ -206,7 +210,7 @@ def test_logout_clears_the_cookie_ignoring_a_forged_host(browser, session, clock
 def test_a_cookie_write_without_the_header_is_refused(browser, session, clock):
     enrolled(session)
     listed(session)
-    sign_in(browser)
+    sign_in(browser, session, clock.now)
     posted = browser.post("/v1/follows", json={"site": "lbc", "site_id": MINE})
     assert posted.status_code == 403
 
@@ -214,7 +218,7 @@ def test_a_cookie_write_without_the_header_is_refused(browser, session, clock):
 def test_a_cookie_write_with_the_header_passes(browser, session, clock):
     enrolled(session)
     listed(session)
-    sign_in(browser)
+    sign_in(browser, session, clock.now)
     posted = browser.post("/v1/follows", json={"site": "lbc", "site_id": MINE},
                          headers=XA)
     assert posted.status_code == 201
@@ -233,7 +237,7 @@ def test_a_bearer_write_needs_no_header(browser, session, clock):
 
 def test_a_cookie_read_needs_no_header(browser, session, clock):
     enrolled(session)
-    sign_in(browser)
+    sign_in(browser, session, clock.now)
     assert browser.get("/v1/follows").status_code == 200
 
 
@@ -246,7 +250,7 @@ def test_a_session_reaches_only_its_own_follows(browser, session, clock):
     listing = listed(session)
     browser.post("/v1/follows", json={"site": "lbc", "site_id": listing.site_id},
                 headers=auth(mine))
-    sign_in(browser, "autre@garage.fr")
+    sign_in(browser, session, clock.now, "autre@garage.fr")
     assert browser.get("/v1/follows").json() == []
     assert browser.get("/v1/me").json()["email"] == "autre@garage.fr"
 
@@ -255,7 +259,7 @@ def test_a_session_reaches_only_its_own_follows(browser, session, clock):
 # pas rester ouverte par une session que le marchand tenait déjà.
 def test_a_revoked_license_closes_the_session(browser, session, clock):
     account, _ = enrolled(session)
-    sign_in(browser)
+    sign_in(browser, session, clock.now)
     session.scalars(select(License)).one().active = False
     session.commit()
     assert browser.get("/v1/follows").status_code == 401
@@ -269,7 +273,7 @@ def test_me_gives_no_email_for_a_machine_key(browser, session, key, clock):
 
 def test_me_gives_the_email_behind_the_cookie(browser, session, clock):
     enrolled(session)
-    sign_in(browser)
+    sign_in(browser, session, clock.now)
     assert browser.get("/v1/me").json() == {
         "email": "pro@garage.fr", "label": "garage", "expires_at": None,
     }
