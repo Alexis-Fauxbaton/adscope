@@ -10,6 +10,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from adscope_api import passwords, usage
+from adscope_api.rate_limit import limiter
 from adscope_api.auth import hash_key, new_key
 from adscope_api.db import create_all, get_session
 from adscope_api.main import app
@@ -92,6 +93,15 @@ def _day_not_closed_yet():
 def _cheap_hasher(monkeypatch):
     monkeypatch.setattr(passwords, "_hasher",
                         PasswordHasher(time_cost=1, memory_cost=8, parallelism=1))
+
+
+# Le limiteur de débit est un état de module (`rate_limit._hits`) : il
+# traverserait sinon d'un test à l'autre.
+@pytest.fixture(autouse=True)
+def _rate_limits_reset():
+    limiter.reset()
+    yield
+    limiter.reset()
 
 
 # Les tests de concurrence demandent de vraies connexions distinctes : deux
