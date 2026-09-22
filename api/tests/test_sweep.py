@@ -203,7 +203,7 @@ def test_a_paused_search_is_absent_from_the_queue(client, key, session, clock):
     assert body["items"] == [] and body["skipped"] == []
 
 
-# Fait rougir `require_license` (et non `require_account`) : une clé de
+# Fait rougir `require_operator` (et non `require_account`) : une clé de
 # machine sans compte entre dans la file.
 def test_a_license_without_an_account_gets_200(client, session, clock):
     raw = new_key()
