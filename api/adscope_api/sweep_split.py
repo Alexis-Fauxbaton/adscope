@@ -22,9 +22,11 @@ MAX_ENTRIES = 8
 
 
 def _pages(total):
-    # Le `max(1, …)` fait ouvrir sa page 1 à une recherche neuve dont le
-    # périmètre est vide en base — sans lui, elle ne se remplirait jamais.
-    return max(1, math.ceil(total / ADS_PER_PAGE))
+    # Le `+ 1` : sans marge au-delà de ce qu'on connaît déjà, une recherche
+    # dont `total` tombe pile sur une frontière de page (35 connues → 1 page)
+    # rouvrirait indéfiniment les mêmes annonces, couverture bloquée à 100 %
+    # sans jamais découvrir le reste du marché réel.
+    return max(1, math.ceil(total / ADS_PER_PAGE) + 1)
 
 
 def _count(session, license_, now, params):
@@ -41,7 +43,10 @@ def _price_bounds(params):
     high = params.price_max
     if high is None:
         high = low * 2 if low else 5000
-    mid = round((low + high) / 2, -2)
+    # `int(...)` : `model_copy(update=...)` (pydantic v2) ne revalide rien,
+    # un `mid` flottant survivrait tel quel jusqu'à l'f-string de
+    # `sweep_url.translate` (`price=1200.0-...`).
+    mid = int(round((low + high) / 2, -2))
     return max(mid, low + 1)
 
 

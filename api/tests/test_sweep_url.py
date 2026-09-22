@@ -104,6 +104,15 @@ def test_a_missing_price_max_becomes_the_max_keyword(session):
     assert "price=5000-max" in url
 
 
+# Fait rougir `params.year_min if ... is not None else 1900` : une borne à
+# zéro (`year_min=0`, acceptée par `MarketParams`, `ge=0`) ne doit pas se lire
+# comme absente et retomber sur 1900.
+def test_a_year_min_of_zero_is_not_silently_dropped(session):
+    listing(session, "1", brand="Peugeot", model="208")
+    url, *_ = translate(session, params(brand="Peugeot", model="208", year_min=0, year_max=2020))
+    assert "regdate=0-2020" in url
+
+
 # Fait rougir l'appel à `market_filters.combined` : sans lui, une région
 # seule (sans département explicite) ne rendrait aucun `locations`.
 def test_department_and_region_combine_into_locations(session):

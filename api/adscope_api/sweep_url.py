@@ -93,9 +93,11 @@ def translate(session, params):
         pairs.append(("gearbox", ",".join(sorted(gearbox_codes))))
 
     if params.year_min is not None or params.year_max is not None:
-        pairs.append(("regdate", f"{params.year_min or 1900}-{params.year_max or 'max'}"))
+        year_min = params.year_min if params.year_min is not None else 1900
+        pairs.append(("regdate", f"{year_min}-{params.year_max or 'max'}"))
     if params.mileage_min is not None or params.mileage_max is not None:
-        pairs.append(("mileage", f"{params.mileage_min or 0}-{params.mileage_max or 'max'}"))
+        mileage_min = params.mileage_min if params.mileage_min is not None else 0
+        pairs.append(("mileage", f"{mileage_min}-{params.mileage_max or 'max'}"))
 
     departments = combined_departments(params.department or None, params.region or None)
     if departments:

@@ -10,7 +10,7 @@ from adscope_api.main import app
 from adscope_api.models import License, Listing
 from adscope_api.taxonomy import derive
 
-from conftest import auth
+from conftest import auth, sign_in
 
 NOW = datetime(2026, 9, 18, 9, 0, tzinfo=timezone.utc)
 XA = {"X-Adscope": "1"}
@@ -94,11 +94,13 @@ def test_a_key_without_an_account_gets_403(client, session):
 # Fait rougir `sessions.check_csrf` : une écriture par cookie de session,
 # sans l'en-tête, est refusée. (Une clé `Bearer` en est dispensée — rien
 # d'ambiant ne l'authentifie, voir `sessions.check_csrf`.)
-def test_post_by_cookie_without_x_adscope_header_is_403(browser, session, clock, monkeypatch):
-    monkeypatch.setenv("ADSCOPE_DEV_LOGIN", "1")
-    enrolled(session, "cookie@garage.fr")
-    link = browser.post("/v1/auth/login", json={"email": "cookie@garage.fr"}).json()["dev_link"]
-    browser.get(link, follow_redirects=False)
+def test_post_by_cookie_without_x_adscope_header_is_403(browser, session, clock):
+    account = Account(email="cookie@garage.fr")
+    session.add(account)
+    session.flush()
+    session.add(License(key_hash=hash_key(new_key()), label="garage", account_id=account.id))
+    session.commit()
+    sign_in(browser, session, account.id, clock.now)
     resp = browser.post("/v1/searches", json=BODY)
     assert resp.status_code == 403
 

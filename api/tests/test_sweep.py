@@ -48,7 +48,7 @@ def sweep(client, key, **params):
 
 # Fait rougir la clé de dédoublonnage (`SavedSearch.query`, `.distinct()`) :
 # deux comptes qui enregistrent la même recherche ne rendent qu'une entrée.
-def test_two_accounts_same_search_is_one_entry(client, key, session):
+def test_two_accounts_same_search_is_one_entry(client, key, session, clock):
     a = enrolled(session, "a@garage.fr")
     b = enrolled(session, "b@garage.fr")
     car(session, "1", brand="Peugeot", model="208")
@@ -62,7 +62,7 @@ def test_two_accounts_same_search_is_one_entry(client, key, session):
 # Fait rougir tout ajout futur d'une clé de compte à une entrée : les clés
 # rendues sont exactement celles du contrat, jamais un `id`, un `account_id`
 # ou un nom.
-def test_an_entry_has_exactly_these_keys(client, key, session):
+def test_an_entry_has_exactly_these_keys(client, key, session, clock):
     a = enrolled(session, "a@garage.fr")
     car(session, "1", brand="Peugeot", model="208")
     session.commit()
@@ -87,9 +87,9 @@ def test_lower_coverage_is_served_before_higher(client, key, session, clock):
     assert [round(i["coverage_24h"], 1) for i in items] == [0.2, 0.9]
 
 
-# Fait rougir le `nulls_first` : un périmètre vide (recherche dont aucune
-# annonce du filtre n'a de prix, donc aucune ne satisfait `price_min`) passe
-# devant une couverture chiffrée.
+# Fait rougir le premier terme du tuple de tri (`coverage_24h is not None`) :
+# un périmètre vide (recherche dont aucune annonce du filtre n'a de prix,
+# donc aucune ne satisfait `price_min`) passe devant une couverture chiffrée.
 def test_null_coverage_comes_first(client, key, session, clock):
     a = enrolled(session, "a@garage.fr")
     car(session, "1", brand="Peugeot", model="208")  # sans prix
@@ -103,18 +103,32 @@ def test_null_coverage_comes_first(client, key, session, clock):
 
 
 # Fait rougir le `ceil(total/35)`.
-def test_36_listings_need_two_pages(client, key, session):
+def test_36_listings_need_two_pages(client, key, session, clock):
     a = enrolled(session, "a@garage.fr")
     for i in range(36):
         car(session, str(i), brand="Peugeot", model="208")
     session.commit()
     saved(session, a, "brand=Peugeot&model=208")
     item = sweep(client, key).json()["items"][0]
-    assert (item["expected_total"], item["pages"]) == (36, 2)
+    assert (item["expected_total"], item["pages"]) == (36, 3)
+
+
+# Fait rougir le `+ 1` de `_pages` : sans lui, un périmètre entièrement connu
+# (35 annonces en base, pas une de plus) ouvre une seule page qui ne montre
+# jamais que ce qu'on connaît déjà — la couverture plafonne à 100 % pour
+# toujours sans jamais découvrir le reste du marché réel.
+def test_a_fully_known_perimeter_still_opens_a_spare_page(client, key, session, clock):
+    a = enrolled(session, "a@garage.fr")
+    for i in range(35):
+        car(session, str(i), brand="Peugeot", model="208")
+    session.commit()
+    saved(session, a, "brand=Peugeot&model=208")
+    item = sweep(client, key).json()["items"][0]
+    assert (item["expected_total"], item["pages"]) == (35, 2)
 
 
 # Fait rougir le `max(1, ...)` : un périmètre vide ouvre quand même sa page 1.
-def test_an_empty_perimeter_still_opens_page_one(client, key, session):
+def test_an_empty_perimeter_still_opens_page_one(client, key, session, clock):
     a = enrolled(session, "a@garage.fr")
     car(session, "1", brand="Peugeot", model="208")  # seed l'écriture, sans prix
     session.commit()
@@ -123,8 +137,26 @@ def test_an_empty_perimeter_still_opens_page_one(client, key, session):
     assert (item["expected_total"], item["pages"]) == (0, 1)
 
 
+# Fait rougir `mid = round((low + high) / 2, -2)` en flottant (division
+# vraie) : au-delà du plafond avec `seller_type` déjà fixé, la coupe passe
+# directement par le prix — jamais un point dans le paramètre `price` de
+# l'URL (`params.model_copy` ne revalide rien en pydantic v2).
+def test_price_split_keeps_integer_bounds(client, key, session, clock):
+    a = enrolled(session, "a@garage.fr")
+    for i in range(900):
+        car(session, str(i), brand="Peugeot", model="208", seller_type="pro",
+            prices=[(NOW, 5 * i)])
+    session.commit()
+    saved(session, a, "brand=Peugeot&model=208&seller_type=pro")
+    items = sweep(client, key).json()["items"]
+    assert len(items) >= 2
+    for item in items:
+        price = item["url"].split("price=")[1].split("&")[0]
+        assert "." not in price
+
+
 # Fait rougir le plafond `PAGE_CAP = 20` et le découpage `owner_type`.
-def test_900_listings_split_by_owner_type(client, key, session):
+def test_900_listings_split_by_owner_type(client, key, session, clock):
     a = enrolled(session, "a@garage.fr")
     for i in range(450):
         car(session, f"pr{i}", brand="Peugeot", model="208", seller_type="private")
@@ -140,11 +172,11 @@ def test_900_listings_split_by_owner_type(client, key, session):
 
 
 # Fait rougir le `break` du budget (et pas un `continue`, qui affamerait
-# indéfiniment les grosses recherches) : trois entrées triées Citroën (6
-# pages), Peugeot (6 pages), Renault (3 pages) ; budget 10. Citroën tient,
+# indéfiniment les grosses recherches) : trois entrées triées Citroën (7
+# pages), Peugeot (7 pages), Renault (4 pages) ; budget 10. Citroën tient,
 # Peugeot ne tient pas et arrête tout — Renault ne doit jamais être servie,
 # alors qu'elle tiendrait seule dans les 4 pages restantes.
-def test_the_budget_stops_at_the_first_entry_that_does_not_fit(client, key, session):
+def test_the_budget_stops_at_the_first_entry_that_does_not_fit(client, key, session, clock):
     a = enrolled(session, "a@garage.fr")
     for i in range(200):
         car(session, f"c{i}", brand="Citroen", model="C3")
@@ -157,12 +189,12 @@ def test_the_budget_stops_at_the_first_entry_that_does_not_fit(client, key, sess
     saved(session, a, "brand=Peugeot&model=208", name="peu")
     saved(session, a, "brand=Renault&model=Clio", name="ren")
     body = sweep(client, key, pages=10).json()
-    assert [i["pages"] for i in body["items"]] == [6]
-    assert body["pages"] == 6
+    assert [i["pages"] for i in body["items"]] == [7]
+    assert body["pages"] == 7
 
 
 # Fait rougir `where(SavedSearch.paused.is_(False))`.
-def test_a_paused_search_is_absent_from_the_queue(client, key, session):
+def test_a_paused_search_is_absent_from_the_queue(client, key, session, clock):
     a = enrolled(session, "a@garage.fr")
     car(session, "1", brand="Peugeot", model="208")
     session.commit()
@@ -173,7 +205,7 @@ def test_a_paused_search_is_absent_from_the_queue(client, key, session):
 
 # Fait rougir `require_license` (et non `require_account`) : une clé de
 # machine sans compte entre dans la file.
-def test_a_license_without_an_account_gets_200(client, session):
+def test_a_license_without_an_account_gets_200(client, session, clock):
     raw = new_key()
     session.add(License(key_hash=hash_key(raw), label="crawler"))
     session.commit()
