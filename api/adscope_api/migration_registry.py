@@ -9,6 +9,7 @@ plus ce qui ne change jamais.
 
 from .migration_sql import ADD_LICENSE_FK, LEDGER
 from .migration_sql_alerts import ALERTS_TABLES
+from .migration_sql_login_tokens import LOGIN_TOKENS_PENDING_PASSWORD
 from .migration_sql_passwords import PASSWORDS_TABLES
 
 __all__ = ["LEDGER", "MIGRATIONS"]
@@ -147,4 +148,7 @@ MIGRATIONS = (
     # Le compte avec mot de passe : trois colonnes vides sur accounts,
     # `purpose` sur login_tokens, la table mails. Aucun UPDATE.
     ("014_passwords", PASSWORDS_TABLES),
+    # Balayage de relecture (prise de compte) : le mot de passe en attente
+    # voyage sur le jeton qui l'a envoyé, pas sur une case partagée du compte.
+    ("015_login_tokens_pending_password", LOGIN_TOKENS_PENDING_PASSWORD),
 )

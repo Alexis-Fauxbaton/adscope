@@ -31,9 +31,10 @@ class Account(Base):
     # `NULL` = pas de mot de passe (compte du lot Comptes, dont celui
     # d'Alexis) ; la connexion par mot de passe le refuse simplement.
     password_hash: Mapped[str | None] = mapped_column(String(128), default=None)
-    # Posé à l'inscription sur un compte existant sans mot de passe, promu en
-    # `password_hash` au seul clic sur le lien de vérification — jamais
-    # avant, sinon connaître une adresse suffit à en prendre le compte.
+    # Vide et plus lue depuis la revue du lot comptes-avec-mot-de-passe :
+    # une case partagée du compte ne peut pas dire QUEL jeton en vol l'a
+    # posée (`login_tokens.pending_password_hash` la remplace). Gardée, non
+    # supprimée : une migration ne détruit rien ici.
     pending_password_hash: Mapped[str | None] = mapped_column(String(128), default=None)
     # `NULL` = email non vérifié : la connexion par mot de passe le refuse
     # (403) tant que le lien n'a pas été suivi.
@@ -68,6 +69,10 @@ class LoginToken(Base):
     )
     purpose: Mapped[str] = mapped_column(String(16), default="verify",
                                          server_default="verify")
+    # Le mot de passe que CE jeton promeut, s'il en porte un (usage
+    # `verify` d'une inscription) ; `NULL` pour un jeton `reset`, qui ne
+    # pose jamais de mot de passe lui-même. Voir `accounts.signup`.
+    pending_password_hash: Mapped[str | None] = mapped_column(String(128), default=None)
 
 
 class Mail(Base):
