@@ -9,6 +9,7 @@ ADS.account = (() => {
   const { el, note } = ADS.dom
 
   let key = ''
+  let connected = false
 
   const showKey = () => {
     el('key-saved').hidden = !key
@@ -49,9 +50,11 @@ ADS.account = (() => {
   // reste dans les gestes qu'une popup fait déjà sans permission propre, à la
   // différence de `chrome.tabs.create`. Même bouton, connecté ou non : c'est
   // le seul geste qu'un humain fait ici — se connecter, ou revoir son compte.
+  // Sans session, il pointe droit sur la page Connexion plutôt que sur
+  // l'application (qui n'y ferait que rediriger).
   const openApp = () => {
     const apiBase = base(el('api').value)
-    if (isBase(apiBase)) window.open(`${apiBase}/app`, '_blank')
+    if (isBase(apiBase)) window.open(`${apiBase}/app${connected ? '' : '/#/connexion'}`, '_blank')
     return isBase(apiBase)
   }
 
@@ -61,7 +64,7 @@ ADS.account = (() => {
   // le service worker — lui seul sait Bearer ou cookie de session — jamais une
   // clé lue ici, pour rester vrai même quand aucune n'est configurée.
   const showAccount = (me) => {
-    const connected = me && me.ok && me.email
+    connected = Boolean(me && me.ok && me.email)
     el('account').textContent = connected ? me.email : ''
     el('account').hidden = !connected
     el('open-app').textContent = connected ? 'Ouvrir adscope' : 'Se connecter'

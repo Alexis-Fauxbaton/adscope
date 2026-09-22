@@ -3,9 +3,20 @@ import assert from 'node:assert/strict'
 import { detail, open, signals } from './popup-dom.mjs'
 
 // Rouge sur `window.open` dans le handler `el('open-app').onclick` de
-// popup/account.js : sans lui, le bouton ne fait rien.
-test('le bouton « Ouvrir adscope » ouvre l’app du site dans un nouvel onglet', async () => {
+// popup/account.js : sans lui, le bouton ne fait rien. Sans session (le
+// défaut de `open()`), il pointe vers la page Connexion du site.
+test('le bouton « Se connecter » ouvre la page de connexion du site', async () => {
   const { nodes, opened } = await open({ status: detail(), apiBase: 'http://api' })
+  nodes['open-app'].onclick()
+  assert.deepEqual(opened, [{ url: 'http://api/app/#/connexion', target: '_blank' }])
+})
+
+// Rouge sur le `connected ? '' : '/#/connexion'` du même handler : une
+// session ouverte doit ouvrir l'application, pas repasser par la connexion.
+test('le bouton « Ouvrir adscope » ouvre l’app du site, sans repasser par la connexion', async () => {
+  const { nodes, opened } = await open({
+    status: detail(), apiBase: 'http://api', me: { ok: true, email: 'garage@dupont.fr', label: 'Garage Dupont' },
+  })
   nodes['open-app'].onclick()
   assert.deepEqual(opened, [{ url: 'http://api/app', target: '_blank' }])
 })

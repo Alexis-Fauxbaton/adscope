@@ -94,11 +94,11 @@ test('le bouton Réessayer refait un appel, et ne demande rien au navigateur', a
 
 // Fait rougir `logged_out: () => ADS.account.openApp()` de popup/alerts.js :
 // la session se rouvre sur le site, pas dans la fenêtre.
-test("une session tombée renvoie à l'application, sur l'adresse configurée", async () => {
+test("une session tombée renvoie à la connexion du site, sur l'adresse configurée", async () => {
   const w = await open({ status: detail(), problems: [OUT], apiBase: 'http://api' })
   assert.equal(said(lines(w)[0]), 'Session adscope expirée : reconnectez-vous.')
   await act(lines(w)[0]).click()
-  assert.deepEqual(w.opened, [{ url: 'http://api/app', target: '_blank' }])
+  assert.deepEqual(w.opened, [{ url: 'http://api/app/#/connexion', target: '_blank' }])
 })
 
 // Trois pannes à la fois, chacune avec son geste : la fenêtre ne choisit pas

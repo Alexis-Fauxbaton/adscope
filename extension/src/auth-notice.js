@@ -26,7 +26,7 @@ ADS.authNotice = (() => {
     const label = document.createElement('span')
     label.textContent = TEXT
     n.append(ADS.icons.mark(), label)
-    n.addEventListener('click', () => window.open(`${apiBase}/app`, '_blank'))
+    n.addEventListener('click', () => window.open(`${apiBase}/app/#/connexion`, '_blank'))
     return n
   }
 

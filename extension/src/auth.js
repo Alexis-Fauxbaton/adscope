@@ -2,8 +2,8 @@ globalThis.ADS = globalThis.ADS || {}
 
 // Deux façons d'authentifier un appel à l'API : la clé, pour les machines
 // (crawl, revisites) — inchangée ; le cookie de session sinon, celui que
-// l'humain porte depuis le lien magique et ne voit jamais. `X-Adscope` sert
-// de jeton CSRF aux requêtes par cookie : une page tierce ne peut pas poser
+// l'humain porte depuis sa connexion par mot de passe et ne voit jamais.
+// `X-Adscope` sert de jeton CSRF aux requêtes par cookie : une page tierce ne peut pas poser
 // un en-tête personnalisé sans prévol CORS, et l'API n'en ouvre aucun — seule
 // une extension avec permission d'hôte le peut, à l'exclusion des pages tierces.
 ADS.auth = (() => {
