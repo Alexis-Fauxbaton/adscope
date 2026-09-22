@@ -1,7 +1,10 @@
 """Traduction d'une recherche adscope en URL de résultats leboncoin — la
 partie du balayage (lot F2) qui ne visite jamais une page pour se vérifier :
-marque et modèle sont relevés sur une URL du site (voir plus bas), les cinq
-autres paramètres devinés restent des suppositions écrites sur pièce. La vérification réelle est au runbook
+marque, modèle, `fuel`, `gearbox`, `regdate`, `mileage` et `locations` ont
+tous été relevés le 2026-09-22 sur des URL fabriquées par le site lui-même
+(`regdate=2023-2025&mileage=1000-20000&gearbox=2&fuel=4&locations=d_77`).
+Restent supposés : `price=0-max` quand aucune borne n'est posée, et les
+bornes ouvertes `-max` / `1900-`. La vérification réelle est au runbook
 (`crawler/RUNBOOK-balayage.md`) : la session cowork compare le `total` lu
 dans `__NEXT_DATA__` de la page 1 à l'`expected_total` que `sweep.py` calcule,
 et journalise l'écart.
