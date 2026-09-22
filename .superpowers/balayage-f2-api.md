@@ -154,3 +154,83 @@ Page `/app/balayage.html`, phrase de couverture sur Mes alertes, capture
 (éthanol côté La Centrale), `web/js/fixtures-facets.js`, et
 `crawler/RUNBOOK-balayage.md` — lot site + extension + runbook, à faire
 après celui-ci (deux agents ne travaillent jamais en même temps).
+
+---
+
+## 2026-09-22 — Décision d'Alexis : les deux files réservées à l'opérateur
+
+`GET /v1/sweep` et `POST /v1/revisits` passaient par `require_license`, qui
+accepte le cookie de session de n'importe quel compte : tout marchand
+connecté pouvait lire le périmètre des autres (marque, modèle, prix,
+département) par ces deux routes. Elles n'acceptent plus que : (a) une clé
+de licence Bearer (le crawler), (b) le cookie du compte opérateur.
+
+### Statut
+
+Livré et vert. Aucune migration. Service relancé
+(`launchctl kickstart -k gui/$UID/fr.adscope.api`), log propre après
+relance. `ADSCOPE_OPERATOR_EMAIL` n'est pas encore posée côté plist (fichier
+interdit à cet agent — voir ligne à ajouter plus bas) : tant qu'elle ne
+l'est pas, le service tourne avec la variable vide, donc aucun cookie
+n'ouvre plus les deux files, pas même celui d'Alexis — seule la clé du
+crawler passe.
+
+### Ce qui a changé
+
+- `adscope_api/config.py` : `operator_email()`, lit `ADSCOPE_OPERATOR_EMAIL`
+  à chaque appel (`""` par défaut), sur le modèle de `public_url()`.
+- `adscope_api/operator.py` (neuf, 50 lignes) : `require_operator`, voisin
+  d'`auth.py` (déjà 123 lignes) plutôt que dedans. Reprend le double chemin
+  de `require_license` (`resolve` pour la clé, `sessions.resolve` +
+  `of_account` pour le cookie) et referme le second par
+  `_is_operator(account.email)` — comparaison casse repliée, vide → jamais
+  vrai. Un cookie d'un autre compte rend 403 « réservé à l'opérateur »,
+  jamais 401 (la session est valide, ce n'est pas la bonne).
+- `adscope_api/sweep.py`, `adscope_api/main.py` : `require_license` →
+  `require_operator` sur `get_sweep` et `post_revisits` seulement — les
+  autres routes des deux fichiers (observations, listings, comparables,
+  vendeurs, disparitions) restent à `require_license`, inchangées.
+- `/app/balayage.html` et `/app/revisites.html` : non touchées, comme
+  demandé. Elles continuent de marcher pour Alexis par cookie dès que la
+  variable est posée.
+
+### Ligne à ajouter à `scripts/fr.adscope.api.plist`
+
+Fichier interdit à cet agent — à ajouter à la main, dans le même bloc
+`EnvironmentVariables` que `ADSCOPE_PUBLIC_URL` (même style, une ligne) :
+
+```xml
+<key>ADSCOPE_OPERATOR_EMAIL</key><string>ADRESSE DU COMPTE D'ALEXIS ICI</string>
+```
+
+L'adresse elle-même n'est pas écrite dans ce rapport ni ailleurs dans le
+dépôt — Alexis la connaît, c'est la sienne, sur son compte.
+
+### Tests
+
+`cd api && ./.venv/bin/pytest tests/ -q` → **895 verts** (890 au départ,
++5, `tests/test_operator.py`). Aucun test ne lit l'horloge réelle (fixture
+`clock`, comme partout ailleurs dans la suite).
+
+Les deux tests qui distinguent réellement `require_operator` de
+`require_license` (le cookie d'un autre compte refusé, la variable vide qui
+refuse jusqu'au cookie du compte qui deviendrait opérateur) ont été prouvés
+rouges en repassant `get_sweep` et `post_revisits` sur `require_license`
+(`200` au lieu du `403` attendu sur les deux routes), puis restaurés — la
+suite entière repasse verte après restauration. Les trois autres tests du
+fichier (clé passe, cookie opérateur passe, 401 sans rien) ne bougent pas
+entre les deux versions de la porte ; ce sont des garde-fous de non-régression,
+pas des témoins de la décision elle-même.
+
+### Réserves
+
+- La ligne du plist n'a pas été posée (fichier interdit) : tant qu'elle ne
+  l'est pas, `ADSCOPE_OPERATOR_EMAIL` reste vide en production et **aucun**
+  cookie, pas même celui d'Alexis, n'ouvre plus `/v1/sweep` ni
+  `/v1/revisits` — seule la clé du crawler passe. Les deux pages
+  `/app/balayage.html` et `/app/revisites.html` resteront donc en 403 pour
+  Alexis jusqu'à la pose de la variable et le rechargement du service.
+- `require_operator` n'a pas été posée sur d'autres routes que ces deux-là :
+  le périmètre demandé s'arrêtait à `sweep`/`revisit`, les autres files
+  communes (`/v1/disappearances`) restent derrière `require_license`,
+  décision non revue ici.
