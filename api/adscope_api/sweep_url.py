@@ -1,7 +1,7 @@
 """Traduction d'une recherche adscope en URL de résultats leboncoin — la
 partie du balayage (lot F2) qui ne visite jamais une page pour se vérifier :
-sept des douze paramètres de la table ci-dessous sont des suppositions
-écrites sur pièce, jamais mesurées. La vérification réelle est au runbook
+marque et modèle sont relevés sur une URL du site (voir plus bas), les cinq
+autres paramètres devinés restent des suppositions écrites sur pièce. La vérification réelle est au runbook
 (`crawler/RUNBOOK-balayage.md`) : la session cowork compare le `total` lu
 dans `__NEXT_DATA__` de la page 1 à l'`expected_total` que `sweep.py` calcule,
 et journalise l'écart.
@@ -9,7 +9,7 @@ et journalise l'écart.
 Une seule fonction publique : `translate(session, params)`.
 """
 
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from sqlalchemy import func, select
 
@@ -76,8 +76,12 @@ def translate(session, params):
     if params.seller_type:
         pairs.append(("owner_type", params.seller_type))
     pairs += [("sort", "price"), ("order", "asc"), ("page", "1")]
-    pairs.append(("u_car_brand", brand))
-    pairs.append(("u_car_model", f"{brand}_{model}"))
+    # Relevé par Alexis sur une URL fabriquée par le site (2026-09-22) :
+    # `u_car_brand=Tesla,TESLA&u_car_model=TESLA_Model%20Y` — la marque sous
+    # ses deux écritures, le modèle préfixé de la marque en capitales, l'espace
+    # encodé `%20` (jamais `+` : avec `Tesla_Model+Y`, zéro résultat).
+    pairs.append(("u_car_brand", f"{brand},{brand.upper()}"))
+    pairs.append(("u_car_model", f"{brand.upper()}_{model}"))
 
     unmapped = []
     fuel_codes = _mapped_codes(params.fuel, FUEL_CODES)
@@ -103,5 +107,5 @@ def translate(session, params):
     if departments:
         pairs.append(("locations", ",".join(f"d_{d}" for d in departments)))
 
-    url = "https://www.leboncoin.fr/recherche?" + urlencode(pairs, safe=",")
+    url = "https://www.leboncoin.fr/recherche?" + urlencode(pairs, safe=",", quote_via=quote)
     return url, unmapped, None, []

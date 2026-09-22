@@ -21,12 +21,15 @@ def params(**kw):
     return MarketParams(**kw)
 
 
-# Fait rougir le gabarit `f"{brand}_{model}"` : la marque et le modèle
-# collés par un souligné, dans l'écriture observée.
-def test_brand_and_model_become_the_url_pair(session):
-    listing(session, "1", brand="Peugeot", model="208")
-    url, unmapped, skip, missing = translate(session, params(brand="Peugeot", model="208"))
-    assert "u_car_brand=Peugeot" in url and "u_car_model=Peugeot_208" in url
+# L'écriture relevée par Alexis sur une URL du site (2026-09-22) :
+# `u_car_brand=Tesla,TESLA&u_car_model=TESLA_Model%20Y`. Fait rougir
+# `f"{brand},{brand.upper()}"`, `f"{brand.upper()}_{model}"` et le
+# `quote_via=quote` (un `+` à la place de `%20` rend zéro résultat).
+def test_brand_and_model_are_written_as_the_site_writes_them(session):
+    listing(session, "1", brand="Tesla", model="Model Y")
+    url, unmapped, skip, missing = translate(session, params(brand="Tesla", model="Model Y"))
+    assert "u_car_brand=Tesla,TESLA" in url and "u_car_model=TESLA_Model%20Y" in url
+    assert "+" not in url
     assert (unmapped, skip, missing) == ([], None, [])
 
 
@@ -36,7 +39,7 @@ def test_brand_and_model_become_the_url_pair(session):
 def test_the_url_carries_the_site_spelling_not_the_canonical_filter(session):
     listing(session, "1", brand="Renault", model="Clio")
     url, *_ = translate(session, params(brand="renault", model="clio"))
-    assert "u_car_brand=Renault" in url
+    assert "u_car_brand=Renault,RENAULT" in url
 
 
 # Fait rougir `order_by(func.count().desc())` : la majorité des lignes
@@ -47,7 +50,7 @@ def test_the_majority_spelling_wins_over_a_minority_variant(session):
     for i in range(2):
         listing(session, f"R{i}", brand="RENAULT", model="Clio")
     url, *_ = translate(session, params(brand="renault", model="clio"))
-    assert "u_car_brand=Renault" in url
+    assert "u_car_brand=Renault,RENAULT" in url
 
 
 # Fait rougir le garde `if not params.brand or not params.model` sur la
