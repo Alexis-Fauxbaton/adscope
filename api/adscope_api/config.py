@@ -22,3 +22,11 @@ settings = Settings()
 # (`extension/src/sw.js`, `DEFAULTS.apiBase`).
 def public_url() -> str:
     return os.environ.get("ADSCOPE_PUBLIC_URL", "http://localhost:8000").rstrip("/")
+
+
+# Le compte opérateur (Alexis) : le seul, en plus des clés de licence, que
+# les files de machine (`operator.require_operator`) laissent passer par
+# cookie. Vide — le défaut — désigne aucun compte : lu à chaque appel, comme
+# `public_url` ci-dessus, pour rester configurable par test.
+def operator_email() -> str:
+    return os.environ.get("ADSCOPE_OPERATOR_EMAIL", "")
