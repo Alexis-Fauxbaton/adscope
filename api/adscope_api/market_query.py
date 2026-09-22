@@ -11,7 +11,10 @@ rien contre quoi le comparer. `feed_query.py` recalcule l'ancienneté en Python
 et exclut son propre filtre (`exclude`) — Postgres élague de lui-même les
 jointures dont aucune colonne ne ressort (vérifié par `EXPLAIN ANALYZE` sur la
 base réelle, voir `.superpowers/recherche-lot4-api.md`), donc `core` reste
-unique et complet plutôt que décliné en variantes allégées.
+unique et complet plutôt que décliné en variantes allégées. `coverage.py`
+(lot F2) s'en sert à son tour, d'où `Listing.last_seen` dans le `select` :
+`market_items.item_of` lit ses colonnes par nom et ignore le reste, aucun
+item de `/v1/market` n'en gagne une.
 Le contrat d'un item et son `label` sont dans `market_items.py`."""
 
 from sqlalchemy import Date, DateTime, Integer, case, cast, extract, func, literal, select
@@ -84,7 +87,7 @@ def core(license_, now, *, brand=None, model=None, q=None, seller_type=None,
             Listing.fuel, Listing.gearbox, Listing.department, Listing.seller_type,
             Listing.seller_name, Listing.published_at, age.label("age_days"),
             delta.label("price_delta_since_first"), last_change.c.at.label("last_change_at"),
-            followed.label("followed"), Listing.disappeared_at,
+            followed.label("followed"), Listing.disappeared_at, Listing.last_seen,
         )
         .select_from(Listing)
         .outerjoin(last_price, last_price.c.listing_id == Listing.id)
