@@ -16,7 +16,8 @@ settings = Settings()
 # requête. Un `Host` forgé changerait alors l'hôte du lien pour quiconque peut
 # appeler `/v1/auth/login`, et un client livrerait son jeton à un inconnu dès
 # qu'un vrai transport d'envoi serait branché. Lu à chaque appel, comme
-# `login_tokens.dev_login`, pour rester configurable par test.
+# comme le reste de la configuration lue par variable d'environnement, pour
+# rester configurable par test.
 # `http://localhost:8000` est l'hôte que l'extension utilise par défaut
 # (`extension/src/sw.js`, `DEFAULTS.apiBase`).
 def public_url() -> str:

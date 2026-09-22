@@ -1,80 +1,70 @@
-"""La connexion par email : un lien, pas de mot de passe, pas de clé.
+"""La connexion par mot de passe : ce qu'elle répond, ce qu'elle ouvre.
 
-Un marchand ne colle pas une clé dans un champ. Il donne son adresse, reçoit un
-lien, et son navigateur garde une session. Les machines — le crawl, la file de
-revisite — gardent la clé : rien de ce qui suit ne les concerne.
-
-Les routes seules sont ici ; ce qu'elles font tient dans `login_tokens` (le
-lien) et `sessions` (le cookie), avec les raisons.
+Le lien magique a disparu (voir `auth_signup.py` pour ce qui reste de sa
+mécanique — vérification, réinitialisation). Un marchand tape son adresse et
+son mot de passe, comme sur n'importe quel site ; son navigateur garde une
+session, une clé de machine continue de porter la licence en clair.
 """
 
-from fastapi import APIRouter, Depends, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 
-from . import login_tokens, sessions
-from .auth import require_license
-from .auth_models import Account
-from .config import public_url
+from . import accounts, sessions
+from .auth import require_account, require_license
 from .db import get_session
-from .login_tokens import consume, dev_login, enroll, mint, open_signup
-from .sessions import now_utc
-
-# Pas de `Referer` vers le site : l'URL de vérification porte le jeton, et la
-# page d'arrivée n'a pas à le connaître.
-NO_REFERRER = {"Referrer-Policy": "no-referrer"}
+from .passwords import policy_error
+from .rate_limit import guard
+from .sessions import check_csrf, is_secure, now_utc, set_cookie
 
 router = APIRouter()
 
 
 class LoginIn(BaseModel):
     email: str = Field(max_length=254)
+    password: str = Field(max_length=128)
 
 
-@router.post("/v1/auth/login", status_code=202)
-def post_login(payload: LoginIn, session=Depends(get_session), now=Depends(now_utc)):
+class ChangeIn(BaseModel):
+    current: str = Field(max_length=128)
+    password: str = Field(max_length=128)
+
+
+@router.post("/v1/auth/login", status_code=204)
+def post_login(payload: LoginIn, request: Request, session=Depends(get_session),
+              now=Depends(now_utc)):
+    check_csrf(request)
     email = payload.email.strip().lower()
-    account = session.scalar(select(Account).where(Account.email == email))
-    if account is None and open_signup():
-        account = enroll(session, email)
-    raw = mint(session, account.id, now) if account is not None else None
-    body = {"sent": True}
-    if raw is not None:
-        # `public_url()`, jamais l'en-tête `Host` : un `Host` forgé ne doit pas
-        # décider où le lien envoyé au marchand pointe.
-        link = f"{public_url()}/v1/auth/verify?token={raw}"
-        # Par le module : le transport se remplace à un seul endroit.
-        login_tokens.send_login_link(email, link)
-        if dev_login():
-            body["dev_link"] = link
+    guard("login", email, request, now)
+    raw = accounts.login(session, email, payload.password, now)
     session.commit()
-    return body
-
-
-@router.get("/v1/auth/verify", name="verify_login")
-def get_verify(token: str = "",
-               session=Depends(get_session), now=Depends(now_utc)):
-    account_id = consume(session, token, now)
-    if account_id is None:
-        session.commit()
-        return RedirectResponse("/app/?login=expired", status_code=303,
-                                headers=NO_REFERRER)
-    raw = sessions.create(session, account_id, now)
-    response = RedirectResponse("/app/", status_code=303, headers=NO_REFERRER)
-    sessions.set_cookie(response, raw, sessions.is_secure())
-    session.commit()
+    response = Response(status_code=204)
+    set_cookie(response, raw, is_secure())
     return response
 
 
 @router.post("/v1/auth/logout", status_code=204)
 def post_logout(request: Request, session=Depends(get_session)):
-    sessions.check_csrf(request)
+    check_csrf(request)
     sessions.drop(session, request.cookies.get(sessions.COOKIE, ""))
     session.commit()
     response = Response(status_code=204)
-    sessions.clear_cookie(response, sessions.is_secure())
+    sessions.clear_cookie(response, is_secure())
     return response
+
+
+@router.post("/v1/auth/password", status_code=204)
+def post_change_password(payload: ChangeIn, request: Request, session=Depends(get_session),
+                         account_id=Depends(require_account)):
+    # Pas d'appel direct à `check_csrf` ici : `require_account` (via
+    # `require_license`) le fait déjà pour une session cookie, et en dispense
+    # une clé `Bearer` — comme le reste des routes authentifiées de l'API.
+    error = policy_error(payload.password)
+    if error:
+        raise HTTPException(status_code=422, detail=error)
+    keep = sessions.hash_token(request.cookies.get(sessions.COOKIE, ""))
+    accounts.change_password(session, account_id, payload.current, payload.password, keep)
+    session.commit()
+    return Response(status_code=204)
 
 
 # Qui est là : l'adresse pour un humain, rien pour une clé de machine — elle
@@ -83,6 +73,3 @@ def post_logout(request: Request, session=Depends(get_session)):
 def get_me(license_=Depends(require_license)):
     return {"email": license_.account.email if license_.account else None,
             "label": license_.label, "expires_at": license_.expires_at}
-
-
-login_tokens.announce_dev_login()
