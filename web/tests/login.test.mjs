@@ -1,27 +1,18 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { envoiOutcome, estExpire } from '../js/login.js'
+import { outcomeFor } from '../js/login.js'
+import { ApiError } from '../js/api-auth.js'
 
-// Rouge sur le `reponse.dev_link` de `envoiOutcome` dans js/login.js : sans
-// lui, le mode local (`ADSCOPE_DEV_LOGIN=1`) resterait sur le message
-// générique et ne montrerait jamais le lien cliquable.
-test('la réponse avec dev_link ouvre la carte du mode local', () => {
-  assert.equal(envoiOutcome({ sent: true, dev_link: 'https://x/v1/auth/verify?token=t' }), 'dev')
+// Rouge sur `err.status === 403` dans `outcomeFor` de js/login.js : sans lui,
+// une connexion refusée pour compte non vérifié retomberait sur le
+// formulaire d'erreur générique au lieu du renvoi d'email.
+test('le 403 bascule sur l’écran « vérifiez votre email »', () => {
+  assert.equal(outcomeFor(new ApiError(403, 'Vérifiez votre email : un lien vous attend dans votre boîte.')), 'verifiez')
 })
 
-// Rouge sur le même `reponse.dev_link` : sans lui, une réponse de prod
-// (`{sent: true}`, sans lien) tomberait aussi sur « dev » et afficherait un
-// lien qui n'existe pas.
-test('la réponse sans dev_link ne montre que le message générique', () => {
-  assert.equal(envoiOutcome({ sent: true }), 'sent')
-})
-
-// Rouge sur le `new URLSearchParams(search).get('login') === 'expired'` de
-// js/login.js : sans lui, `?login=expired` ne se distinguerait pas d'un écran
-// de connexion ordinaire, et le marchand ne saurait pas pourquoi son lien n'a
-// pas marché.
-test('la note d’expiration ne s’affiche que sur ?login=expired', () => {
-  assert.equal(estExpire('?login=expired'), true)
-  assert.equal(estExpire(''), false)
-  assert.equal(estExpire('?login=autre'), false)
+// Rouge sur le même `=== 403` : un mot de passe faux (401) ou un plafond
+// (429) doivent rester sur le formulaire, jamais glisser vers le renvoi.
+test('les autres échecs restent sur le formulaire', () => {
+  assert.equal(outcomeFor(new ApiError(401, 'Email ou mot de passe incorrect.')), 'erreur')
+  assert.equal(outcomeFor(new ApiError(429, 'Trop de tentatives. Réessayez dans quelques minutes.')), 'erreur')
 })

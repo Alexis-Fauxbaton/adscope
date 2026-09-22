@@ -63,14 +63,9 @@ export async function me() {
   return request('/v1/me')
 }
 
-// Toujours 202 — l'API ne dit jamais si l'adresse correspond à un compte.
-export async function login(email) {
-  return request('/v1/auth/login', { method: 'POST', body: { email } })
-}
-
-export async function logout() {
-  return request('/v1/auth/logout', { method: 'POST' })
-}
+// `login`/`logout` vivent désormais dans `api-auth.js`, avec le reste des
+// routes d'authentification (comptes avec mot de passe) : leurs erreurs ne
+// veulent pas dire « session tombée », contrairement à celles d'ici.
 
 export async function families() {
   if (isDemo()) return fixtures.families()

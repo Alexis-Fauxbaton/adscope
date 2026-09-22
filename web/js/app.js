@@ -1,11 +1,16 @@
 // L'assemblage : deux entrées en haut, une vue dessous, la session en garde.
+// `demarrer()` bascule sur le routeur public (`auth-routes.js`) pour les
+// routes de connexion/inscription/réinitialisation, et ne demande `/v1/me`
+// que pour tout le reste.
 
 import * as api from './api.js'
+import * as apiAuth from './api-auth.js'
+import { renderCompte } from './account-page.js'
 import { renderAlerts } from './alerts.js'
+import { AUTH_ROUTES, render as renderAuth } from './auth-routes.js'
 import { clear, el } from './dom.js'
 import { runDigestVisit } from './digest-visit.js'
 import { renderFollows } from './follows.js'
-import { renderLogin } from './login.js'
 import { renderMarket } from './market.js'
 import { EMPTY_FILTERS } from './query.js'
 import { filtersFromHash, splitHash } from './url-state.js'
@@ -33,18 +38,34 @@ function route() {
   return ROUTES.some(([href]) => href === courante) ? courante : ROUTES[0][0]
 }
 
+// Après une connexion, une vérification ou une réinitialisation réussie : le
+// cookie de session vient d'être posé, on relit `/v1/me` plutôt que de faire
+// confiance à l'adresse tapée dans un formulaire qu'on a déjà quitté.
+async function onAuthenticated() {
+  try { state.email = (await api.me()).email } catch { /* le cookie est posé, ça ne devrait pas échouer */ }
+  location.hash = '#/suivis'
+}
+
 async function deconnecter() {
   // `?demo=1` n'a jamais de session à couper : le bouton reste sans effet,
   // comme le reste du mode démo qui ne fait aucun appel.
   if (api.isDemo()) return
   // Le cookie tombe côté serveur ; qu'il réponde ou non, il n'y a plus rien à
   // montrer ici qu'un écran de connexion.
-  try { await api.logout() } catch { /* déjà tombée, ou API muette */ }
+  try { await apiAuth.logout() } catch { /* déjà tombée, ou API muette */ }
   montrerConnexion()
 }
 
+// Distincte de `route()` : sur `#/compte`, aucune des trois entrées de nav
+// ne doit s'allumer — `route()` retomberait sur « Mes suivis » par défaut,
+// ce qui mentirait à Karim sur la page qu'il regarde.
+function navCourante() {
+  const { route: nom } = splitHash(location.hash)
+  return ROUTES.some(([href]) => href === nom) ? nom : null
+}
+
 function entete() {
-  const courant = route()
+  const courant = navCourante()
   return el('header', { class: 'tete' }, el('div', { class: 'tete-in' }, [
     el('span', { class: 'marque', text: 'adscope' }),
     el('nav', { class: 'nav' }, ROUTES.map(([href, label]) => el('a', {
@@ -54,7 +75,7 @@ function entete() {
       text: label,
     }))),
     el('div', { class: 'tete-compte' }, [
-      state.email && el('span', { class: 'moi', text: state.email }),
+      state.email && el('a', { class: 'moi', href: '#/compte', text: state.email }),
       el('button', { class: 'deco', text: 'Se déconnecter', onclick: deconnecter }),
     ]),
   ]))
@@ -76,27 +97,40 @@ function vue() {
   else renderFollows(zone, state)
 }
 
+function compte() {
+  const zone = el('main', { class: 'vue' })
+  clear(racine).append(entete(), zone)
+  renderCompte(zone, state, { onLogout: deconnecter })
+}
+
 function montrerConnexion() {
   state.email = null
-  renderLogin(racine)
+  const { route: nom } = splitHash(location.hash)
+  if (nom === '#/connexion') afficherPublique()
+  else location.hash = '#/connexion'
+}
+
+function afficherPublique() {
+  renderAuth(racine, location.hash, { onAuthenticated })
 }
 
 // Connecté ou non se sait par ce que rend `/v1/me` — jamais par un secret
 // gardé côté navigateur. Une panne d'API se traite pareil qu'une session
 // absente : sans identité confirmée, il n'y a que l'écran de connexion à
-// montrer. En démo, `api.me()` rend `fixtures.me()` sans réseau : « Mes
-// alertes » y affiche la même adresse que la vraie page, pas un blanc.
+// montrer.
 async function demarrer() {
+  const { route: nom } = splitHash(location.hash)
+  if (AUTH_ROUTES.has(nom)) { afficherPublique(); return }
   try {
     const moi = await api.me()
     state.email = moi.email
-    vue()
+    if (nom === '#/compte') compte(); else vue()
   } catch {
     montrerConnexion()
   }
 }
 
-addEventListener('hashchange', vue)
+addEventListener('hashchange', demarrer)
 // Hors auth, hors route : un lien d'email compte sa visite dès l'arrivée,
 // avant même de savoir si la session tient.
 runDigestVisit()

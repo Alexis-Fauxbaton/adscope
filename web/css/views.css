@@ -7,9 +7,19 @@
 .entree .marque{display:block; font-size:22px; margin-bottom:34px}
 .entree-t{font-size:22px; font-weight:700; letter-spacing:-.02em; margin-bottom:10px}
 .entree-s{font-size:14.5px; color:var(--faible); line-height:1.6; margin-bottom:24px}
-.entree .champ{margin-bottom:16px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13.5px}
+.entree .champ{margin-bottom:16px}
 .entree .bouton{width:100%}
 .erreur{color:#B4243A; font-size:14px; margin-top:16px; line-height:1.5}
+.regle{font-size:13px; color:var(--faible); margin:-8px 0 16px; line-height:1.5}
+.entree-liens{display:flex; justify-content:space-between; gap:16px; margin-top:20px}
+.entree-liens a{font-size:13.5px; font-weight:600; color:var(--accent); text-decoration:none}
+.entree-liens a:hover{text-decoration:underline}
+/* Le champ mot de passe : la même carte grise que `.champ`, un œil pour
+   l'afficher plutôt qu'un second champ « confirmez ». */
+.champ-mdp{display:flex; align-items:center; background:var(--gris-pale); border-radius:14px; margin-bottom:16px}
+.champ-mdp .champ{margin-bottom:0; background:none}
+.champ-mdp .oeil{font-size:13px; font-weight:600; color:var(--faible); padding:0 15px; white-space:nowrap}
+.champ-mdp .oeil:hover{color:var(--douce)}
 
 /* ── mes suivis ── */
 .bascule{display:inline-flex; margin:22px 0 26px}

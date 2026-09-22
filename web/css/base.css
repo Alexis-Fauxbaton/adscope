@@ -40,7 +40,8 @@ a{color:inherit}
 }
 .nav-a.on{background:var(--carte); color:var(--encre); box-shadow:var(--ombre)}
 .tete-compte{margin-left:auto; display:flex; align-items:center; gap:14px}
-.moi{font-size:13.5px; color:var(--grise); white-space:nowrap}
+.moi{font-size:13.5px; color:var(--grise); white-space:nowrap; text-decoration:none}
+.moi:hover{color:var(--douce)}
 .deco{font-size:13.5px; font-weight:600; color:var(--faible); white-space:nowrap}
 .deco:hover{color:var(--douce)}
 
