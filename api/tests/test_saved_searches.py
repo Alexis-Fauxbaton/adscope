@@ -7,7 +7,8 @@ from adscope_api.auth import hash_key, new_key
 from adscope_api.auth_models import Account
 from adscope_api.db import get_session
 from adscope_api.main import app
-from adscope_api.models import License
+from adscope_api.models import License, Listing
+from adscope_api.taxonomy import derive
 
 from conftest import auth
 
@@ -156,3 +157,42 @@ def test_put_replaces_the_whole_search(client, session, clock):
 
 def test_the_search_routes_need_a_license(client, session):
     assert client.get("/v1/searches").status_code == 401
+
+
+# Fait rougir `with_coverage` sur la route liste (lot F2) : sans lui, la
+# recherche relue afficherait le défaut de `SearchOut` (`seen_total == 0`)
+# plutôt que le compte réel de son périmètre.
+def test_get_searches_carries_the_coverage_fields(client, session, clock):
+    row = Listing(site="lbc", site_id="1", first_seen=clock.now, last_seen=clock.now,
+                  observations=1, brand="Renault", department="59")
+    derive(row)
+    session.add(row)
+    session.commit()
+    key = enrolled(session)
+    post(client, key)
+    got = client.get("/v1/searches", headers=auth(key)).json()
+    assert got[0]["seen_total"] == 1
+
+
+# `BODY` ("brand=Renault&department=…") n'a pas de modèle : trop large pour
+# le balayage. Fait rougir le report de `sweep_url.translate` dans
+# `with_coverage`.
+def test_a_search_without_a_model_is_too_wide_for_the_sweep(client, session, clock):
+    key = enrolled(session)
+    created = post(client, key).json()
+    assert created["sweep_status"] == "trop_large"
+
+
+# Fait rougir `with_coverage` sur la route de création : sans lui, `POST`
+# rendrait les valeurs par défaut de `SearchOut` (0, None, "ok") au lieu du
+# compte réel — une seule annonce du périmètre suffit à les distinguer, ici
+# `seen_total == 1` plutôt que le défaut `0`.
+def test_post_search_already_renders_coverage(client, session, clock):
+    row = Listing(site="lbc", site_id="1", first_seen=clock.now, last_seen=clock.now,
+                  observations=1, brand="Renault", department="59")
+    derive(row)
+    session.add(row)
+    session.commit()
+    key = enrolled(session)
+    created = post(client, key).json()
+    assert created["seen_total"] == 1

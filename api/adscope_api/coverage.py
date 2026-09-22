@@ -6,14 +6,18 @@ Un seul chemin : `MarketParams.core_kwargs()` → `market_query.core`, le même
 que `/v1/market` et `alert_rules._alert_query`. Aucune clause `where` n'est
 réécrite ici — sans quoi une recherche pourrait compter différemment selon
 qu'elle passe par `/v1/searches` ou par `/v1/sweep`.
-"""
+
+`status_of` y ajoute le statut de balayage (`sweep_url.translate`) : posé ici
+plutôt que dans `saved_searches.py`, qui déborderait sinon des 150 lignes."""
 
 from datetime import timedelta
 
 from sqlalchemy import func, select
 
+from .market_params import MarketParams
 from .market_query import core as market_core
 from .models import Listing
+from .sweep_url import translate
 
 # « Vue il y a moins de 24 h » — pas les 48 h d'`alert_rules.SEEN_WINDOW` :
 # c'est la fenêtre du balayage quotidien (F2), pas celle d'une alerte.
@@ -48,3 +52,13 @@ def coverage_of(session, license_, now, params) -> tuple[int, float | None]:
     if total == 0:
         return 0, None
     return total, round(fresh / total, 2)
+
+
+def status_of(session, license_, row_query: str, now) -> tuple[float | None, int, str]:
+    """`(coverage_24h, seen_total, sweep_status)` pour une chaîne `query`
+    déjà canonique (`SavedSearch.query`) — partagé par
+    `saved_searches.with_coverage` et, demain, par `sweep.py`."""
+    params = MarketParams.from_query(row_query)
+    _url, _unmapped, skip_reason, _missing = translate(session, params)
+    seen_total, coverage_24h = coverage_of(session, license_, now, params)
+    return coverage_24h, seen_total, skip_reason or "ok"

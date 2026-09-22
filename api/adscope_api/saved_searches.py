@@ -9,15 +9,21 @@ bien — déjà le choix de `PUT /v1/families`.
 
 Chaque accès par identifiant vérifie l'appartenance au compte : une ressource
 d'un autre compte est un 404, jamais un 403, qui confirmerait qu'elle existe.
+
+Lot F2 : `with_coverage` ajoute la couverture (`coverage.py`) et le statut de
+balayage (`sweep_url.translate`) à chaque recherche rendue — une requête de
+plus par route, qui évite à « Mes alertes » un second aller-retour.
 """
 
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import delete, func, select
 
-from .auth import require_account
+from .auth import require_account, require_license
+from .coverage import status_of
 from .db import get_session
 from .alert_models import SavedSearch
 from .market_params import MarketParams
@@ -49,7 +55,20 @@ class SearchIn(BaseModel):
 class SearchOut(SearchIn):
     id: int
     created_at: datetime
+    coverage_24h: float | None = None
+    seen_total: int = 0
+    sweep_status: Literal["ok", "trop_large", "texte_libre"] = "ok"
     model_config = {"from_attributes": True}
+
+
+def with_coverage(session, license_, row: SavedSearch, now) -> SearchOut:
+    """La recherche, augmentée de sa couverture et de son statut de balayage
+    (`coverage.status_of`) — appelée pour une recherche en pause aussi : elle
+    garde sa couverture affichée, seule la file de `/v1/sweep` l'exclut."""
+    coverage_24h, seen_total, sweep_status = status_of(session, license_, row.query, now)
+    return SearchOut.model_validate(row).model_copy(update={
+        "coverage_24h": coverage_24h, "seen_total": seen_total, "sweep_status": sweep_status,
+    })
 
 
 def _normalized_query(raw: str) -> str:
@@ -66,16 +85,19 @@ def _owned(session, account_id: int, search_id: int) -> SavedSearch | None:
 
 
 @router.get("/v1/searches", response_model=list[SearchOut])
-def get_searches(session=Depends(get_session), account_id=Depends(require_account)):
-    return session.scalars(
+def get_searches(session=Depends(get_session), account_id=Depends(require_account),
+                 license_=Depends(require_license), now=Depends(now_utc)):
+    rows = session.scalars(
         select(SavedSearch).where(SavedSearch.account_id == account_id)
         .order_by(SavedSearch.created_at, SavedSearch.id)
     ).all()
+    return [with_coverage(session, license_, row, now) for row in rows]
 
 
 @router.post("/v1/searches", response_model=SearchOut, status_code=201)
 def post_search(payload: SearchIn, session=Depends(get_session),
-                account_id=Depends(require_account), now=Depends(now_utc)):
+                account_id=Depends(require_account), license_=Depends(require_license),
+                now=Depends(now_utc)):
     count = session.scalar(
         select(func.count()).select_from(SavedSearch)
         .where(SavedSearch.account_id == account_id)
@@ -90,20 +112,22 @@ def post_search(payload: SearchIn, session=Depends(get_session),
     )
     session.add(row)
     session.commit()
-    return row
+    return with_coverage(session, license_, row, now)
 
 
 @router.get("/v1/searches/{search_id}", response_model=SearchOut)
-def get_search(search_id: int, session=Depends(get_session), account_id=Depends(require_account)):
+def get_search(search_id: int, session=Depends(get_session), account_id=Depends(require_account),
+               license_=Depends(require_license), now=Depends(now_utc)):
     row = _owned(session, account_id, search_id)
     if row is None:
         raise HTTPException(status_code=404, detail="recherche inconnue")
-    return row
+    return with_coverage(session, license_, row, now)
 
 
 @router.put("/v1/searches/{search_id}", response_model=SearchOut)
 def put_search(search_id: int, payload: SearchIn, session=Depends(get_session),
-               account_id=Depends(require_account)):
+               account_id=Depends(require_account), license_=Depends(require_license),
+               now=Depends(now_utc)):
     row = _owned(session, account_id, search_id)
     if row is None:
         raise HTTPException(status_code=404, detail="recherche inconnue")
@@ -115,7 +139,7 @@ def put_search(search_id: int, payload: SearchIn, session=Depends(get_session),
     row.min_drop_pct = payload.min_drop_pct
     row.paused = payload.paused
     session.commit()
-    return row
+    return with_coverage(session, license_, row, now)
 
 
 @router.delete("/v1/searches/{search_id}", status_code=204)
