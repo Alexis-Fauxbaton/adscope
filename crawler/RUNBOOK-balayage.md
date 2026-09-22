@@ -81,9 +81,13 @@ Pour chaque recherche de la file, dans l'ordre :
    que `RUNBOOK.md`. Lire `total` dans `__NEXT_DATA__`
    (`JSON.parse(document.getElementById('__NEXT_DATA__').textContent)`, chercher
    `total`/`total_pro`/`total_private`).
-3. Ouvrir les pages suivantes, `page=2..N` (`N` = `data-pages`), en remplaçant le
-   seul paramètre `page` de l'URL lue — jamais de page 101, la file la plafonne
-   déjà à 20. Même rythme, ~2 s + scroll par page. **Lots de 8 pages maximum**
+3. **Calculer `N`** — changé le 2026-09-23 après les deux premiers runs (669 lues
+   contre 101 puis 187 attendues) : `data-pages` est calculé sur ce que notre base
+   connaît, toujours moins que le site sur une recherche neuve. `N` = le plus grand
+   de `data-pages` et de `ceil(total / 35)` (`total` lu à l'étape 2), **plafonné à
+   20**. Si `__NEXT_DATA__` manque, `N` = `data-pages`. Ouvrir les pages suivantes,
+   `page=2..N`, en remplaçant le seul paramètre `page` de l'URL lue — jamais de
+   page 21. Même rythme, ~2 s + scroll par page. **Lots de 8 pages maximum**
    par appel de l'outil de navigation par lot (`browser_batch`, timeout au-delà —
    contrainte de `RUNBOOK.md`), une recherche de 14 pages se découpe donc en deux
    lots.
@@ -99,7 +103,7 @@ juger une annonce individuelle.**
 moins de dix minutes de navigation pure — bien en dessous des 20 minutes de
 `RUNBOOK-revisites.md`. Compter large : 15 minutes par run, changement de
 recherche inclus. Si le budget tombe en cours de recherche, finir d'ouvrir les
-pages déjà annoncées par `data-pages` pour celle en cours, journaliser
+pages de `N` pour celle en cours, journaliser
 `partial: budget epuise apres N recherches`, ne pas redemander la file.
 
 ## Arrêt propre
@@ -152,24 +156,158 @@ ne changerait rien tant que rien n'a eu le temps d'être vu.
 - Ajouter La Centrale.
 - Lire, recopier ou construire une clé de licence.
 
+## Enchaînement avec la revisite — décidé par Alexis le 2026-09-22
+
+Le balayage et la revisite (`RUNBOOK-revisites.md`) tournent désormais dans **une
+seule tâche planifiée**, balayage d'abord, revisite avec le budget restant.
+
+**Le témoin du balayage fait foi pour les deux phases.** Il est pris sur des pages
+de résultats, où l'absence de badge signe vraiment une collecte morte. Conséquences,
+dans cet ordre :
+
+- Témoin du balayage **négatif** (aucun badge `[class*="adscope-"]` sur la première
+  page de la file) : extension absente du profil — journaliser `error: aucun badge`,
+  **ne pas entamer la phase de revisite non plus**, ne demander aucune tranche.
+- Témoin du balayage **positif** : l'extension est prouvée vivante pour tout le run.
+  Le contrôle des cinq premières fiches d'une tranche de revisite garde sa valeur
+  d'observation mais **n'arrête plus le run** : zéro panneau sur cinq fiches ne
+  prouve rien, la file de revisite servant en tête les annonces pro anciennes,
+  c'est-à-dire celles qui ont le plus de chances d'être déjà des pages
+  « Annonce introuvable ». On le journalise et on continue d'ouvrir la tranche.
+
+Motif : entre le 2026-09-20 et le 2026-09-22, quatre runs se sont arrêtés sur ce
+contrôle alors que l'extension fonctionnait — la tranche de 100 était déjà
+consommée à chaque fois, soit environ 380 fiches gelées sept jours pour rien
+(lignes du 09-20 19:35, 09-21 18:38, 09-22 01:33 et 04:33). Le run du 09-22 19:59
+a fait l'inverse sur la foi d'un témoin vivant pris avant la tranche, et a ouvert
+200 fiches sans incident.
+
+Cette règle ne change rien au reste de `RUNBOOK-revisites.md`, qui reste la
+référence pour la phase de revisite : budget par tranche, un clic par tranche,
+tout ouvrir avant d'en redemander une.
+
 ## Cadence
 
 Tôt le matin, **avant** l'envoi de l'email (lot F1, prévu à 7 h au go-live) : la
-couverture d'aujourd'hui doit être fraîche avant que l'email s'appuie dessus. Les
-revisites (`RUNBOOK-revisites.md`) passent après, elles n'ont pas cette contrainte
-d'horaire.
+couverture d'aujourd'hui doit être fraîche avant que l'email s'appuie dessus. Depuis
+le 2026-09-22, une seule tâche planifiée enchaîne balayage puis revisites (voir
+« Enchaînement avec la revisite » ci-dessus) — les revisites n'ayant pas de
+contrainte d'horaire, elles prennent simplement le budget qui reste.
 
 ## Le prompt de la tâche cowork
 
-À coller par Alexis dans sa tâche planifiée, une fois le premier run vérifié à la
-main :
+Prompt de la tâche planifiée unique (balayage puis revisites). Premier run de
+balayage vérifié à la main le 2026-09-22 (une recherche, 4 pages, écart 669 vs 101
+consigné au journal).
 
 ```
-Lis crawler/RUNBOOK-balayage.md en entier et suis-le. Ouvre
-http://localhost:8000/app/balayage.html, clique « Demander la file », vérifie
-le témoin (badges adscope sur la première page), puis ouvre chaque recherche de
-la file page par page (page=1..N, ~2 s et un scroll par page, lots de 8 pages
-maximum). Consigne une ligne par recherche dans crawler/logs/YYYY-MM.log au
-format du runbook, avec le total lu dans __NEXT_DATA__ comparé au total
-attendu. Ouvre des URL, ne conclus rien d'autre.
+Adscope, projet d'Alexis. Run planifié non surveillé : ne poser aucune question,
+personne ne répondra.
+
+Dossier connecté : /Users/alexis/Documents/Projets/adscope, accessible via
+mcp__remote-devices__device_bash sous $HOME/mnt/adscope.
+
+RÈGLE ABSOLUE : cette session ouvre des URL, elle ne conclut rien. Ne jamais écrire
+ni journaliser qu'une annonce est supprimée, ou qu'elle a baissé. C'est l'extension
+qui constate ce que le site dit, et l'API qui décide de ce qui s'écrit. Rapporter ce
+qui a été ouvert, c'est tout.
+
+BUDGET : 30 minutes au total. Relever l'heure de départ au premier geste (device_bash
+: date -u) et s'y tenir. Phase 1 plafonnée à 15 minutes ; tout le reste va à la
+phase 2.
+
+1. AVANT tout navigate : lire crawler/RUNBOOK-balayage.md, crawler/RUNBOOK-revisites.md
+   et le journal du mois courant crawler/logs/AAAA-MM.log. Les runbooks font foi en cas
+   de divergence avec ce prompt.
+
+2. Charger les outils Chrome en UN seul appel ToolSearch :
+   "select:mcp__claude-in-chrome__tabs_context_mcp,mcp__claude-in-chrome__navigate,mcp__claude-in-chrome__browser_batch,mcp__claude-in-chrome__javascript_tool,mcp__claude-in-chrome__tabs_close_mcp"
+   Puis tabs_context_mcp createIfEmpty:true et retenir le tabId — les appels suivants le
+   passent explicitement. Si Chrome est injoignable, ou si l'outil exige un choix entre
+   plusieurs navigateurs connectés (ce choix est humain, il ne se devine pas) :
+   journaliser l'erreur et s'arrêter sans rien ouvrir.
+
+PHASE 1 — BALAYAGE (crawler/RUNBOOK-balayage.md)
+
+3. navigate vers http://localhost:8000/app/balayage.html, cliquer UNE fois
+   « Demander la file ». C'est un GET : rien n'est consommé, contrairement à la revisite.
+   - « Connectez-vous d'abord sur /app » ou « L'API n'a pas répondu » : journaliser,
+     s'arrêter — les deux phases.
+   - #count à 0 : journaliser "skip: file vide" pour le balayage et passer à la phase 2.
+
+4. Lire les a de #queue dans l'ordre rendu, avec leurs attributs data-pages et
+   data-expected-total (à lire, jamais à recalculer). ATTENTION, constaté le 2026-09-22 :
+   la page n'expose les recherches que sous forme d'URL à query string, que l'outil
+   refuse de faire transiter en sortie (blocage "Cookie/query string data"). Parade :
+   piloter la navigation depuis la page elle-même (location.href = le href lu), puis
+   relire l'URL dans le contexte d'onglet que l'outil rend de lui-même pour pouvoir la
+   journaliser ; pour les pages suivantes, remplacer le seul paramètre page. Ne jamais
+   reconstruire une URL à la main, et ne jamais encoder ou obscurcir une URL pour
+   contourner ce blocage.
+
+5. TÉMOIN, sur la première page de résultats ouverte : compter les
+   [class*="adscope-"]. Zéro badge → journaliser "error: aucun badge", s'arrêter, ne PAS
+   entamer la phase 2. Témoin positif → il vaut pour tout le run, phase 2 comprise.
+
+6. Pour chaque recherche, dans l'ordre : ouvrir page=1, lire total dans __NEXT_DATA__,
+   puis N = max(data-pages, ceil(total / 35)) plafonné à 20 (data-pages seul si
+   __NEXT_DATA__ manque) ; ouvrir page=2..N, ~2 s d'attente puis
+   window.scrollTo(0,9e5) par page, lots de 8 pages maximum par browser_batch. Une ligne TSV par
+   recherche dans crawler/logs/AAAA-MM.log :
+   <horodatage ISO>\t<url page 1>\t<pages ouvertes>\t<total attendu>\t<total lu>\t<statut>
+   statut = "ok" si l'écart est ≤ 20 %, sinon "ecart: <lu> vs <attendu>", ou
+   "erreur: <motif>" si la page n'a pas chargé ou si __NEXT_DATA__ manque.
+
+7. File entièrement ouverte, ou 15 minutes atteintes : ne pas redemander la file,
+   passer à la phase 2.
+
+PHASE 2 — REVISITES (crawler/RUNBOOK-revisites.md)
+
+8. Boucle de tranches, jusqu'à file vide, budget insuffisant ou incident :
+   a. limit = min(100, (secondes restantes - 90 de marge) / 8). Si limit < 10 :
+      arrêter, ne demander aucune tranche.
+   b. navigate pleine page vers http://localhost:8000/app/revisites.html?limit=<limit>,
+      puis cliquer UNE SEULE fois « Demander la file ». Si la page restitue la tranche
+      précédente depuis sessionStorage et n'offre plus que « Oublier cette file »,
+      cliquer d'abord dessus : cela ne consomme rien.
+   c. lire #count, puis les href des a de #queue PAR TRANCHES DE 20 : stocker
+      window.__u = [...document.querySelectorAll('#queue a')].map(a=>a.href), puis
+      ressortir __u.slice(0,20).join('\n'), __u.slice(20,40).join('\n'), etc. La sortie
+      de l'outil tronque au-delà, et une URL perdue est une fiche consommée pour rien.
+   d. #count à 0 : première tranche → "skip: file vide" ; tranche suivante →
+      "ok: file epuisee apres N". Arrêter.
+   e. ouvrir TOUTES les URL d'une tranche avant d'en demander une autre. Servir une
+      fiche la consomme sept jours, ouverte ou non. Ne jamais redemander après une erreur.
+
+9. Healthcheck de tranche : ouvrir les cinq premières fiches une par une et compter les
+   [data-adscope-detail] / [class*="adscope-panel"]. Zéro panneau n'arrête PLUS le run
+   quand le témoin du balayage était positif — règle du 2026-09-22, section
+   « Enchaînement avec la revisite » de crawler/RUNBOOK-balayage.md : sur une revisite,
+   une fiche sans panneau peut être légitimement supprimée, et la file sert en tête les
+   annonces les plus susceptibles d'avoir disparu. Journaliser le constat et continuer.
+
+10. Ouvrir chaque URL dans l'ordre, telle quelle : navigate pleine page (une navigation
+    interne au site ne rend pas le DOM serveur), attendre la fin du chargement puis ~2 s.
+    Ne rien lire, ne rien juger, ne pas ouvrir la popup, ne pas reconstruire l'URL, ne pas
+    ajouter de paramètre. browser_batch par lots de 6 pages. Une URL qui ne charge pas :
+    la passer, la noter, continuer.
+
+11. Une ligne TSV en fin de phase :
+    <horodatage ISO>\trevisites\t<ouvertes>\t<servies>\t<message>
+    <ouvertes> et <servies> sont les CUMULS du run, toutes tranches confondues. Message :
+    "ok", "ok: file epuisee apres N", "skip: ...", "partial: ..." ou "error: ...".
+
+12. Fermer les onglets créés. Répondre en 3 lignes maximum : balayage (recherches et
+    pages ouvertes), revisites (ouvertes / servies), incidents éventuels.
+
+Interdits :
+- conclure qu'une annonce est supprimée ou qu'elle a baissé ;
+- écrire quoi que ce soit en base, la seule écriture passe par l'extension ;
+- toucher à crawler/shards.json ou crawler/shards-lacentrale.json, ils appartiennent au
+  crawl exhaustif ;
+- ajouter La Centrale ;
+- lire, recopier ou construire une clé de licence ;
+- corriger à la main l'URL d'une recherche dont un paramètre semble faux : journaliser
+  l'écart et laisser Alexis trancher ;
+- demander une tranche de revisite avant d'avoir entièrement ouvert la précédente.
 ```
