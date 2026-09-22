@@ -68,6 +68,10 @@
 }
 .pastille-lecture{cursor:default; padding:7px 13px}
 .as-compte{display:flex; align-items:center; gap:14px; font-size:13.5px; color:var(--faible); margin:14px 0 4px}
+/* La couverture du balayage (F2) : même registre discret que le compte du
+   marché juste au-dessus, jamais une couleur de statut (pas d'orangé/rouge :
+   « hors balayage » est un fait, pas une alarme). */
+.as-couverture{font-size:13px; color:var(--faible); margin:0 0 14px}
 /* En pause : le corps s'atténue, jamais la carte elle-même (« cartes
    blanches » du registre — un `opacity` sur la carte entière la teinterait
    de gris au contact du sol). L'entête (nom + badge) reste lisible. */

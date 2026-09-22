@@ -16,7 +16,7 @@ import { clear, el } from './dom.js'
 import { filtersFromQuery } from './url-state.js'
 import { renderSwitch } from './switch.js'
 import { renderThresholds } from './alerts-search-thresholds.js'
-import { NEW_SENTENCE, PAUSE_HINT, RESUME_HINT, countLabel, payloadFor } from './alerts-search-rules.js'
+import { NEW_SENTENCE, PAUSE_HINT, RESUME_HINT, countLabel, coverageSentence, payloadFor } from './alerts-search-rules.js'
 
 const PANNE = "L'action n'a pas pu être faite. Réessayez."
 
@@ -47,10 +47,8 @@ function actions(search, { onTogglePause, onDelete }) {
     if (!arme) { arme = true; supprimer.textContent = 'Confirmer'; supprimer.classList.add('as-arme'); return }
     onDelete(search.id)
   })
-  const pause = el('button', {
-    class: 'as-discret', text: search.paused ? 'Reprendre' : 'Mettre en pause',
-    onclick: () => onTogglePause(search.id, !search.paused),
-  })
+  const pause = el('button', { class: 'as-discret', text: search.paused ? 'Reprendre' : 'Mettre en pause',
+    onclick: () => onTogglePause(search.id, !search.paused) })
   return el('div', { class: 'as-actions' }, [
     el('div', {}, [pause, el('span', { class: 'as-note', text: search.paused ? RESUME_HINT : PAUSE_HINT })]),
     supprimer,
@@ -67,6 +65,7 @@ function carte(search, facetsById, callbacks) {
       el('span', { text: countLabel(facets && facets.total) }),
       el('a', { class: 'lien-sortant', href: `#/marche?${search.query}`, text: 'Voir les annonces' }),
     ]),
+    el('p', { class: 'as-couverture', text: coverageSentence(search) }),
     el('div', { class: 'as-regles' }, [
       el('div', { class: 'as-regle' }, [
         regle(search, 'notify_drops', 'Baisses sur les annonces anciennes', callbacks.onPatch),

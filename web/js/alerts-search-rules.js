@@ -37,6 +37,18 @@ export function countLabel(total) {
   return `${number(total)} annonce${total > 1 ? 's' : ''} aujourd'hui`
 }
 
+// La couverture du balayage quotidien (lot F2), en clair pour un marchand —
+// jamais « sweep » ni « coverage_24h ». Une recherche sans marque ni modèle,
+// ou en texte libre, n'entre pas dans le balayage (`sweep_url.translate`
+// côté API) : le dire plutôt que taire un pourcentage qui n'existe pas.
+export const TROP_LARGE = 'Hors balayage, trop large : précisez une marque et un modèle.'
+
+export function coverageSentence(search) {
+  if (search.sweep_status === 'trop_large' || search.sweep_status === 'texte_libre') return TROP_LARGE
+  if (search.coverage_24h == null) return 'Pas encore balayée.'
+  return `${Math.round(search.coverage_24h * 100)} % des annonces vues depuis 24 h.`
+}
+
 // `PUT` est complet : on repart de la recherche affichée et on applique un
 // seul correctif — le contrat n'a pas de `PATCH` (§3 du plan).
 export function payloadFor(search, patch) {

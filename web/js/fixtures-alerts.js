@@ -13,27 +13,31 @@ function videDemande() {
   return new URLSearchParams(location.search).get('vide') === '1'
 }
 
-// Les trois requêtes correspondent à de vraies lignes de `fixtures-rows.js` :
-// un compte d'annonces à zéro sur la carte vedette de la démo se lirait comme
-// une panne du compteur, pas comme un marché honnêtement calme.
+// Les trois premières recherches correspondent à de vraies lignes de
+// `fixtures-rows.js` : un compte à zéro sur la carte vedette de la démo se
+// lirait comme une panne du compteur. `coverage_24h`/`seen_total`/
+// `sweep_status` (lot F2) : la quatrième, sans marque ni modèle, est hors
+// balayage — le seul des trois états que les trois premières ne montraient pas.
 let searchesStore = [
   {
-    id: 1, name: 'Clio diesel',
-    query: 'brand=Renault&fuel=diesel&model=Clio',
+    id: 1, name: 'Clio diesel', query: 'brand=Renault&fuel=diesel&model=Clio',
     notify_drops: true, notify_new: false, min_age_days: 30, min_drop_pct: 3,
-    paused: false, created_at: isoDaysBefore(21),
+    paused: false, created_at: isoDaysBefore(21), coverage_24h: 0.82, seen_total: 341, sweep_status: 'ok',
   },
   {
-    id: 2, name: '208 essence Hauts-de-Seine',
-    query: 'brand=Peugeot&department=92&fuel=essence&model=208',
+    id: 2, name: '208 essence Hauts-de-Seine', query: 'brand=Peugeot&department=92&fuel=essence&model=208',
     notify_drops: true, notify_new: true, min_age_days: 15, min_drop_pct: 5,
-    paused: false, created_at: isoDaysBefore(9),
+    paused: false, created_at: isoDaysBefore(9), coverage_24h: null, seen_total: 0, sweep_status: 'ok',
   },
   {
-    id: 3, name: 'Dacia Duster',
-    query: 'brand=Dacia&model=Duster',
+    id: 3, name: 'Dacia Duster', query: 'brand=Dacia&model=Duster',
     notify_drops: true, notify_new: false, min_age_days: 30, min_drop_pct: 3,
-    paused: true, created_at: isoDaysBefore(40),
+    paused: true, created_at: isoDaysBefore(40), coverage_24h: 0.55, seen_total: 96, sweep_status: 'ok',
+  },
+  {
+    id: 4, name: 'Familiales à moins de 15 000 €', query: 'price_max=15000',
+    notify_drops: true, notify_new: false, min_age_days: 30, min_drop_pct: 3,
+    paused: false, created_at: isoDaysBefore(3), coverage_24h: 0.4, seen_total: 812, sweep_status: 'trop_large',
   },
 ]
 
