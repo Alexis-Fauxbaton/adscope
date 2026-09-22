@@ -23,6 +23,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
+from sqlalchemy import delete
 
 from .auth_models import SessionToken
 from .config import public_url
@@ -81,6 +82,23 @@ def drop(session, raw: str) -> None:
     row = session.get(SessionToken, hash_token(raw)) if raw else None
     if row is not None:
         session.delete(row)
+
+
+# La réinitialisation d'un mot de passe oublié ferme tout : qui a demandé le
+# lien ne sait pas si une autre session (un poste volé, un navigateur oublié
+# ouvert) tient encore le compte.
+def close_all(session, account_id: int) -> None:
+    session.execute(delete(SessionToken).where(SessionToken.account_id == account_id))
+
+
+# Le changement de mot de passe, connecté, garde la session courante : c'est
+# celle de Karim, en train de faire l'opération — la lui fermer le
+# déconnecterait de sa propre action.
+def close_others(session, account_id: int, keep_token_hash: str) -> None:
+    session.execute(
+        delete(SessionToken).where(SessionToken.account_id == account_id,
+                                   SessionToken.token_hash != keep_token_hash)
+    )
 
 
 # `Secure` suit la base configurée, jamais la requête : l'en-tête `Host` est
