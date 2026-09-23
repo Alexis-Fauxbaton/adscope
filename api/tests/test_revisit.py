@@ -16,6 +16,17 @@ NOW = datetime(2026, 9, 7, 12, 0, tzinfo=timezone.utc)
 LONG_AGO = NOW - timedelta(days=30)
 
 
+# `/v1/revisits` est derrière `require_operator` : seule une licence
+# `automated` l'ouvre (A1/AUTH-01/A4, audits d'accès et d'abus). Remplace ici
+# la clé marchande générique de `conftest.key`.
+@pytest.fixture
+def key(session):
+    raw = new_key()
+    session.add(License(key_hash=hash_key(raw), label="crawler", automated=True))
+    session.commit()
+    return raw
+
+
 def listed(session, site_id, *, seller_type="pro", published=None, last_seen=LONG_AGO,
            site="lbc", **kw):
     listing = Listing(site=site, site_id=site_id, first_seen=LONG_AGO,

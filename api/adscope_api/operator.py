@@ -8,6 +8,14 @@ plus que pour le compte opérateur (`config.operator_email`).
 Voisin d'`auth.py`, pas dedans : `require_license` y tient déjà 123 lignes,
 et cette porte réutilise ses briques (`resolve`, `of_account`) plutôt que de
 les dupliquer.
+
+La branche `Bearer` rendait toute licence active, celle d'un marchand comme
+celle du crawler : sa clé, lue dans `extension/popup/account.js` ou frappée
+par `accounts.signup:54` à chaque inscription, ouvrait le périmètre de tous
+les concurrents et la file de revisite de la flotte entière (A1/AUTH-01/A4,
+audits d'accès et d'abus). Seule une licence `automated` — celle que
+`mint_license.py --automated` ou `mark_automated.py` posent, jamais
+l'inscription d'un compte — porte maintenant cette porte-là.
 """
 
 from fastapi import Depends, Header, HTTPException, Request
@@ -34,6 +42,8 @@ def require_operator(request: Request, authorization: str = Header(default=""),
         license_ = resolve(session, key, now)
         if license_ is None:
             raise HTTPException(status_code=401, detail="licence invalide")
+        if not license_.automated:
+            raise HTTPException(status_code=403, detail="réservé à l'opérateur")
         return license_
     row = sessions.resolve(session, request.cookies.get(sessions.COOKIE, ""), now)
     if row is None:

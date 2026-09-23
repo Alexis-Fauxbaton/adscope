@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from adscope_api.alert_models import SavedSearch
 from adscope_api.auth import hash_key, new_key
 from adscope_api.auth_models import Account
@@ -10,6 +12,19 @@ from adscope_api.taxonomy import derive
 from conftest import auth
 
 NOW = datetime(2026, 9, 18, 12, 0, tzinfo=timezone.utc)
+
+
+# `/v1/sweep` est derrière `require_operator` : seule une licence `automated`
+# — celle du crawler, jamais celle qu'`accounts.signup` frappe à l'inscription
+# — l'ouvre (A1/AUTH-01/A4, audits d'accès et d'abus). Remplace ici la clé
+# marchande générique de `conftest.key` : ce fichier n'éprouve que la file du
+# crawler.
+@pytest.fixture
+def key(session):
+    raw = new_key()
+    session.add(License(key_hash=hash_key(raw), label="crawler", automated=True))
+    session.commit()
+    return raw
 
 
 def enrolled(session, email):
@@ -207,7 +222,7 @@ def test_a_paused_search_is_absent_from_the_queue(client, key, session, clock):
 # machine sans compte entre dans la file.
 def test_a_license_without_an_account_gets_200(client, session, clock):
     raw = new_key()
-    session.add(License(key_hash=hash_key(raw), label="crawler"))
+    session.add(License(key_hash=hash_key(raw), label="crawler", automated=True))
     session.commit()
     assert sweep(client, raw).status_code == 200
 

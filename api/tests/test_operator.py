@@ -7,6 +7,7 @@ fonction, les deux prouvent qu'elle est bien branchée sur chacune.
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import update
 
 from adscope_api.auth import hash_key, new_key
 from adscope_api.auth_models import Account
@@ -39,9 +40,9 @@ def enrolled(session, email):
     return account
 
 
-def keyed(session, label="crawler"):
+def keyed(session, label="crawler", automated=True):
     raw = new_key()
-    session.add(License(key_hash=hash_key(raw), label=label))
+    session.add(License(key_hash=hash_key(raw), label=label, automated=automated))
     session.commit()
     return raw
 
@@ -52,12 +53,41 @@ def both_routes(client, headers):
     return sweep, revisits
 
 
-def test_a_license_key_passes_both_routes(browser, session, clock, monkeypatch):
+def test_an_automated_license_key_passes_both_routes(browser, session, clock, monkeypatch):
     monkeypatch.setenv("ADSCOPE_OPERATOR_EMAIL", "ops@adscope.fr")
     raw = keyed(session)
     sweep, revisits = both_routes(browser, auth(raw))
     assert sweep.status_code == 200
     assert revisits.status_code == 200
+
+
+# Fait rougir `if not license_.automated: raise HTTPException(403, ...)` : une
+# licence de marchand ordinaire — celle qu'`accounts.signup` frappe à
+# l'inscription, sans le rôle `automated` — ne doit plus ouvrir le périmètre
+# de tous les concurrents (A1/AUTH-01/A4).
+def test_an_unautomated_license_key_is_refused_on_both_routes(browser, session, clock, monkeypatch):
+    monkeypatch.setenv("ADSCOPE_OPERATOR_EMAIL", "ops@adscope.fr")
+    raw = keyed(session, label="marchand", automated=False)
+    sweep, revisits = both_routes(browser, auth(raw))
+    assert sweep.status_code == 403
+    assert revisits.status_code == 403
+
+
+# Le cas réel de la trouvaille : la licence rattachée au compte d'un marchand
+# à l'inscription (`accounts.signup`), pas une clé frappée à la main.
+def test_a_merchant_accounts_own_license_key_is_refused_on_both_routes(
+    browser, session, clock, monkeypatch,
+):
+    monkeypatch.setenv("ADSCOPE_OPERATOR_EMAIL", "ops@adscope.fr")
+    account = enrolled(session, "marchand@garage.fr")
+    raw = keyed(session, label="marchand@garage.fr", automated=False)
+    session.execute(
+        update(License).where(License.key_hash == hash_key(raw)).values(account_id=account.id)
+    )
+    session.commit()
+    sweep, revisits = both_routes(browser, auth(raw))
+    assert sweep.status_code == 403
+    assert revisits.status_code == 403
 
 
 # La casse ne se choisit pas à l'inscription : la comparaison la replie.
