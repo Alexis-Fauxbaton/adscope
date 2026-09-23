@@ -56,6 +56,37 @@ def test_wrong_password_and_unknown_address_give_the_same_answer(client, session
     assert wrong.json() == unknown.json() == {"detail": accounts.BAD_CREDENTIALS}
 
 
+# Fait rougir `limiter.clear("login", ...)` dans `accounts.login` (AUTH-05,
+# audit auth) : le plafond par adresse compte les essais SUR elle, pas PAR
+# elle — un tiers qui en épuise neuf avec de mauvais mots de passe ne doit
+# pas priver Karim du dixième, le bon.
+def test_repeated_wrong_passwords_do_not_lock_out_the_right_one(client, session, clock):
+    from adscope_api.rate_limit import LIMITS
+
+    verified(session)
+    per_email, _, _ = LIMITS["login"]
+    for _ in range(per_email - 1):
+        assert login(client, password="pas-le-bon").status_code == 401
+    assert login(client).status_code == 204
+
+
+# Même plafond, remis à zéro par la réussite : une seconde vague d'essais
+# fautifs, après une connexion qui a marché, dispose à nouveau du plafond
+# entier — la lecture d'AUTH-05 (« indéfiniment renouvelable ») tient sur le
+# plafond seul, pas sur ce qu'une réussite en a déjà consommé.
+def test_a_successful_login_resets_the_per_email_counter(client, session, clock):
+    from adscope_api.rate_limit import LIMITS
+
+    verified(session)
+    per_email, _, _ = LIMITS["login"]
+    for _ in range(per_email - 1):
+        login(client, password="pas-le-bon")
+    assert login(client).status_code == 204
+    for _ in range(per_email - 1):
+        assert login(client, password="pas-le-bon").status_code == 401
+    assert login(client).status_code == 204
+
+
 # Fait rougir `waste_time()` dans `accounts.login` : sans lui, une adresse
 # inconnue répondrait plus vite qu'une adresse connue avec le mauvais mot de
 # passe, et le temps de réponse trahirait ce que le corps cache.

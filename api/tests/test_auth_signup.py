@@ -201,6 +201,73 @@ def test_a_concurrent_signup_cannot_hijack_a_passwordless_accounts_link(client, 
     assert passwords.verify_password(account.password_hash, "mot-de-passe-victime")
 
 
+# Fait rougir `if account.password_hash is not None: raise HTTPException(400, ...)`
+# dans `accounts.verify` (AUTH-02, audit auth) : un tiers pose un jeton `verify`
+# sur l'adresse de Karim en premier, Karim s'inscrit ensuite pour de bon et
+# clique SON lien — le mot de passe de Karim s'installe. Le lien du tiers,
+# cliqué après coup, ne doit plus réinstaller le sien par-dessus : le compte
+# est déjà pourvu, le clic est refusé, aucune session ne s'ouvre pour autant.
+def test_a_stale_verify_token_cannot_reinstall_its_password_after_the_fact(
+    client, session, clock,
+):
+    signup(client, password="mot-de-passe-attaquant")
+    attacker_token = mailed_token(session)
+    signup(client, password="mot-de-passe-karim")  # même adresse, avant tout clic
+    karim_token = mailed_token(session)
+    assert verify(client, karim_token).status_code == 204
+
+    response = verify(client, attacker_token)
+    assert response.status_code == 400
+    assert "set-cookie" not in response.headers
+    account = session.scalar(select(Account).where(Account.email == EMAIL))
+    assert passwords.verify_password(account.password_hash, "mot-de-passe-karim")
+    assert not passwords.verify_password(account.password_hash, "mot-de-passe-attaquant")
+
+
+# Fait rougir `_evict_oldest_at_cap` dans `login_tokens.mint` (AUTH-03, audit
+# auth) : cinq inscriptions d'un tiers sur l'adresse de Karim, toutes avec SON
+# mot de passe, ne doivent plus empêcher la sixième — la vraie, celle de
+# Karim — de recevoir un lien qui marche. L'ancien plafond refusait la frappe
+# au-delà de cinq jetons en vol (`mint` rendait `None`) et la route mentait en
+# répondant quand même « envoyé ». Le limiteur par adresse (`rate_limit.guard`,
+# 5/h) partage le même chiffre que le plafond de jetons : on le remet à zéro
+# entre les deux vagues, comme le ferait un redémarrage du service — le
+# scénario même que la trouvaille décrit, pas une triche qui changerait la
+# conclusion.
+def test_a_flooded_pending_queue_still_lets_the_latest_request_through(
+    client, session, clock,
+):
+    from adscope_api.rate_limit import limiter
+
+    for _ in range(login_tokens.MAX_PENDING):
+        assert signup(client, password="mot-de-passe-attaquant").status_code == 202
+    before = session.scalar(select(func.count()).select_from(Mail))
+
+    limiter.reset()
+    response = signup(client, password="mot-de-passe-karim")
+    assert response.status_code == 202
+    assert response.json() == {"sent": True}
+    assert session.scalar(select(func.count()).select_from(Mail)) == before + 1
+
+    karim_token = mailed_token(session)
+    assert verify(client, karim_token).status_code == 204
+    account = session.scalar(select(Account).where(Account.email == EMAIL))
+    assert passwords.verify_password(account.password_hash, "mot-de-passe-karim")
+
+
+def test_mint_always_returns_a_token_even_past_the_pending_cap(session, clock):
+    account = enrolled_without_password(session, email="flooded@garage.fr")
+    for _ in range(login_tokens.MAX_PENDING):
+        token = login_tokens.mint(session, account.id, "verify", clock.now)
+        assert token is not None
+    session.commit()
+    one_more = login_tokens.mint(session, account.id, "verify", clock.now)
+    assert one_more is not None
+    session.commit()
+    consumed = login_tokens.consume(session, one_more, "verify", clock.now)
+    assert consumed is not None
+
+
 # Fait rougir `if account is not None and account.password_hash is not None:`
 # dans `accounts.login` : un mot de passe en attente n'ouvre jamais de
 # session, même si `email_verified_at` traîne déjà (état hérité de la

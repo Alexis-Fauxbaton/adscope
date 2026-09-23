@@ -19,6 +19,7 @@ from .auth import hash_key, new_key
 from .auth_models import Account
 from .config import public_url
 from .models import License
+from .rate_limit import limiter
 
 ALREADY_EXISTS = "Un compte existe déjà avec cet email. Connectez-vous."
 BAD_CREDENTIALS = "Email ou mot de passe incorrect."
@@ -35,8 +36,6 @@ def _link(kind: str, token: str) -> str:
 def _send(session, account_id: int, purpose: str, kind: str, subject: str, now: datetime,
          pending_password_hash: str | None = None) -> None:
     token = login_tokens.mint(session, account_id, purpose, now, pending_password_hash)
-    if token is None:
-        return  # plafond de jetons en vol atteint (login_tokens.MAX_PENDING)
     text = f"Bonjour,\n\nSuivez ce lien : {_link(kind, token)}\n\nL'équipe adscope."
     mail_outbox.post(session, account_id, kind, subject, text, now)
 
@@ -56,10 +55,8 @@ def signup(session, email: str, password: str, now: datetime) -> None:
     account = session.scalar(select(Account).where(Account.email == email))
     if account.password_hash is not None:
         raise HTTPException(status_code=409, detail=ALREADY_EXISTS)
-    # Le mot de passe voyage sur le jeton qu'on envoie, pas sur une case du
-    # compte (D2, revue de code) : seul le clic du lien qui le porte promeut
-    # CE mot de passe — jamais celui d'une inscription concurrente sur la
-    # même adresse, qui aurait écrasé une case partagée.
+    # Le mot de passe voyage sur le jeton, pas sur une case du compte (D2) :
+    # seul le clic du lien qui le porte promeut CE mot de passe.
     _send(session, account.id, "verify", "verification", "Vérifiez votre email", now,
          pending_password_hash=hashed)
 
@@ -76,13 +73,21 @@ def resend(session, email: str, now: datetime) -> None:
 
 def verify(session, token: str, now: datetime) -> str:
     """Consomme le jeton, promeut le mot de passe qu'IL portait, ouvre une
-    session ; rend le secret de session (jamais rendu par HTTP ailleurs)."""
+    session ; rend le secret de session (jamais rendu par HTTP ailleurs).
+
+    Un jeton qui pose un mot de passe ne le fait plus si le compte en porte
+    déjà un (AUTH-02) : sinon un jeton `verify` posé par un tiers avant la
+    victime, cliqué après coup, réinstallait son mot de passe et ouvrait une
+    session. Déjà brûlé par `consume` : le refuser ici le laisse sans effet,
+    jamais rejouable."""
     consumed = login_tokens.consume(session, token, "verify", now)
     if consumed is None:
         raise HTTPException(status_code=400, detail=BAD_TOKEN)
     account_id, pending_password_hash = consumed
     account = session.get(Account, account_id)
     if pending_password_hash is not None:
+        if account.password_hash is not None:
+            raise HTTPException(status_code=400, detail=BAD_TOKEN)
         account.password_hash = pending_password_hash
     account.email_verified_at = now
     return sessions.create(session, account_id, now)
@@ -92,6 +97,11 @@ def login(session, email: str, password: str, now: datetime) -> str:
     account = session.scalar(select(Account).where(Account.email == email))
     if account is not None and account.password_hash is not None:
         if passwords.verify_password(account.password_hash, password):
+            # Le plafond par adresse compte les essais SUR elle, pas PAR
+            # elle : un tiers qui la connaît épuisait le compteur et
+            # bloquait ensuite le vrai titulaire (AUTH-05). Une connexion
+            # réussie le remet à zéro.
+            limiter.clear("login", f"email:{email}")
             return sessions.create(session, account.id, now)
         raise HTTPException(status_code=401, detail=BAD_CREDENTIALS)
     # Pas de mot de passe actif : jamais de session sur la seule foi d'un mot

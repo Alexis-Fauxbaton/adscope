@@ -25,6 +25,13 @@ LIMITS = {
     "resend": (5, 10, timedelta(minutes=60)),
     "verify": (None, 30, timedelta(minutes=15)),
     "reset": (None, 30, timedelta(minutes=15)),
+    # `/v1/auth/password` vérifie un mot de passe (Argon2id, ~60 ms en
+    # production) et n'appelait `guard` nulle part : une session volée
+    # devinait le mot de passe courant en essais illimités (AUTH-04, audit
+    # auth). La clé n'est pas une adresse mais un compte (`f"account:{id}"`),
+    # posée par la route — même plafond que `login`, qui vérifie le même
+    # genre de secret.
+    "password": (10, 30, timedelta(minutes=15)),
 }
 
 # La plus large fenêtre posée (`signup`, `forgot`, `resend` : une heure) :
@@ -57,6 +64,9 @@ class Limiter:
 
     def reset(self) -> None:
         _hits.clear()
+
+    def clear(self, bucket: str, key: str) -> None:
+        _hits.pop((bucket, key), None)
 
 
 limiter = Limiter()

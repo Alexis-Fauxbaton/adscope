@@ -59,6 +59,12 @@ def post_change_password(payload: ChangeIn, request: Request, session=Depends(ge
     # `require_account_by_cookie`, jamais `require_account` : changer un mot
     # de passe est un geste humain, une clé de machine n'y a pas sa place
     # (revue de code) — et il fait déjà le CSRF pour la session cookie.
+    #
+    # Seule route à vérifier un mot de passe sans jamais appeler `guard` :
+    # une session volée devinait le mot de passe courant en essais illimités
+    # (AUTH-04, audit auth). Par compte, pas par adresse — la route n'en
+    # reçoit pas — avant tout hachage, comme partout ailleurs.
+    guard("password", f"account:{account_id}", request, now)
     error = policy_error(payload.password)
     if error:
         raise HTTPException(status_code=422, detail=error)

@@ -103,6 +103,24 @@ def test_change_requires_the_current_password(client, session, clock):
     assert response.json() == {"detail": "Mot de passe actuel incorrect."}
 
 
+# Fait rougir `guard("password", ...)` dans `post_change_password` (AUTH-04,
+# audit auth) : seule route à vérifier un mot de passe sans jamais appeler le
+# limiteur, une session volée pouvait deviner le mot de passe courant en
+# essais illimités.
+def test_change_is_rate_limited_after_repeated_wrong_current_passwords(
+    client, session, clock,
+):
+    from adscope_api.rate_limit import LIMITS
+
+    account = verified(session)
+    sign_in(client, session, account.id, clock.now)
+    per_account, _, _ = LIMITS["password"]
+    codes = [change(client, current="pas-le-bon", headers=XA).status_code
+             for _ in range(per_account + 1)]
+    assert codes[:per_account] == [401] * per_account
+    assert codes[-1] == 429
+
+
 # Fait rougir `sessions.close_others` : les autres sessions tombent, la
 # courante — celle qui vient de changer le mot de passe — reste.
 def test_change_closes_other_sessions_and_keeps_the_current_one(client, session, clock):

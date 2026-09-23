@@ -7,7 +7,7 @@ jetons en vol. `accounts.py` orchestre ; ce module ne connaît que la table.
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import func, select, text
+from sqlalchemy import select, text
 
 from .auth_models import LoginToken
 from .sessions import hash_token, new_token
@@ -16,31 +16,46 @@ from .sessions import hash_token, new_token
 # Réinitialisation : le plus dangereux des deux liens, une demi-heure suffit.
 LIFETIMES = {"verify": timedelta(minutes=60), "reset": timedelta(minutes=30)}
 
-# Cinq jetons en vol par compte et par usage : au-delà, la boîte du marchand
-# sert de mégaphone à qui connaît son adresse.
+# Cinq jetons en vol par compte et par usage. Un plafond qui REFUSAIT la
+# frappe au-delà se retournait contre le compte visé : un tiers qui en posait
+# cinq sur l'adresse d'un autre l'empêchait ensuite de recevoir le sien, et la
+# route répondait quand même « envoyé » (AUTH-03, audit auth). Le plafond
+# évince maintenant le plus ancien pour faire de la place plutôt que de
+# refuser : `mint` rend donc toujours une clé, et une demande peut toujours
+# aboutir. Les jetons déjà en vol sous le plafond — le cas normal, deux
+# `forgot` cliqués dans le désordre — ne sont jamais touchés ici : c'est
+# `invalidate_pending`, appelé après une réussite, qui les périme.
 MAX_PENDING = 5
 
 
-def mint(session, account_id: int, purpose: str, now: datetime,
-        pending_password_hash: str | None = None) -> str | None:
-    """Frappe un jeton pour ce compte et cet usage ; rien si le plafond est
-    atteint.
+def _evict_oldest_at_cap(session, account_id: int, purpose: str, now: datetime) -> None:
+    pending = session.scalars(
+        select(LoginToken).where(
+            LoginToken.account_id == account_id, LoginToken.purpose == purpose,
+            LoginToken.used_at.is_(None), LoginToken.expires_at > now,
+        )
+        # Une durée de vie constante par usage : le jeton qui expire le plus
+        # tôt est aussi celui qui a été frappé le premier, sans colonne de
+        # date de création à tenir.
+        .order_by(LoginToken.expires_at)
+    ).all()
+    if len(pending) >= MAX_PENDING:
+        session.execute(
+            text("UPDATE login_tokens SET used_at = :now WHERE token_hash = :hash"),
+            {"now": now, "hash": pending[0].token_hash},
+        )
 
-    Le plafond compte les jetons encore valables pour ce `purpose` : pas de
-    colonne de date de création à tenir, la durée de vie suffit.
+
+def mint(session, account_id: int, purpose: str, now: datetime,
+        pending_password_hash: str | None = None) -> str:
+    """Frappe un jeton pour ce compte et cet usage ; rend toujours une clé.
 
     `pending_password_hash` voyage sur CE jeton (un `verify` d'inscription) :
     c'est lui, et lui seul, que `consume` rend à qui le brûle — jamais une
     case du compte, que plusieurs jetons en vol se disputeraient (revue de
     code, prise de compte).
     """
-    pending = session.scalar(
-        select(func.count()).select_from(LoginToken)
-        .where(LoginToken.account_id == account_id, LoginToken.purpose == purpose,
-              LoginToken.expires_at > now)
-    )
-    if pending >= MAX_PENDING:
-        return None
+    _evict_oldest_at_cap(session, account_id, purpose, now)
     raw = new_token()
     session.add(LoginToken(token_hash=hash_token(raw), account_id=account_id,
                            expires_at=now + LIFETIMES[purpose], purpose=purpose,
