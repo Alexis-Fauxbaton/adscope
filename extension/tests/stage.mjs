@@ -30,8 +30,11 @@ export class El {
     this.handlers = {}
   }
   addEventListener(type, fn) { (this.handlers[type] = this.handlers[type] || []).push(fn) }
-  // Le clic tel que le lecteur le donne : le panneau n'écoute que celui-là.
-  click() { for (const fn of this.handlers.click || []) fn() }
+  // Le clic tel que le lecteur le donne : `isTrusted` vaut `true`, comme pour
+  // tout clic réel dans un navigateur. `click(false)` simule un clic qu'une
+  // page forge elle-même (`el.dispatchEvent(new MouseEvent('click'))`), le
+  // seul que src/panel-cards.js doit ignorer (audit offensif, angle extension, T1).
+  click(trusted = true) { for (const fn of this.handlers.click || []) fn({ isTrusted: trusted }) }
   set textContent(v) { this.own = v; this.children = [] }
   get textContent() { return this.children.length ? this.children.map((c) => c.textContent).join('') : this.own }
   get descendants() { return this.children.flatMap((c) => [c, ...c.descendants]) }

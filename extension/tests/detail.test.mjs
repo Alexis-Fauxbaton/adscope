@@ -17,13 +17,16 @@ test("l'annonce décrite est celle que l'URL désigne, pas la première du bloc"
   assert.doesNotMatch(w.panel().textContent, /professionnel/)
 })
 
-test("sans identifiant dans l'URL, la première annonce est décrite", () => {
-  // Une page de résultats : aucune annonce n'y est « celle de l'URL », et
-  // detail.js y pose quand même son panneau.
+// Rouge sur le repli `|| listings[0]` de `pick`, dans src/detail.js : hors
+// fiche — accueil, page de compte, résultats vides — aucune annonce n'est
+// « celle de l'URL », et sans cette garde une charge reçue par le pont monde
+// MAIN (forgeable par tout script tiers exécuté sur la page, jamais authentifié
+// — audit offensif, angle extension, T1) y ferait poser un panneau entièrement
+// fabriqué.
+test("sans identifiant dans l'URL, aucune annonce n'est décrite", () => {
   const w = world('0', { path: '/voitures/occasions', data: TWO })
   w.load('detail.js')
-  assert.equal(w.panel().getAttribute('data-adscope-detail'), PRO)
-  assert.match(w.panel().textContent, /professionnel/)
+  assert.equal(w.panel(), null)
 })
 
 test("quand aucune annonce ne correspond à l'URL, le panneau reste et se corrige", () => {

@@ -35,13 +35,14 @@ ADS.lacentrale = ADS.sites.register((() => {
     customerType === 'PRO' && id
       ? { sellerId: String(id), sellerName: name || null }
       : { sellerId: null, sellerName: null }
+  // Le code postal complet ne sort que pour un vendeur pro (désigne une commune précise, sinon).
   const card = (c) => {
     const v = c.vehicle || {}
     return listing(c.reference, {
       title: [v.make, v.model, v.version].filter(Boolean).join(' ') || null,
       sellerType: type(c.customerType),
       ...seller(c.customerType, c.customerReference, (c.contacts || {}).nomPublie),
-      ...ADS.vehicleFields.withZip(null, (c.location || {}).visitPlace),
+      ...ADS.vehicleFields.withZip(null, (c.location || {}).visitPlace, type(c.customerType) === 'pro'),
       fuel: ADS.vehicleFields.canon(FUEL, v.energy), gearbox: ADS.vehicleFields.canon(GEARBOX, v.gearbox),
       price: number(c.price), publishedAt: date(c.firstOnlineDate),
       // `lastUpdate` dit qu'on a touché à l'annonce, jamais pourquoi — voir BUMP_MIN_MS.
@@ -56,7 +57,7 @@ ADS.lacentrale = ADS.sites.register((() => {
       title: ld.name || null,
       sellerType: type(c.customerType),
       ...seller(c.customerType, c.customerReference, account.publishedName),
-      ...ADS.vehicleFields.withZip(sellerAddr.zipCode, location.visitPlace),
+      ...ADS.vehicleFields.withZip(sellerAddr.zipCode, location.visitPlace, type(c.customerType) === 'pro'),
       fuel: ADS.vehicleFields.canon(FUEL, vehicle.energy), gearbox: ADS.vehicleFields.canon(GEARBOX, vehicle.gearbox),
       price: number((ld.offers || {}).price) || number(c.price), publishedAt: date(c.creationDate),
       // Rien sur une fiche ne dit qu'elle a été remontée : on n'invente pas.

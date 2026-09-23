@@ -8,7 +8,22 @@ ADS.config = (() => {
   const isKey = (k) => KEY.test(k.trim())
   const mask = (k) => `${k.trim().slice(0, 13)}…`
   const base = (u) => u.trim().replace(/\/+$/, '')
-  const isBase = (u) => /^https?:\/\/[^\s/]+$/.test(base(u))
+  // `new URL(v).origin`, pas la seule forme de l'adresse : `v` peut porter des
+  // identifiants avant l'hôte (`https://api.adscope.fr@evil.example`), une
+  // adresse qui ressemble à la bonne et pointe ailleurs — le champ envoie la
+  // clé de licence à qui lit `v`, jamais à qui lit son origine réelle (audit
+  // offensif, angle extension, T2). L'origine reconstruite doit retomber
+  // exactement sur `v` : aucun composant qu'une origine ne porte pas (identifiants,
+  // chemin, requête, fragment) ne doit s'y cacher.
+  const isBase = (u) => {
+    const v = base(u)
+    if (!/^https?:\/\//.test(v)) return false
+    try {
+      return new URL(v).origin === v
+    } catch {
+      return false
+    }
+  }
 
   const probe = async (apiBase, licenseKey, f = fetch) => {
     let res

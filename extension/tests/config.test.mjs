@@ -45,6 +45,16 @@ test('l\'adresse tolère la barre finale et refuse le reste', () => {
   assert.ok(!isBase('http://'))
 })
 
+// Rouge sur `new URL(v).origin === v` de popup/config.js (`isBase`) : la seule
+// forme regex acceptait `https://api.adscope.fr@evil.example` — une adresse
+// qui se lit comme la bonne et dont l'origine réelle est `evil.example`, celle
+// à qui la clé de licence part (audit offensif, angle extension, T2).
+test('une adresse qui porte des identifiants avant l\'hôte est refusée', () => {
+  assert.ok(!isBase('https://api.adscope.fr@evil.example'))
+  assert.ok(!isBase('https://api.adscope.fr:x@evil.example'))
+  assert.equal(new URL('https://api.adscope.fr@evil.example').origin, 'https://evil.example')
+})
+
 test('une licence valide rend son libellé et son échéance', async () => {
   const s = server(() => json(200, { label: 'Garage Dupont', expires_at: '2027-03-12T00:00:00Z' }))
   const r = await probe('http://localhost:8000/', KEY, s.fetch)

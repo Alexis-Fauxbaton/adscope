@@ -53,7 +53,11 @@ ADS.cards = (() => {
   const follow = (state, cls) => {
     const n = el('button', state.on ? `${cls} adscope-follow--on` : cls, state.on ? 'Suivie' : 'Suivre')
     n.setAttribute('type', 'button')
-    if (!state.on) n.addEventListener('click', state.act)
+    // `isTrusted` : le bouton vit dans la page, et une page peut le cliquer
+    // elle-même (`el.dispatchEvent(new MouseEvent('click'))`), sans le geste
+    // d'un lecteur — audit offensif, angle extension, T1. Un clic forgé n'est
+    // pas un suivi demandé.
+    if (!state.on) n.addEventListener('click', (e) => { if (e && e.isTrusted) state.act() })
     return n
   }
 

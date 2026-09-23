@@ -29,14 +29,17 @@ test('le département se dérive du code postal complet', () => {
 })
 
 // leboncoin — cartes : fixture `leboncoin-champs-cartes.json`, réduite depuis
-// une page de résultats réelle (2026-09-19). La Réunion y porte `department_id
-// : "0"` — non fiable, vérifié en le laissant de côté au profit du CP.
+// une page de résultats réelle (2026-09-19), sans `owner` — trois annonces de
+// particuliers. La Réunion y porte `department_id : "0"` — non fiable, vérifié
+// en le laissant de côté au profit du CP.
 test('leboncoin — cartes : carburant, boîte et département tels qu\'observés', () => {
   const [kuga, electric, corolla] = load('leboncoin-champs-cartes.json').map(leboncoin.normalize)
   assert.equal(kuga.fuel, 'electrique')
   assert.equal(kuga.gearbox, 'automatique')
   assert.equal(kuga.department, '79')
-  assert.equal(kuga.postalCode, '79000')
+  // Ni l'un ni l'autre n'a d'`owner` de type `pro` : le code postal complet
+  // d'un particulier ne doit pas voyager (audit offensif, angle extension, T4).
+  assert.equal(kuga.postalCode, null)
   assert.equal(electric.fuel, 'electrique')
   assert.equal(electric.gearbox, 'manuelle')
   assert.equal(electric.department, '69')
@@ -44,10 +47,11 @@ test('leboncoin — cartes : carburant, boîte et département tels qu\'observé
   // Réunion porte `department_id: "0"`, la fixture porte 97410 dans `zipcode`.
   assert.equal(corolla.department, '974')
   assert.notEqual(corolla.department, '0')
-  assert.equal(corolla.postalCode, '97410')
+  assert.equal(corolla.postalCode, null)
 })
 
-// leboncoin — fiches : deux fiches ouvertes en direct, même forme que la carte.
+// leboncoin — fiches : deux fiches ouvertes en direct, même forme que la carte,
+// et sans `owner` non plus — deux particuliers.
 test('leboncoin — fiches : la même lecture qu\'une carte', () => {
   const [corolla, niro] = load('leboncoin-champs-fiches.json').map(leboncoin.normalize)
   assert.equal(corolla.fuel, 'hybride')
@@ -56,7 +60,7 @@ test('leboncoin — fiches : la même lecture qu\'une carte', () => {
   assert.equal(niro.fuel, 'hybride_rechargeable')
   assert.equal(niro.gearbox, 'automatique')
   assert.equal(niro.department, '50')
-  assert.equal(niro.postalCode, '50220')
+  assert.equal(niro.postalCode, null)
 })
 
 // leboncoin — les neuf codes fuel et les deux codes gearbox, tels que relevés
@@ -124,6 +128,24 @@ test('leboncoin — une annonce sans ces champs part comme avant', () => {
   assert.equal(l.postalCode, null)
 })
 
+// Rouge sur le `pro` de `VF.withZip` (src/sites/vehicle-fields.js) et sur son
+// appel dans `normalize` (src/sites/leboncoin.js) : un particulier a la même
+// adresse complète qu'un pro sur la page, et seul le type de vendeur doit
+// trancher si le code postal voyage — le département, lui, reste dans les deux
+// cas (audit offensif, angle extension, T4).
+test('leboncoin — le code postal complet ne voyage que pour un vendeur pro', () => {
+  const zip = { list_id: 1, attributes: [], location: { zipcode: '75001' } }
+  const pro = leboncoin.normalize({ ...zip, owner: { type: 'pro', store_id: '1' } })
+  const priv = leboncoin.normalize({ ...zip, owner: { type: 'private' } })
+  const none = leboncoin.normalize(zip)
+  assert.equal(pro.postalCode, '75001')
+  assert.equal(priv.postalCode, null)
+  assert.equal(none.postalCode, null)
+  assert.equal(pro.department, '75')
+  assert.equal(priv.department, '75')
+  assert.equal(none.department, '75')
+})
+
 // Sans code postal complet, le département vient de la carte plutôt que de
 // rester vide — mais un nom de ville seul ne donne toujours rien.
 test('leboncoin — sans code postal, le département vient de `department_id`', () => {
@@ -158,7 +180,10 @@ test('La Centrale — cartes : énergie, boîte et département tels qu\'observ�
 // La Centrale — fiches : les deux fiches sauvegardées à la racine du dépôt,
 // mêmes références que `FICHES.uncapped`/`.capped` déjà en fixture ; le
 // vocabulaire de boîte diffère de la carte (MECANIQUE/AUTOMATIQUE, pas
-// MANUAL/AUTO) et se canonise vers le même mot.
+// MANUAL/AUTO) et se canonise vers le même mot. `uncapped` (W103538172) est un
+// vendeur PRO, `capped` (B101733515) un particulier (PART) — c'est cet écart
+// de fixture qui documentait la fuite avant correctif : le code postal complet
+// du particulier partait tel quel (audit offensif, angle extension, T4).
 test('La Centrale — fiche : le code postal du vendeur donne le département', () => {
   const [uncapped] = lacentrale.fromScripts(fiche(FICHES.uncapped, {
     sellerName: 'CW AUTOMOBILES', visitPlace: '92', energy: 'ESSENCE', gearboxType: 'MECANIQUE',
@@ -175,8 +200,10 @@ test('La Centrale — fiche : le code postal du vendeur donne le département', 
   }))
   assert.equal(capped.fuel, 'essence')
   assert.equal(capped.gearbox, 'automatique')
+  // Le département reste dérivé du CP transmis par la page ; le CP complet lui,
+  // celui d'un particulier, ne doit pas voyager.
   assert.equal(capped.department, '85')
-  assert.equal(capped.postalCode, '85300')
+  assert.equal(capped.postalCode, null)
 })
 
 // Un mot hors table (énergie ou boîte jamais observée sur ce site) : transmis

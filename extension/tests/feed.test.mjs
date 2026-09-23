@@ -106,3 +106,15 @@ test('le bloc du rendu serveur est lu une fois, pas à chaque lot', () => {
   assert.equal(w.counts.extract, 1)
   assert.equal(w.badge().getAttribute('data-adscope'), PAGE1)
 })
+
+// Rouge sur `MAX_LEN` de src/feed.js : le pont monde MAIN n'authentifie
+// personne (audit offensif, angle extension, T1), et une chaîne démesurée doit
+// être écartée avant `JSON.parse`, pas seulement une charge invraisemblable.
+test('une charge démesurée est ignorée plutôt que parsée', () => {
+  const w = paginated()
+  w.load('listing.js')
+  w.receive({ ads: [ad(PAGE2)], filler: 'x'.repeat(5_000_000) })
+  assert.equal(w.badge(), null)
+  w.receive({ ads: [ad(PAGE2)] })
+  assert.ok(w.badge(), 'une charge de taille normale reste traitée')
+})

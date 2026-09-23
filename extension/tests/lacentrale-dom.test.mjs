@@ -285,13 +285,16 @@ test("sous le plafond, aucune contradiction n'est inventée", () => {
   assert.equal(w.panel().className, 'adscope-panel')
 })
 
-// Sur une page de résultats, le panneau décrit la première annonce : c'est là
-// que la ligne de mise à jour d'une carte se lit en toutes lettres.
-test("le panneau emprunte au site le mot de sa ligne de mise à jour", () => {
+// Sur une page de résultats, l'URL ne désigne aucune fiche : `detail.js` n'y
+// pose plus de panneau. Rouge sur le repli `|| listings[0]` de `pick`
+// (src/detail.js) — sans la garde sur `id`, une page hors fiche affichait le
+// mot de mise à jour de la première annonce du bloc, et une charge forgée par
+// le pont monde MAIN y aurait eu la même audience (audit offensif, angle
+// extension, T1).
+test("sur une page de résultats, aucun panneau n'est posé", () => {
   const w = listing()
   w.load('detail.js')
-  assert.match(w.panel().textContent, /Modifiée/)
-  assert.doesNotMatch(w.panel().textContent, /Réactualisée/i)
+  assert.equal(w.panel(), null)
 })
 
 // La page de résultats n'a pas d'identifiant dans son adresse : c'est ce qui

@@ -48,13 +48,17 @@
 
   // Plusieurs annonces sont connues à la fois — une fiche et ses annonces
   // similaires, les fiches reçues depuis, une page de résultats et son bandeau.
-  // Seul l'identifiant de l'URL dit laquelle est lue. Le repli sur la première
-  // n'est juste que là où l'URL n'en désigne aucune ; quand elle en désigne une
-  // qui manque encore (navigation monopage prise entre deux états), il vaut
-  // mieux un panneau que rien : son marquage restera en désaccord avec l'URL,
-  // donc le rendu sera rejoué jusqu'à ce que la bonne annonce arrive — et elle
-  // arrive, par la charge que le navigateur reçoit pour la fiche ouverte.
-  const pick = (listings, id = urlId()) => listings.find((l) => l.siteId === id) || listings[0]
+  // Seul l'identifiant de l'URL dit laquelle est lue, et hors fiche il n'y en a
+  // pas : le repli sur la première annonce du bloc a longtemps couvert ce cas
+  // aussi, ce qui donnait audience à toute charge forgée par le pont monde MAIN
+  // (audit offensif, angle extension, T1) dès qu'aucune fiche n'était ouverte —
+  // accueil, page de compte, résultats vides. Sur une fiche (l'URL en désigne
+  // une), le repli reste juste quand elle manque encore au bloc (navigation
+  // monopage prise entre deux états) : il vaut mieux un panneau que rien, son
+  // marquage restera en désaccord avec l'URL, et le rendu sera rejoué jusqu'à
+  // ce que la bonne annonce arrive — par la charge que le navigateur reçoit
+  // pour la fiche ouverte.
+  const pick = (listings, id = urlId()) => (id ? listings.find((l) => l.siteId === id) || listings[0] : null)
 
   // L'observateur rejoue ce rendu à chaque lot de mutations de la fiche, qui en
   // produit sans cesse. Tant que le panneau posé porte l'annonce lue et la même

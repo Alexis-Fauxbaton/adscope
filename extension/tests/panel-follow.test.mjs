@@ -79,6 +79,19 @@ test('un suivi qui échoue laisse le bouton recliquable, et le second clic renvo
   })
 })
 
+// Rouge sur le `if (e && e.isTrusted)` de src/panel-cards.js : le bouton vit
+// dans la page, et n'importe quel script qui y tourne peut le cliquer lui-même
+// sans geste du lecteur (audit offensif, angle extension, T1) — un suivi
+// n'est demandé que sur un clic réel.
+test('un clic forgé par la page ne demande pas le suivi', () => {
+  fiche((w) => {
+    w.arrive({ [ID]: FIRST })
+    buttons(w)[1].click(false)
+    assert.deepEqual(asked(w), [])
+    assert.deepEqual(buttons(w).map((b) => b.textContent), ['Suivre', 'Suivre'])
+  })
+})
+
 test('une annonce déjà suivie par la licence est dite suivie, sans rien demander', () => {
   fiche((w) => {
     w.arrive({ [ID]: { ...SIGNALS, followed: true } })

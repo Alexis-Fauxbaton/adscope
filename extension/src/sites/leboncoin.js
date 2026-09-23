@@ -54,7 +54,7 @@ ADS.leboncoin = ADS.sites.register((() => {
       url: ad.url,
       title: ad.subject,
       sellerType: owner.type === 'pro' ? 'pro' : 'private',
-      ...seller(owner), ...VF.withZip(loc.zipcode, loc.department_id),
+      ...seller(owner), ...VF.withZip(loc.zipcode, loc.department_id, owner.type === 'pro'), // CP complet réservé au pro
       price: Array.isArray(ad.price) ? ad.price[0] : ad.price,
       publishedAt: parseDate(ad.first_publication_date),
       bumpedAt: parseDate(ad.index_date),

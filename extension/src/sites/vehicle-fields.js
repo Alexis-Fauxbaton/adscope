@@ -30,10 +30,14 @@ ADS.vehicleFields = (() => {
     return zip.slice(0, 2)
   }
   // Le département déduit du code postal complet quand il y en a un, sinon le
-  // repli déjà donné par la page — jamais un nom de ville seul.
-  const withZip = (zip, fallback) => {
+  // repli déjà donné par la page — jamais un nom de ville seul. Le code postal
+  // complet, lui, ne sort que pour un vendeur professionnel : pour un
+  // particulier, il désigne une commune précise sur une donnée qu'adscope ne
+  // doit pas garder (audit offensif, angle extension, T4) — `pro` vient de
+  // l'appelant, qui seul sait le type de vendeur.
+  const withZip = (zip, fallback, pro) => {
     const z = zipOf(zip)
-    return { department: z ? department(z) : (fallback || null), postalCode: z }
+    return { department: z ? department(z) : (fallback || null), postalCode: pro ? z : null }
   }
 
   return { canon, attrOf, numeric, department, withZip }

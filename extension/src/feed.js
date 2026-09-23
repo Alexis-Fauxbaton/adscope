@@ -15,10 +15,20 @@ ADS.feed = (() => {
   // Le monde MAIN ne publie qu'une chaîne : rien d'un objet de la page ne
   // traverse la frontière des mondes. Gardé : ce monde-là n'est pas orphelin
   // après une mise à jour et continue de publier.
+  //
+  // Ce pont n'authentifie personne (audit offensif, angle extension, T1) :
+  // `window.dispatchEvent` est ouvert à tout script exécuté dans la page — pas
+  // seulement au tap officiel. La borne de taille n'arrête pas la charge
+  // forgée elle-même (voir detail.js et listing.js, qui ne suivent que ce
+  // qu'une carte ou l'URL de la page désigne réellement), seulement l'abus
+  // grossier : une chaîne démesurée envoyée pour faire tourner `JSON.parse` à
+  // vide. Une page réelle mesurée le 2026-09-06 pesait ~1 Mo de code en ligne.
+  const MAX_LEN = 4_000_000
   const on = (name, fn) =>
     addEventListener(
       `adscope:${name}`,
       ADS.context.guard((e) => {
+        if (typeof e.detail !== 'string' || e.detail.length > MAX_LEN) return
         const ads = fromPayload(JSON.parse(e.detail))
         if (ads.length) fn(ads)
       }),
