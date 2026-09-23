@@ -19,13 +19,20 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 
 from .auth import require_license
 from .db import get_session
 from .follow_models import Follow
 from .models import Listing
+
+# Ni plafond à l'écriture ni pagination à la lecture : cinq cents `POST`
+# suffisaient à tout suivre, et chacun tombait en rang 0 de la file de
+# revisite commune (A7), tandis que `GET /v1/follows/feed` chargeait tout en
+# mémoire à chaque appel de l'email du matin (A8, audits d'abus). Un marchand
+# qui en suit deux cents surveille déjà plus que ce qu'il regarde à la main.
+MAX_FOLLOWS = 200
 
 router = APIRouter()
 
@@ -66,6 +73,23 @@ def post_follow(payload: FollowIn, response: Response, session=Depends(get_sessi
     )
     if listing is None:
         raise HTTPException(status_code=404, detail="annonce inconnue")
+    existing = session.scalar(
+        select(Follow.followed_at).where(
+            Follow.license_key_hash == license_.key_hash, Follow.listing_id == listing.id,
+        )
+    )
+    if existing is not None:
+        # Déjà suivie : la date d'origine est rendue telle quelle, et la file
+        # n'est pas rouverte — un second clic n'est pas un second geste, et le
+        # plafond ne mord pas ce qui est déjà posé.
+        response.status_code = 200
+        return {"site": listing.site, "site_id": listing.site_id, "followed_at": existing}
+    count = session.scalar(
+        select(func.count()).select_from(Follow)
+        .where(Follow.license_key_hash == license_.key_hash)
+    )
+    if count >= MAX_FOLLOWS:
+        raise HTTPException(status_code=409, detail="trop d'annonces suivies")
     now = datetime.now(timezone.utc)
     followed_at = session.execute(
         insert(Follow)
@@ -75,8 +99,8 @@ def post_follow(payload: FollowIn, response: Response, session=Depends(get_sessi
         .returning(Follow.followed_at)
     ).scalar()
     if followed_at is None:
-        # Déjà suivie : la date d'origine est rendue telle quelle, et la file
-        # n'est pas rouverte — un second clic n'est pas un second geste.
+        # Course perdue contre un clic simultané sur le même onglet : la ligne
+        # existe déjà, sa date fait foi.
         response.status_code = 200
         followed_at = session.scalar(
             select(Follow.followed_at).where(
@@ -111,5 +135,6 @@ def get_follows(session=Depends(get_session), license_=Depends(require_license))
         .join(Follow, Follow.listing_id == Listing.id)
         .where(Follow.license_key_hash == license_.key_hash)
         .order_by(Follow.followed_at.desc(), Listing.site, Listing.site_id)
+        .limit(MAX_FOLLOWS)
     ).all()
     return [{"site": s, "site_id": i, "followed_at": at} for s, i, at in rows]

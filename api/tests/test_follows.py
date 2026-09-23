@@ -62,6 +62,40 @@ def test_following_twice_answers_200_and_keeps_the_first_moment(client, key, ses
     assert second.json() == first.json()
 
 
+# Fait rougir `if count >= MAX_FOLLOWS` dans `follows.post_follow` (A7, audit
+# d'abus) : au-delà, une annonce de plus tombait toujours en rang 0 de la
+# file de revisite commune, sans considération du nombre déjà suivi.
+def test_following_past_the_cap_is_refused(client, key, session):
+    from adscope_api.follows import MAX_FOLLOWS
+
+    for i in range(MAX_FOLLOWS):
+        listed(session, site_id=f"cap{i}")
+        assert follow(client, key, site_id=f"cap{i}").status_code == 201
+    listed(session, site_id="one-too-many")
+    response = follow(client, key, site_id="one-too-many")
+    assert response.status_code == 409
+
+    # Le suivi déjà posé, lui, n'est pas gêné par le plafond atteint — un
+    # second clic reste un 200, jamais un 409.
+    assert follow(client, key, site_id="cap0").status_code == 200
+
+
+# Fait rougir `.limit(MAX_FOLLOWS)` dans `follows.get_follows` : la lecture
+# ne rend jamais plus que le plafond d'écriture, même pour un suivi posé
+# directement en base (migration, script) plutôt que par la route.
+def test_get_follows_never_renders_more_than_the_cap(client, key, session):
+    from adscope_api.follow_models import Follow
+    from adscope_api.follows import MAX_FOLLOWS
+
+    for i in range(MAX_FOLLOWS + 5):
+        listing = listed(session, site_id=f"over{i}")
+        session.add(Follow(license_key_hash=hash_key(key), listing_id=listing.id,
+                           followed_at=NOW + timedelta(seconds=i)))
+    session.commit()
+    body = client.get("/v1/follows", headers=auth(key)).json()
+    assert len(body) == MAX_FOLLOWS
+
+
 # Fait rougir `listing.next_detail_crawl = now` : c'est tout ce que suivre
 # change au crawl. Sans cette ligne l'annonce garderait l'espacement posé par
 # la dernière revisite — une semaine — et le geste du marchand n'aurait aucun

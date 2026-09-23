@@ -1,5 +1,4 @@
 """Ce que l'API reçoit d'une page tierce, ramené à ce que la base peut porter.
-
 Les largeurs ne sont pas répétées ici : `gauge` les lit sur les colonnes.
 """
 
@@ -104,12 +103,13 @@ class ObservationIn(BaseModel):
             return value if value in (None, "pro", "private") else None
         return value if value in ("day", "month", "year") else "year"
 
-    # Une date illisible est une date de moins, pas un lot perdu.
+    # Illisible ou hors bornes (`gauge.MOMENT_BOUNDS`) : une date de moins,
+    # jamais un lot perdu.
     @field_validator("published_at", "bumped_at", mode="wrap")
     @classmethod
     def _moment(cls, value, handler):
         try:
-            return handler(value)
+            return gauge.moment(handler(value))
         except ValidationError:
             return None
 

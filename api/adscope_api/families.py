@@ -14,7 +14,7 @@ annonces, jamais à un référentiel qu'on n'a pas.
 journal auquel on ajoute. Ce qui n'y est plus n'y est plus.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 
@@ -24,6 +24,11 @@ from .follow_models import TrackedFamily
 from .models import Listing
 
 SEED_COUNT = 10
+# Sans plafond, `PUT /v1/families` écrivait ce qu'on lui envoyait — deux mille
+# familles en un appel, aussi vite que cinq cents (A7, audit d'abus). Cent
+# marques réelles, quinze modèles chacune : deux cents couvre déjà un
+# marchand généraliste avec de la marge.
+MAX_FAMILIES = 200
 
 router = APIRouter()
 
@@ -83,6 +88,8 @@ def get_families(session=Depends(get_session), license_=Depends(require_license)
 @router.put("/v1/families", response_model=list[Family])
 def put_families(payload: list[Family], session=Depends(get_session),
                  license_=Depends(require_license)):
+    if len(payload) > MAX_FAMILIES:
+        raise HTTPException(status_code=409, detail="trop de familles suivies")
     replace_families(session, license_.key_hash, payload)
     session.commit()
     return families_of(session, license_.key_hash)

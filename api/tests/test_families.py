@@ -70,6 +70,17 @@ def test_a_family_sent_twice_is_kept_once(client, key):
     assert put(client, key, [CLIO, CLIO]).json() == [CLIO]
 
 
+# Fait rougir `if len(payload) > MAX_FAMILIES` dans `put_families` (A7, audit
+# d'abus) : sans lui, `PUT` écrivait n'importe quelle taille de lot.
+def test_a_perimeter_over_the_cap_is_refused(client, key):
+    from adscope_api.families import MAX_FAMILIES
+
+    too_many = [{"brand": f"marque{i}", "model": "x"} for i in range(MAX_FAMILIES + 1)]
+    response = put(client, key, too_many)
+    assert response.status_code == 409
+    assert client.get("/v1/families", headers=auth(key)).json() == []
+
+
 # Fait rougir `TrackedFamily.license_key_hash == key_hash` dans `families_of` :
 # le périmètre est celui du marchand qui le demande. Il pèse en revanche sur la
 # file de revisite, qui sert tout le monde à la fois — voir `test_revisit`.

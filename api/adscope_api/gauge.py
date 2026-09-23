@@ -24,6 +24,8 @@ Les largeurs viennent des colonnes elles-mêmes : le gabarit ne peut pas
 diverger du schéma qui le porte.
 """
 
+from datetime import datetime, timezone
+
 from .models import Listing
 
 # Les bornes du plausible, pour les nombres qu'une page tierce nous tend.
@@ -36,6 +38,12 @@ BOUNDS = {
     # Dix ans : au-delà, ce n'est plus une annonce en ligne.
     "published_days_ago": (0, 3650),
 }
+
+# Même principe pour un horodatage exact (`published_at`, `bumped_at`) : sans
+# borne, une observation forgée posait `1000-01-01` et `publication.apply` le
+# gardait pour toujours — `min()`/`max()` n'ont pas de plancher (A3, audit
+# d'abus). La fourchette suit celle de `year` ci-dessus.
+MOMENT_BOUNDS = (datetime(2000, 1, 1, tzinfo=timezone.utc), datetime(2100, 1, 1, tzinfo=timezone.utc))
 
 
 def width(field: str) -> int:
@@ -62,6 +70,15 @@ def number(value, field):
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
     return int(value) if low <= value <= high else None
+
+
+def moment(value):
+    """Hors bornes, ignoré — jamais rejeté : le reste de l'observation tient."""
+    if value is None:
+        return None
+    low, high = MOMENT_BOUNDS
+    aware = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+    return value if low <= aware <= high else None
 
 
 def identified(item) -> bool:

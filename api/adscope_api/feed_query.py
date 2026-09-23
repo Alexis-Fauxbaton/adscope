@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from .follow_models import Follow
+from .follows import MAX_FOLLOWS
 from .market_items import ItemOut
 from .models import Listing
 from .naming import label
@@ -110,6 +111,8 @@ def feed_for(session, license_, since_days, now) -> list[dict]:
         select(Listing, Follow.followed_at)
         .join(Follow, Follow.listing_id == Listing.id)
         .where(Follow.license_key_hash == license_.key_hash)
+        .order_by(Follow.followed_at.desc())
+        .limit(MAX_FOLLOWS)
         .options(selectinload(Listing.prices))
     ).all()
     items = [_feed_item(listing, at, since_days, since, now) for listing, at in rows]
