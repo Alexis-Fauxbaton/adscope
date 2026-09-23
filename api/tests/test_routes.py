@@ -54,6 +54,22 @@ def test_unknown_listing_returns_404(client, key):
     assert client.get("/v1/listings/lc/inconnue", headers=auth(key)).status_code == 404
 
 
+# Fait rougir `Listing.disappeared_at.is_(None)` dans `get_listing` (D5, audit
+# données) : une annonce disparue n'était pas une annonce inconnue, elle
+# restait servie — code postal complet et historique de prix compris, sans
+# borne de durée.
+def test_a_disappeared_listing_returns_404_too(client, session, key):
+    client.post("/v1/observations", json={"items": [observation()]}, headers=auth(key))
+    from datetime import datetime, timezone
+
+    from adscope_api.models import Listing
+
+    listing = session.query(Listing).filter_by(site="lc", site_id="1").one()
+    listing.disappeared_at = listing.absent_since = datetime.now(timezone.utc)
+    session.commit()
+    assert client.get("/v1/listings/lc/1", headers=auth(key)).status_code == 404
+
+
 def test_batch_returns_only_known_listings(client, key):
     client.post("/v1/observations", json={"items": [observation()]}, headers=auth(key))
     r = client.post("/v1/listings/batch",
@@ -62,6 +78,22 @@ def test_batch_returns_only_known_listings(client, key):
     body = r.json()
     assert len(body) == 1
     assert body[0]["site_id"] == "1"
+
+
+# Même correctif, côté lot : une annonce disparue ne sort plus de
+# `POST /v1/listings/batch` non plus.
+def test_batch_excludes_disappeared_listings(client, session, key):
+    client.post("/v1/observations", json={"items": [observation()]}, headers=auth(key))
+    from datetime import datetime, timezone
+
+    from adscope_api.models import Listing
+
+    listing = session.query(Listing).filter_by(site="lc", site_id="1").one()
+    listing.disappeared_at = listing.absent_since = datetime.now(timezone.utc)
+    session.commit()
+    r = client.post("/v1/listings/batch", json={"site": "lc", "ids": ["1"]}, headers=auth(key))
+    assert r.status_code == 200
+    assert r.json() == []
 
 
 def test_batch_accepts_thirty_ids(client, key):
