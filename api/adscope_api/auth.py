@@ -83,6 +83,9 @@ def require_license(request: Request, authorization: str = Header(default=""),
     if scheme.lower() == "bearer" and key:
         license_ = resolve(session, key, now)
         if license_ is None:
+            found = session.get(License, hash_key(key))
+            if found is not None and not found.active:
+                raise HTTPException(status_code=401, detail="licence suspendue")
             raise HTTPException(status_code=401, detail="licence invalide")
         return license_
     row = sessions.resolve(session, request.cookies.get(sessions.COOKIE, ""), now)
@@ -91,6 +94,12 @@ def require_license(request: Request, authorization: str = Header(default=""),
     sessions.check_csrf(request)
     license_ = of_account(session, row.account_id, now)
     if license_ is None:
+        has_suspended = session.scalar(
+            select(License).where(License.account_id == row.account_id,
+                                  License.active.is_(False)).limit(1)
+        )
+        if has_suspended is not None:
+            raise HTTPException(status_code=401, detail="licence suspendue")
         raise HTTPException(status_code=401, detail="licence invalide")
     if sessions.touch(row, now):
         session.commit()
