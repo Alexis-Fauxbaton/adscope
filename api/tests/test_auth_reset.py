@@ -142,6 +142,20 @@ def test_change_without_a_session_cookie_is_401(client, session, clock, key):
     assert response.status_code == 401
 
 
+# Fait rougir `of_account(...) is None` dans `require_account_by_cookie` :
+# un compte dont l'unique licence est suspendue ne change plus son mot de
+# passe par cookie — la route ne consultait jamais `License.active`.
+def test_change_is_refused_when_the_accounts_license_is_suspended(client, session, clock):
+    account = verified(session)
+    sign_in(client, session, account.id, clock.now)
+    license_ = session.scalar(select(License).where(License.account_id == account.id))
+    license_.active = False
+    session.commit()
+    response = change(client, headers=XA)
+    assert response.status_code == 401
+    assert response.json()["detail"] == "licence suspendue"
+
+
 # Fait rougir `require_account_by_cookie` (route restreinte au cookie de
 # session) : une clé de machine — même rattachée au compte, comme celle du
 # crawler dans `crawler/.license` en clair — ne change plus le mot de passe

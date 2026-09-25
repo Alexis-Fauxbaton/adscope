@@ -78,6 +78,39 @@ def test_a_declarant_never_lifts_its_own_firm_disappearance(session):
     assert listing.disappeared_at == NOW
 
 
+# Fait rougir `robot = license_ is None or license_.automated` : le robot
+# lève sa propre ferme, seul déclarant — il n'est jamais exclu comme un
+# marchand qui se contredit (revue du lot Corpus : sans cette ligne, la
+# fiche ne rouvre jamais, le crawler ne la revisite plus).
+def test_a_robot_lifts_its_own_firm_disappearance(session):
+    listing = listed(session, absent_since=NOW, disappeared_at=NOW)
+    bot = robot(session)
+    declare(session, listing, bot)
+    revival.apply(session, listing, bot, NOW + timedelta(hours=6))
+    assert listing.disappeared_at is None
+
+
+# Même garde pour la licence nulle (crawler d'avant la colonne `automated`,
+# acteur `robot:legacy`) : elle aussi doit pouvoir lever ce qu'elle a
+# déclarée seule.
+def test_a_legacy_robot_lifts_its_own_firm_disappearance(session):
+    listing = listed(session, absent_since=NOW, disappeared_at=NOW)
+    declare(session, listing, None)
+    revival.apply(session, listing, None, NOW + timedelta(hours=6))
+    assert listing.disappeared_at is None
+
+
+# Une ferme mixte (robot + marchand) : le robot n'est pas retenu par la
+# voix du marchand, sa propre voix suffit à lever.
+def test_a_robot_lifts_a_mixed_firm_disappearance(session):
+    listing = listed(session, absent_since=NOW, disappeared_at=NOW)
+    bot = robot(session)
+    declare(session, listing, bot)
+    declare(session, listing, merchant(session))
+    revival.apply(session, listing, bot, NOW + timedelta(hours=6))
+    assert listing.disappeared_at is None
+
+
 # Fait rougir la remise à NULL des trois colonnes : une voix distincte des
 # déclarantes lève bien une ferme.
 def test_a_distinct_account_lifts_a_firm_disappearance(session):

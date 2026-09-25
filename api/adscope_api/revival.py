@@ -26,11 +26,16 @@ def apply(session, listing, license_, now) -> None:
 
     reports = absence_scope.reports_of(session, listing.id)
     declarants = {r.actor for r in reports}
-    if listing.disappeared_at is not None and declarants:
+    robot = license_ is None or license_.automated
+    if listing.disappeared_at is not None and declarants and not robot:
         # Le déclarant qui se contredit lui-même ne lève rien : sa propre
         # constatation reste, une autre voix tranchera (§5.5 du plan). Les
         # fermes écrites avant ce lot n'ont aucun déclarant : n'importe
-        # quelle voix les lève, comme aujourd'hui.
+        # quelle voix les lève, comme aujourd'hui. Le robot n'est jamais
+        # exclu ainsi : il n'est jamais jugé (docstring du module) et sa
+        # propre voix, seule ou mêlée à celle d'un marchand, doit toujours
+        # pouvoir lever ce qu'il a lui-même déclaré — sinon la fiche ne
+        # rouvre jamais (revue du lot Corpus).
         if absence_scope.actor_of(license_) in declarants:
             return
 

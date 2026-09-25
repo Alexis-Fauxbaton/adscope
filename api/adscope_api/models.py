@@ -78,8 +78,9 @@ class Listing(Base):
     site_published_first: Mapped[date | None] = mapped_column(Date, default=None)
     site_published_last: Mapped[date | None] = mapped_column(Date, default=None)
     # Le fait : le site a dit lui-même que cette annonce n'est plus là, et l'a
-    # dit deux fois. Irréversible — une fausse date ne se retire plus une fois
-    # mêlée aux vraies. `revisit` et `disappearance` disent à quel prix.
+    # dit deux fois. Coûteux à écrire — une fausse date ne se pose pas à la
+    # légère — mais pas irréversible : `revival` la lève quand une observation
+    # vivante la contredit. `revisit` et `disappearance` disent à quel prix.
     disappeared_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None
     )

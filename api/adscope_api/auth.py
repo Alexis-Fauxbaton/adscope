@@ -126,6 +126,8 @@ def require_account_by_cookie(request: Request, session=Depends(get_session),
     row = sessions.resolve(session, request.cookies.get(sessions.COOKIE, ""), now)
     if row is None:
         raise HTTPException(status_code=401, detail="session invalide")
+    if of_account(session, row.account_id, now) is None:
+        raise HTTPException(status_code=401, detail="licence suspendue")
     sessions.check_csrf(request)
     if sessions.touch(row, now):
         session.commit()

@@ -169,8 +169,11 @@ def test_the_fleet_guard_holds_a_probable_too(session):
 # Fait rougir `revisit.due`, `Listing.disappeared_at.is_(None)` : une probable
 # n'a pas de `disappeared_at`, la file la garde donc — et `recheck.mark_absence`
 # (appelé quel que soit le verdict) l'a déjà mise au rang 0, sans que
-# `revisit.py` ait eu à changer.
+# `revisit.py` ait eu à changer. Une autre fiche due, bien plus ancienne
+# (`last_seen` à 400 jours), prouve le rang : sans le 0 de `_marked`, c'est
+# elle qui passerait d'abord (tri par `last_seen`, la plus vieille en tête).
 def test_a_probable_stays_in_the_revisit_queue_at_rank_zero(session):
+    older = listed(session, site_id="9999999999", last_seen=NOW - timedelta(days=400))
     listing = listed(session, last_seen=NOW - timedelta(days=10))
     lic = merchant(session)
     gone(session, listing, NOW, lic)
@@ -178,4 +181,4 @@ def test_a_probable_stays_in_the_revisit_queue_at_rank_zero(session):
     session.commit()
     assert listing.probably_gone_at is not None
     rows = due(session, "lbc", 10, LATER + timedelta(hours=1))
-    assert [item["site_id"] for item in rows] == [listing.site_id]
+    assert [item["site_id"] for item in rows] == [listing.site_id, older.site_id]
