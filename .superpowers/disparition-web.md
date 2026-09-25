@@ -96,6 +96,25 @@ après coup :
   seront refusés ») ne s'applique qu'à la suspension, un rétablissement n'a
   rien à annoncer.
 
+## Corrections après relecture (2026-09-26)
+
+La relecture a trouvé une omission côté `web/` sur le point 2 de la
+décision, qui *était* dans le périmètre du rapport ci-dessus (le rapport ne
+signalait, à tort, que le panneau de l'extension comme manquant — voir la
+réserve 1 d'origine ci-dessous, corrigée). `flags.probably_gone`, exposé par
+l'API depuis `416f7fc`, n'était lu nulle part dans `web/` : `goneFact`
+(`web/js/facts.js`), qui écrit la phrase « a disparu » lue par
+`web/js/follows.js` (page « Mes suivis »), ne testait que
+`flags.disappeared`. Corrigé : `goneFact` porte maintenant une branche
+`probably_gone` qui rend « Disparition probable, à confirmer » (kind
+`probably_gone`), la ferme restant prioritaire quand les deux sont vrais.
+Deux tests neufs dans `web/tests/facts.test.mjs`, cassés puis restaurés.
+
+Mineur corrigé en passant : coquille « imcapturable » → « incapturable »
+dans le commentaire d'en-tête de `suspension.js` (aucune ligne de code).
+
+Suite verte après ces corrections : `web` **205** (203 + 2).
+
 ## Réserves, hors lot, signalées et non corrigées ici
 
 1. **Le panneau de l'extension** n'affiche toujours pas la disparition
@@ -105,9 +124,15 @@ après coup :
    (comme le reste du site, `carteCle`/`peindre`) plutôt que de ne remplacer
    que ce qui change : cohérent avec le reste de `ecarts-page.js`, jamais
    mesuré comme un problème de performance sur une poignée de cartes.
+3. **Aucune mention visuelle distincte** (couleur, icône) pour
+   `probably_gone` par rapport à `disappeared` au-delà du texte — même classe
+   `fait-${kind}` que le reste, pas de règle CSS neuve posée pour
+   `fait-probably_gone` : le texte suffit à la lettre du point 2 de la
+   décision, jamais mesuré comme insuffisant.
 
 ## Reste à faire
 
-Rien côté `web/` pour le point 4 de la décision. Hors périmètre : le panneau
-de l'extension (lot suivant, roadmap), la mise à jour de `docs/roadmap.md`
-(texte déjà donné dans `disparition-api.md`).
+Rien côté `web/` pour les points 2 et 4 de la décision après ces
+corrections. Hors périmètre : le panneau de l'extension (lot suivant,
+roadmap), la mise à jour de `docs/roadmap.md` (texte déjà donné dans
+`disparition-api.md`).

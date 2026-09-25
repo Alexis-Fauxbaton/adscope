@@ -76,6 +76,55 @@ commits précédents, non rejoué ligne à ligne ici, seulement relu) :
   lui-même ou demande explicitement ; ce rapport le signale au lieu de le
   faire.
 
+## Corrections après relecture (2026-09-26)
+
+La relecture a refusé la livraison ci-dessus sur trois bloquants côté API,
+deux corrigés dans cette session, un laissé en réserve explicite :
+
+1. **Corrigé.** `revival.apply` excluait le déclarant de sa propre levée
+   sans distinguer le robot du marchand (`actor_of(license_) in declarants`
+   valait pour les deux). Le robot ne pouvait donc jamais rouvrir une fiche
+   qu'il avait seul déclarée disparue — ni une ferme mixte robot+marchand,
+   ni la licence nulle (`robot:legacy`) — et comme `revisit.due` exclut
+   `disappeared_at`, la fiche devenait un trou noir permanent : le crawler ne
+   la revisitait plus jamais. C'était une régression sur le comportement
+   d'avant ce lot et une contradiction directe du point 3 de la décision
+   (« réversible ») sur le chemin dominant, non couverte par la suite.
+   Corrigé : l'exclusion ne s'applique plus qu'à une licence non automated
+   (`api/adscope_api/revival.py`) ; trois tests neufs (robot seul, licence
+   nulle, ferme mixte) cassés puis restaurés pour le prouver
+   (`api/tests/test_revival.py`).
+2. **Laissé en réserve, non tranché ici.** `AUTOMATED_CONFIRMS_ALONE = True`
+   (`disappearance.py`) fait écrire une ferme au robot seul, alors que le
+   point 1 de la décision dit que le robot « compte comme un compte » —
+   donc, à la lettre, qu'il lui faut une seconde voix comme n'importe qui.
+   Vérifié avant de choisir : retirer cette entorse change le verdict de
+   n'importe quel appel `observe(..., license_=None)` répété (le crawler
+   d'avant la colonne `automated`, deux passages du même acteur) de
+   `recorded`/`held` vers `probable` — cela touche les vingt tests de flotte
+   de `test_disappearance.py`, explicitement gardés inchangés par le lot
+   précédent, et arrêterait en pratique presque toute confirmation
+   automatique de disparition (le crawler visite seul, deux fois, la même
+   fiche — il ne croise jamais un second acteur sans un marchand qui
+   constate la même chose). C'est un choix produit — combler la faille
+   d'abus jusqu'à la lettre contre garder une détection automatique qui
+   fonctionne — pas une correction mécanique : je ne l'ai pas prise à la
+   place d'Alexis. La constante reste à `True`, documentée comme provisoire ;
+   voir « Réserves » ci-dessous.
+3. Deux mineurs corrigés : le commentaire de `disappeared_at`
+   (`models.py`) disait encore « irréversible », faux depuis `revival.py` ;
+   `require_account_by_cookie` (`/v1/auth/password`) ne lisait jamais
+   `License.active` — un compte suspendu gardait l'accès à cette route,
+   contre le point 4 de la décision (« 401 sur toute route »). Corrigé et
+   testé (cassé puis restauré) dans `api/tests/test_auth_reset.py`. Le test
+   du rang 0 de la file de revisite ne prouvait que la présence de la fiche,
+   pas son rang : une seconde fiche, bien plus ancienne, prouve maintenant
+   l'ordre.
+
+Suite verte après ces corrections : `api` **1048** (1044 + 4 : trois tests
+de revival, un du cookie suspendu ; le test du rang 0 est réécrit, pas
+ajouté).
+
 ## Réserves, hors lot, signalées et non corrigées ici
 
 1. **Le panneau de l'extension** n'affiche pas encore « disparition probable,
@@ -87,6 +136,13 @@ commits précédents, non rejoué ligne à ligne ici, seulement relu) :
 2. **Le service API tourne encore sur le code d'avant ce lot** (voir
    ci-dessus) : les routes de suspension et le message « licence suspendue »
    ne sont pas en production tant qu'il n'est pas relancé.
+3. **`AUTOMATED_CONFIRMS_ALONE`** (`disappearance.py`) reste à `True` : le
+   robot confirme seul une ferme, à l'encontre de la lettre du point 1 de la
+   décision. Décrit au long dans « Corrections après relecture » ci-dessus.
+   À trancher explicitement par Alexis — garder l'entorse (et documenter
+   qu'elle est volontaire) ou la retirer (et accepter que la détection
+   automatique de disparition recule fortement, vingt tests de flotte à
+   revoir).
 
 ## Reste à faire
 
@@ -107,34 +163,42 @@ dans ce lot sauf la capture), lot suivant pour le panneau de l'extension.
 >
 > 1. **Deux voix distinctes pour une disparition ferme.** Délai de 6 h
 >    conservé. Une voix = un compte ; deux clés d'un même compte ne comptent
->    qu'une fois ; une clé sans compte compte pour elle-même ; **le robot est
->    toujours sa propre voix et confirme seul** — sa clé est locale, il fait
->    foi (point 3 du lot Corpus), et exiger de lui une seconde voix rendrait
->    `disappeared_at` presque mort.
+>    qu'une fois ; une clé sans compte compte pour elle-même. **Entorse
+>    provisoire, à confirmer par Alexis** : le robot confirme aujourd'hui
+>    seul (`AUTOMATED_CONFIRMS_ALONE`), pas à la lettre du point ci-dessus —
+>    sinon `disappeared_at` ne s'écrirait presque plus jamais toute seule
+>    (le crawler visite seul, deux fois, la même fiche). Tant que ce point
+>    n'est pas tranché, un marchand isolé peut encore se voir confirmer une
+>    fausse absence par la seule voix du robot sur une fiche qu'il a lui
+>    seul poussée vers le doute — le risque que le point 1 visait à fermer
+>    reste ouvert à cette marge.
 > 2. **La disparition probable** (`listings.probably_gone_at`, migration 017)
 >    : deux constatations d'un même marchand. L'annonce sort **du marché et
 >    des alertes de ce compte seulement**, reste visible aux autres avec la
->    mention « disparition probable, à confirmer », est marquée « à vérifier »
->    et passe au rang 0 de la revisite. Elle est transitoire : le prochain
->    passage du robot la confirme ou la lève.
-> 3. **Réversible.** Une observation vivante lève l'absence — n'importe
->    quelle voix pour une probable, une voix distincte des déclarantes pour
->    une ferme — remet `disappeared_at`, `probably_gone_at` et `absent_since`
->    à null, garde tout l'historique, et journalise un écart « absence » avec
->    son délai sur chaque voix déclarante (jamais sur le robot). Une
->    résurrection par un marchand est elle-même marquée (`revived`) et jugée
->    au passage suivant.
+>    mention « disparition probable, à confirmer » (site et panneau), est
+>    marquée « à vérifier » et passe au rang 0 de la revisite. Elle est
+>    transitoire : le prochain passage du robot la confirme ou la lève.
+> 3. **Réversible, y compris pour le robot.** Une observation vivante lève
+>    l'absence — n'importe quelle voix pour une probable, une voix distincte
+>    des déclarantes pour une ferme, sauf le robot qui lève toujours ce qu'il
+>    a lui-même déclaré, seul ou avec un marchand — remet `disappeared_at`,
+>    `probably_gone_at` et `absent_since` à null, garde tout l'historique, et
+>    journalise un écart « absence » avec son délai sur chaque voix
+>    déclarante non automated. Une résurrection par un marchand est
+>    elle-même marquée (`revived`) et jugée au passage suivant.
 > 4. **Suspension à la main, opérateur seulement** : `POST
 >    /v1/licenses/{key_hash}/suspend` et `…/restore`, bouton et confirmation
 >    sur `/app/ecarts.html`. Jamais une licence automatique, jamais celle de
 >    l'opérateur. Une clé suspendue reçoit 401 « licence suspendue » sur
->    toute route.
+>    toute route, y compris `/v1/auth/password` par cookie.
 >
 > Le garde-fou de flotte (plus d'une disparition pour trois revisites
 > abouties sur 24 h → écritures suspendues) couvre les probables comme les
 > fermes. Les disparitions fermes écrites avant ce lot restent, jusqu'à ce
 > qu'une observation les contredise.
 >
-> Reste après ce lot : le panneau de l'extension doit afficher « disparition
-> probable, à confirmer » (`extension/` était hors périmètre) ; le champ est
-> exposé par l'API depuis ce lot.
+> Reste après ce lot : trancher le point 1 (garder l'entorse du robot seul,
+> documentée, ou la retirer au prix d'une détection automatique bien plus
+> rare) ; le panneau de l'extension affiche déjà, ou pas encore selon le lot,
+> « disparition probable, à confirmer » — vérifier au moment d'écrire cette
+> section.
