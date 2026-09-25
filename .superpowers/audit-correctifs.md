@@ -504,3 +504,142 @@ et `_closed_on` qui reste `None` quand `compact` lève.
   de compte, durées de conservation, etc.) — hors périmètre explicite de ce
   lot, qui ne portait que sur §3.1 et les deux hautes d'`audit-project` côté
   `api/`.
+
+---
+
+## 2026-09-25 — angle `web/`+`extension/` : D10, une haute et une performance d'`audit-project`, plus deux moyennes bon marché
+
+Lot fermé côté `web/`/`extension/`. Reprend D10, laissé ouvert par le lot du
+24 (§3.1), et trois constats moyens/élevés d'`audit-project --quick` limités à
+ce périmètre. `crawler/RUNBOOK-balayage.md`, modifié par Alexis en cours de
+session, non touché.
+
+### D10 — polices Google retirées, plus aucun chargement externe
+
+**`web/index.html`, `web/balayage.html`, `web/revisites.html`,
+`web/desabonnement.html`, `web/css/base.css`** — les trois balises
+`fonts.googleapis.com`/`fonts.gstatic.com` retirées des quatre pages ;
+`font-family` retombe sur la pile système (`-apple-system,
+BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif`). Pas de woff2
+embarqué : le seul trouvé sur la machine (`dating-sim/.../manrope-latin.woff2`)
+est une police variable déclarée `font-weight: 400 700` dans ce projet tiers,
+alors qu'adscope utilise aussi le poids 800 (`.marque`, `.vue-t`,
+`.panneau-t`) — l'embarquer sans vérifier sa couverture de graisse aurait pu
+rendre un 800 mal interpolé ; la pile système est le choix sûr, conforme à
+l'alternative offerte par la consigne. Test neuf
+`web/tests/no-external-fonts.test.mjs` : grep de tous les `.html`/`.css` du
+site contre `fonts\.(googleapis|gstatic)\.com`.
+
+En cascade, `api/adscope_api/security_headers.py` : la CSP autorisait
+explicitement ces deux domaines (posée au lot du 24, le commentaire du fichier
+disait lui-même « D10 non traité par ce lot ») ; `style-src`/`font-src`
+retirés, `default-src 'self'` suffit maintenant. Test
+`test_the_csp_allows_google_fonts_and_only_local_scripts` renommé et inversé
+(`test_the_csp_allows_no_third_party_domain`) — vérifié rouge sur l'ancienne
+CSP.
+
+### api-auth.js:25 (api-designer, élevée) — un detail non textuel (422) rendait « [object Object] »
+
+**`web/js/api-auth.js`** (`call`) — une 422 de validation Pydantic native
+(`EmailStr` malformé sur `/v1/auth/signup`/`/login`) rend `detail` en liste
+d'objets ; `new ApiError(status, detail)` le stringifiait en littéralement
+« [object Object] », affiché tel quel à Karim par `login.js`/`signup.js`. Le
+detail n'est retenu que s'il est une chaîne (`typeof body === 'string'`),
+sinon repli sur le message générique `${path} a répondu ${res.status}`. Test
+neuf dans `api-auth.test.mjs`, vérifié rouge sur l'ancien code (message
+`Error: [object Object]`).
+
+Vérifié : `web/js/api.js` (`request`) n'a **pas** le même défaut — il ne lit
+jamais `detail` du tout, il jette systématiquement un message générique par
+statut. C'est le constat moyen voisin de l'audit (perte du detail 409/429 sur
+les routes hors auth, `api.js:57`) : différent, pas corrigé ici, non demandé
+par ce lot.
+
+### listing.js:101 + sites (performance-engineer, élevée) — une carte par annonce → une carte par rendu
+
+**`extension/src/listing.js`, `extension/src/sites/leboncoin.js`,
+`extension/src/sites/lacentrale.js`** — `render()` appelait
+`site.card(document, listing)` par annonce affichée, chacun un
+`querySelectorAll` complet et non borné sur tout le document ; mesuré à ~29
+lots de mutations dans la seconde qui suit un chargement (commentaire déjà en
+place dans `listing.js`). Chaque site expose maintenant `cardMap(doc)` :
+une seule lecture de tous les liens du document, groupés par identifiant
+d'annonce dans une `Map` (leboncoin réutilise `urlId` pour l'extraction,
+La Centrale aussi) ; `listing.js` la construit une fois par rendu et y fait
+une lecture (`Map.get`) par annonce au lieu d'une requête DOM. Une mise en
+avant (bannière `boostVo` de La Centrale) garde ses deux cartes sous la même
+clé — comportement inchangé, `lacentrale-dom.test.mjs` le vérifie toujours.
+
+Tests neufs (un par site, `dom.test.mjs` et `lacentrale-dom.test.mjs`) :
+dix, puis vingt-trois annonces dans la charge ne coûtent pas plus de lectures
+du document qu'une seule — vérifiés rouges sur l'ancien code (12 contre 3
+lectures pour dix annonces côté leboncoin, 27 contre 5 pour vingt-trois côté
+La Centrale).
+
+### Deux moyennes bon marché d'`audit-project`
+
+- **`web/js/market-list.js:46`** (code-quality-reviewer) — un double clic
+  (ou deux Entrée) sur « Voir plus » lisait deux fois le même
+  `state.items.length` avant la première réponse et doublait la page
+  suivante dans la liste. Garde `enCours` autour de `charger` (motif suggéré
+  par l'audit). Deux tests neufs dans `web/tests/market-list.test.mjs` : le
+  double appel ne part qu'une fois, et le « Voir plus » suivant fonctionne
+  une fois le premier résolu — vérifié rouge sur l'ancien code (2 appels
+  réseau au lieu d'1).
+- **`extension/src/sync.js:67`** (backend-specialist) — `queued` marquait
+  une annonce avant l'envoi et ne la relâchait que sur échec : une annonce
+  synchronisée avec succès une fois restait exclue de `sync.send` pour le
+  reste de la vie de l'onglet, même affichée des heures sur une page SPA qui
+  ne se recharge jamais. Relâchée aussi sur succès, mais après un délai
+  (`FRESH_MS`, 6 h, même seuil que `observation.js` — dupliqué, pas importé :
+  content script et service worker sont deux royaumes JS séparés), pas
+  immédiatement : un relâchement immédiat aurait cassé la dédoublonnage de
+  rafale que `sync.js` garantit ailleurs (« une annonce déjà transmise ne
+  repart pas », test existant). `setTimeout(...).unref()` : ce minuteur ne
+  retient jamais un process de test vivant six heures. Test neuf avec les
+  minuteurs simulés de `node:test` (`t.mock.timers`), jamais l'horloge
+  réelle — vérifié rouge sur l'ancien code.
+
+### Suites
+
+- `cd api && ./.venv/bin/pytest tests/ -q` → **941 / 941** verts (aucun test
+  neuf côté `api/` — un test existant renommé/inversé pour D10).
+- `node --test web/tests/*.test.mjs` → **171 / 171** verts (166 + 5 neufs :
+  2 D10, 1 api-auth, 2 market-list).
+- `node --test extension/tests/*.test.mjs` → **437 / 437** verts (434 + 3
+  neufs : 1 par site pour la carte, 1 sync).
+- Chaque ligne de correctif listée ci-dessus a été vérifiée rouge en la
+  défaisant (`git stash` du seul fichier concerné), puis restaurée.
+- Pas de migration, aucun service à relancer (`web/`/`extension/` seuls —
+  `launchctl kickstart` non nécessaire ; l'API a changé de code mais pas de
+  contrat, redéploiement laissé au prochain lot qui touche `api/`).
+
+### Ouvert, non traité dans ce lot
+
+- **`web/js/api.js:57`** (api-designer, moyenne) — perte du `detail` sur les
+  routes hors auth (quota 409 sur `/v1/searches`, 429). Vérifié comme
+  n'ayant pas le défaut « [object Object] », pas corrigé : changement de
+  comportement plus large (afficher un message serveur là où un message
+  générique suffisait), non demandé par ce lot.
+- **`extension/popup/popup.html:89`** (architecture-reviewer, moyenne) — les
+  balises `<script>` des sites y sont codées en dur, hors du manifeste que
+  lit `sw.js`. Pas « < 10 lignes » : générer les balises depuis le manifeste
+  ou ajouter un test de parité touche au chargement de la popup, pas
+  seulement à une fonction isolée.
+- **`extension/src/lookup.js:20`** (architecture-reviewer, moyenne) —
+  `lookup.get` réimplémente le socle réseau de `api.call` au lieu de s'appuyer
+  dessus. Refactor, pas un correctif borné ; risque de toucher un chemin déjà
+  couvert sans bénéfice de sûreté immédiat.
+- **`web/js/format.js:37`** (architecture-reviewer, faible) — duplication
+  avec `extension/src/format.js`, déjà documentée en commentaire. Faible
+  sévérité, hors des deux exemples cités par ce lot.
+- **`extension/src/access.js:27` et `:49`, `web/js/api-sweep.js:8`,
+  `web/js/unsubscribe.js:28`, `web/js/switch.js:18`,
+  `web/js/account-page.js:17`** (test-quality-guardian, moyennes/faible) —
+  lacunes de test, aucune ne pointe un défaut de code à corriger. Les quatre
+  dernières demandent un décor DOM que `web/tests/` n'a pas encore
+  (`market-list.test.mjs` en ébauche un, minimal, pour ce lot seul) — un lot
+  à part, pas un ajout de dix lignes.
+- **`api/adscope_api/rate_limit.py:77`** (api-designer, faible) — en-tête
+  `Retry-After` absent sur les 429. Côté `api/`, hors périmètre explicite de
+  ce lot (« web/extension »).
