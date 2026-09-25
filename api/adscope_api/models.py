@@ -13,6 +13,7 @@ from .license_models import License  # noqa: F401
 from .follow_models import Follow, TrackedFamily  # noqa: F401
 from .usage_models import UsageDay, UsageSummary  # noqa: F401
 from .alert_models import AccountSettings, AlertSent, Digest, SavedSearch  # noqa: F401
+from .corpus_models import Divergence, Recheck  # noqa: F401
 
 
 class Listing(Base):

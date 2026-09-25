@@ -9,6 +9,8 @@ from adscope_api.migrations import MIGRATIONS, apply_migrations
 
 
 def to_old_shape(session):
+    session.execute(text("DROP TABLE IF EXISTS divergences"))
+    session.execute(text("DROP TABLE IF EXISTS rechecks"))
     session.execute(text("DROP TABLE IF EXISTS mails"))
     session.execute(text("ALTER TABLE login_tokens DROP COLUMN IF EXISTS purpose"))
     session.execute(text("ALTER TABLE accounts DROP COLUMN IF EXISTS password_hash"))
@@ -527,3 +529,38 @@ def test_the_014_migration_is_replayable(session):
     to_old_shape(session)
     apply_migrations(session.connection())
     assert apply_migrations(session.connection()) == []
+
+
+# Le lot Corpus arrive sur une base qui porte des annonces et des licences
+# existantes : deux tables neuves, aucune colonne touchée sur `listings`.
+def test_the_016_migration_adds_the_corpus_tables(session):
+    to_old_shape(session)
+    assert not {"rechecks", "divergences"} & tables(session)
+    apply_migrations(session.connection())
+    assert {"rechecks", "divergences"} <= tables(session)
+
+
+def test_the_016_migration_is_replayable(session):
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    assert apply_migrations(session.connection()) == []
+
+
+def test_the_016_migration_produces_the_columns_that_create_all_produces(session):
+    from adscope_api.corpus_models import Divergence, Recheck
+
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    for model in (Recheck, Divergence):
+        assert columns(session, model.__tablename__) == set(model.__table__.c.keys())
+
+
+def test_the_index_on_divergences_license_exists(session):
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    indexes = session.execute(text(
+        "SELECT indexname FROM pg_indexes WHERE tablename = 'divergences'"
+    ))
+    assert {"ix_divergences_license", "ix_divergences_listing"} <= {
+        row[0] for row in indexes
+    }
