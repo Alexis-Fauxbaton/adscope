@@ -85,6 +85,28 @@
 #queue a:hover{text-decoration:underline}
 output{font-size:23px; font-weight:700; letter-spacing:-.02em}
 
+/* ── écarts marchand / robot ── */
+/* La phrase du haut se lit en premier, avant toute carte : plus sombre et
+   plus grande qu'un `.vue-s` ordinaire, sans aller jusqu'au corps 27 px des
+   `.fait` (elle porte une phrase, pas un seul chiffre). */
+.ecart-resume{font-size:17px; font-weight:700; color:var(--encre); margin-top:10px; line-height:1.5}
+.ecart-tete{display:flex; align-items:flex-start; gap:16px}
+.ecart-compte{margin-left:auto; text-align:right}
+.pastille-suspendue{
+  font-size:12.5px; font-weight:700; color:var(--faible); background:var(--gris-pale);
+  border-radius:999px; padding:5px 11px; white-space:nowrap; margin-top:2px;
+}
+.ecart-liste{display:flex; flex-direction:column; gap:14px; margin-top:18px}
+.ecart-l1{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+.ecart-champ{font-size:14.5px; font-weight:700}
+.ecart-valeurs{font-size:14.5px; color:var(--douce)}
+.ecart-pct{
+  font-size:13px; font-weight:700; color:var(--orange); background:var(--orange-pale);
+  border-radius:999px; padding:5px 11px;
+}
+.ecart-l2{display:flex; align-items:baseline; gap:14px; font-size:13.5px; color:var(--faible); flex-wrap:wrap}
+.ecart-delai{font-weight:700; color:var(--douce)}
+
 @media (max-width:640px){
   .annonce{grid-template-columns:1fr; gap:18px}
   .annonce-age{text-align:left; align-items:flex-start}
@@ -92,4 +114,6 @@ output{font-size:23px; font-weight:700; letter-spacing:-.02em}
   .fait{font-size:23px}
   .annonce-p{font-size:21px}
   .entree{padding-bottom:8vh}
+  .ecart-tete{flex-wrap:wrap}
+  .ecart-compte{margin-left:0; text-align:left}
 }
