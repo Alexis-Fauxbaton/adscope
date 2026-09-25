@@ -3,17 +3,16 @@ l'origine qui porte le cookie de session, aucune route n'en était pourvue
 (C-7/INJ-2, audits config et injection).
 
 `Content-Security-Policy` ne porte que sur `/app` : c'est le seul endroit qui
-rend du HTML, et elle doit rester compatible avec le site tel qu'il est
-aujourd'hui (polices Google — `web/*.html`, D10 non traité par ce lot — et
-plus aucun script en ligne, `web/js/unsubscribe-page.js`).
+rend du HTML. Depuis D10, le site ne charge plus aucune police externe
+(pile système, `web/css/base.css`) et n'a plus de script en ligne
+(`web/js/unsubscribe-page.js`) : `default-src 'self'` suffit, sans domaine
+tiers à autoriser.
 """
 
 from .config import public_url
 
 CSP = (
     "default-src 'self'; script-src 'self'; "
-    "style-src 'self' https://fonts.googleapis.com; "
-    "font-src 'self' https://fonts.gstatic.com; "
     "img-src 'self' data:; base-uri 'self'; frame-ancestors 'none'"
 )
 

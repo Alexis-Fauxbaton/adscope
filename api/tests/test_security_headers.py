@@ -31,13 +31,13 @@ def test_only_app_carries_a_content_security_policy(client, key):
     assert "content-security-policy" not in api_response.headers
 
 
-# La CSP doit rester compatible avec le site tel qu'il est : les polices
-# Google (`web/*.html`) et aucun script en ligne.
-def test_the_csp_allows_google_fonts_and_only_local_scripts(client):
+# Depuis D10 le site ne charge plus aucune police externe : la CSP ne doit
+# plus autoriser de domaine tiers.
+def test_the_csp_allows_no_third_party_domain(client):
     csp = client.get("/app/").headers["content-security-policy"]
     assert "script-src 'self'" in csp
-    assert "fonts.googleapis.com" in csp
-    assert "fonts.gstatic.com" in csp
+    assert "fonts.googleapis.com" not in csp
+    assert "fonts.gstatic.com" not in csp
 
 
 # Fait rougir `if public_url().startswith("https://"):` : HSTS ne se pose

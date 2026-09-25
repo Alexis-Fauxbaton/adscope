@@ -15,7 +15,7 @@
 html,body{margin:0;padding:0}
 body{
   background:var(--sol);
-  font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
   color:var(--encre);
   font-variant-numeric:tabular-nums;
   -webkit-font-smoothing:antialiased;
