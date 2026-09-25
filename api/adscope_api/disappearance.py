@@ -40,7 +40,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 
 from .models import Listing
-from . import recheck
+from . import divergence, recheck
 from .revisit import CONFIRM_DELAY
 
 log = logging.getLogger("adscope.disappearance")
@@ -135,5 +135,10 @@ def observe(session, site: str, site_id: str, evidence: str, now, license_=None)
                     gone, settled, GUARD_WINDOW)
         return "held"
 
+    # Le robot confirme la disparition : la seule réclamation qu'il
+    # contredit est `unknown_listing` (lot Corpus, docs/roadmap.md § Lot
+    # Corpus) — deux relevés automated ne produisent jamais de ligne.
+    if license_ is not None and license_.automated:
+        divergence.on_absence(session, listing, now)
     listing.disappeared_at = listing.absent_since
     return "recorded"

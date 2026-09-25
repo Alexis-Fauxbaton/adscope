@@ -5,6 +5,7 @@ from adscope_api.corpus_models import Recheck
 from adscope_api.disappearance import observe
 from adscope_api.intake import ObservationIn
 from adscope_api.models import License, Listing, PricePoint
+from adscope_api.observations import record
 from adscope_api import recheck
 
 NOW = datetime(2026, 9, 25, 12, 0, tzinfo=timezone.utc)
@@ -143,6 +144,16 @@ def test_two_merchants_on_the_same_field_both_hold_a_claim(session):
     recheck.mark(session, listing, obs(price=8900), merchant(session), NOW)
     session.commit()
     assert len(claims(session, listing.id)) == 2
+
+
+# Fait rougir l'appel `divergence.on_observation(...)` dans `observations.record`
+# : sans lui, une observation qui traverse le flux complet ne marque plus rien.
+def test_recording_a_price_change_marks_the_listing(session):
+    lic = merchant(session)
+    record(session, obs(price=10900), source="user", license_=lic, now=NOW)
+    record(session, obs(price=9900), source="user", license_=lic, now=NOW + timedelta(days=1))
+    listing = session.query(Listing).filter_by(site_id="3263259495").one()
+    assert "price" in fields(session, listing.id)
 
 
 # Fait rougir `recheck.clear` : le marqueur se lève en entier, tous champs

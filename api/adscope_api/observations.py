@@ -20,7 +20,7 @@ from sqlalchemy.dialects.postgresql import insert
 from .fingerprint import fingerprint
 from .models import Listing, PricePoint
 from .intake import ObservationIn
-from . import publication
+from . import divergence, publication
 from .model_vocabulary import CACHE
 from .taxonomy import derive
 from .usage import bump
@@ -86,6 +86,10 @@ def record(session, observation: ObservationIn, source: str, license_=None,
         now = datetime.now(timezone.utc)
 
     listing = _locked(session, observation, now)
+
+    # Le recoupement du lot Corpus, avant toute écriture — sinon la
+    # déclaration du marchand serait perdue dès la ligne suivante.
+    divergence.on_observation(session, listing, observation, license_, now)
 
     # Un point par changement réel, lu et écrit avant toute autre écriture : le
     # verrou pris à l'instant est alors seul à le sérialiser. Plus bas, deux
