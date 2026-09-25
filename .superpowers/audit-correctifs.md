@@ -643,3 +643,98 @@ La Centrale).
 - **`api/adscope_api/rate_limit.py:77`** (api-designer, faible) — en-tête
   `Retry-After` absent sur les 429. Côté `api/`, hors périmètre explicite de
   ce lot (« web/extension »).
+
+---
+
+## 2026-09-25 — tests manquants d'`audit-project` (test-quality-guardian)
+
+Ferme les lacunes de test listées en fin du lot précédent
+(`web/js/switch.js:18`, `web/js/account-page.js:17`, `web/js/unsubscribe.js:28`,
+`web/js/api-sweep.js:8`, `api/adscope_api/sweep_split.py:53`,
+`extension/src/access.js:27`), plus vérifie `api/adscope_api/login_tokens.py:21`
+(MAX_PENDING). Aucune n'a demandé de correctif de code : chaque test neuf a
+été vérifié rouge en défaisant la ligne de production qu'il nomme, puis
+restauré — aucun fichier `.js`/`.py` de production ne porte de diff à l'issue
+du lot (`git diff --stat` vide côté `api/adscope_api/`, `web/js/`,
+`extension/src/`).
+
+### `login_tokens.py:21` — déjà couvert, rien à ajouter
+
+Le plafond `MAX_PENDING` (mint() qui rendait `None`) a déjà son test depuis le
+lot AUTH-03 du 2026-09-24 : `test_mint_always_returns_a_token_even_past_the_pending_cap`
+et `test_a_flooded_pending_queue_still_lets_the_latest_request_through`
+(`api/tests/test_auth_signup.py`) couvrent exactement ce plafond, sur le
+comportement actuel (`mint` évince le plus ancien, ne rend jamais `None`).
+Vérifiés verts avant toute autre modification — l'énoncé de la trouvaille
+décrit l'ancien comportement (déjà corrigé), pas un manque actuel.
+
+### `sweep_split.py:53` — `cut()` au-delà de `MAX_ENTRIES`
+
+**`api/tests/test_sweep_split.py`** (neuf, unitaire sur `cut()`, sans passer
+par `/v1/sweep`) — 700 annonces Peugeot 208, toutes vendeur `pro`, toutes au
+même prix (10) : l'écart entre owner_type (private/pro) ne bouge rien (une
+seule branche non vide), et les deux tours de découpage par prix ne
+déplacent jamais ces annonces d'un côté à l'autre du `mid` calculé (toutes
+sous chaque seuil) — la branche pleine ressort donc toujours au-dessus de
+`PAGE_CAP` après épuisement du budget de coupes, et `cut()` doit rendre
+`None`. Contre-épreuve avec une seule annonce : une entrée, jamais `None`.
+Vérifié rouge en changeant le `return None` final en un `return
+[(params, total, pages)]` — la première assertion échoue alors avec une
+liste au lieu de `None`.
+
+### `access.js:27` — le fail-open documenté, enfin exercé
+
+**`extension/tests/access.test.mjs`** (neuf) — même décor que
+`badge.test.mjs` (`sw.js` chargé via le manifeste réel), avec
+`chrome.permissions.contains` qui lève sur La Centrale seule (leboncoin
+répond normalement, pour prouver que seule l'origine en cause est
+concernée). Vérifie qu'aucun problème `site_access` ne remonte sur cette
+origine. Vérifié rouge en changeant `.catch(() => true)` en
+`.catch(() => false)` (fail-closed) : le problème apparaît alors dans
+`ADS.health.list()`.
+
+### Vues `web/` sans DOM en Node — décor minimal réutilisé, pas un harness neuf
+
+`web/tests/` n'avait qu'une seule ébauche de DOM minimal
+(`market-list.test.mjs`, une classe `El` locale couvrant juste
+`el()`/`clear()` de `js/dom.js`). Repris tel quel, sans l'étendre en module
+partagé, dans les trois fichiers suivants — chacun ajoute seulement les
+propriétés qu'il lit/écrit en plus (`checked`/`disabled`/`hidden` pour
+`switch.js`, `value` pour `account-page.js`) :
+
+- **`web/tests/switch.test.mjs`** (neuf, 5 tests) — `renderSwitch` : l'état
+  revient en arrière et l'erreur s'affiche quand `onChange` refuse,
+  l'interrupteur se désactive pendant l'appel et se réactive après (succès
+  comme refus), le chemin heureux ne montre jamais l'erreur. Vérifié rouge
+  en retirant `input.checked = !value` (le retour en arrière) et le `finally`
+  qui réactive l'interrupteur.
+- **`web/tests/account-page.test.mjs`** (neuf, 4 tests) — `renderCompte` :
+  garde sur champs vides (aucun appel réseau, mesuré par un compteur
+  d'appels — un simple lancer d'exception dans le mock de `fetch` ne suffit
+  pas, `submit` l'attrape dans son propre `catch`), succès (message affiché,
+  champs vidés), échec (message de l'API affiché tel quel), bouton désactivé
+  pendant l'appel. Le changement de mot de passe traverse le vrai
+  `api-auth.js`/`api.js` jusqu'à `fetch` — aucun mock de module, seule
+  interception réelle : le réseau. Vérifié rouge sur chacune des quatre
+  lignes nommées.
+- **`web/tests/unsubscribe.test.mjs`** (neuf, 4 tests) — `tokenFromSearch`
+  (présent/absent), et les trois branches de `render()` : jeton absent (pas
+  d'appel réseau), jeton valide (confirmation + lien de réactivation), jeton
+  refusé (message d'expiration, sans lien de réactivation). Vérifié rouge sur
+  la garde d'absence et sur les deux branches du `try`/`catch`.
+- **`web/tests/api-sweep.test.mjs`** (neuf, 2 tests) — `sweep(pages)` : le
+  paramètre `pages` part bien en query string vers `/v1/sweep`, et le mode
+  démo ne touche jamais le réseau. Même piège de rechargement de module que
+  `api-alerts.test.mjs` (`location`/`localStorage` posés avant l'import,
+  requête différente à chaque import). Vérifié rouge sur les deux lignes.
+
+### Suites
+
+- `cd api && ./.venv/bin/pytest tests/ -q` → **943 / 943** verts (941 + 2
+  neufs, `test_sweep_split.py`).
+- `node --test web/tests/*.test.mjs` → **186 / 186** verts (171 + 15 neufs).
+- `node --test extension/tests/*.test.mjs` → **438 / 438** verts (437 + 1
+  neuf).
+- Aucune migration ; aucun service relancé (aucun fichier de production
+  touché — tous les correctifs vérifiés rouge ont été restaurés dans le même
+  geste).
