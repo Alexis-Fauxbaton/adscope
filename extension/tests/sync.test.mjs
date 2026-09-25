@@ -161,3 +161,23 @@ test('la pause passée, un envoi refusé ne compte toujours pas comme transmis',
   later(60000, () => sync.send(listings))
   assert.equal(sync.sent(), 0)
 })
+
+// Rouge sur `setTimeout(() => queued.delete(l.siteId), FRESH_MS)` du
+// callback de succès dans `send` : sans lui, `queued` ne relâche un
+// identifiant que sur échec — une annonce transmise avec succès une fois
+// resterait exclue de `sync.send` pour toujours, même affichée des heures sur
+// un onglet resté ouvert (backend-specialist, /audit-project, sync.js:67).
+test('une annonce transmise avec succès redevient éligible après le délai de fraîcheur', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const { sync, calls } = fresh((r) => r(ok))
+  sync.send(listings)
+  assert.equal(calls.length, 1)
+  // Avant le délai : toujours exclue, comme le veut le garde-fou de rafale.
+  t.mock.timers.tick(6 * 3600 * 1000 - 1)
+  sync.send(listings)
+  assert.equal(calls.length, 1)
+  // Le délai passé : redevenue éligible.
+  t.mock.timers.tick(1)
+  sync.send(listings)
+  assert.equal(calls.length, 2)
+})

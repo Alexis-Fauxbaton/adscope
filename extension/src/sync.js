@@ -7,6 +7,10 @@ globalThis.ADS = globalThis.ADS || {}
 // l'API dédoublonne les prix, lui faire retraiter le même lot à chaque lot de
 // mutations serait du gaspillage des deux côtés.
 ADS.sync = (() => {
+  // Même seuil que `observation.js` — dupliqué, pas importé : ce module vit
+  // dans le content script, `observation.js` dans le service worker, deux
+  // royaumes JS qui ne partagent pas `ADS`.
+  const FRESH_MS = 6 * 3600 * 1000
   const listeners = []
   const queued = new Set()
   const origin = {}
@@ -81,6 +85,16 @@ ADS.sync = (() => {
       signals = signals || {}
       setAuth(false)
       notify()
+      // Un envoi réussi n'exclut pas l'annonce pour toujours : passé FRESH_MS,
+      // elle redevient éligible à un nouvel envoi — sans quoi une annonce
+      // restant affichée des heures sur un onglet SPA ne serait plus jamais
+      // resynchronisée après son premier envoi. `unref` (absent des content
+      // scripts, présent sous Node) : ce minuteur ne doit jamais retenir un
+      // process de test vivant six heures.
+      for (const l of fresh) {
+        const timer = setTimeout(() => queued.delete(l.siteId), FRESH_MS)
+        if (timer.unref) timer.unref()
+      }
     }, (res) => {
       for (const l of fresh) queued.delete(l.siteId)
       pausedUntil = Date.now() + RETRY_PAUSE_MS

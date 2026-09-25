@@ -49,7 +49,23 @@ export function createList({ state, zone, etiquette, auth, onClear }) {
     }
   }
 
+  // Un double clic (ou deux Entrée) sur « Voir plus » ne doit demander la même
+  // page qu'une fois : `offset` se lit avant tout `await`, donc un second appel
+  // parti pendant que le premier est en vol lirait le même `state.items.length`
+  // et doublerait la page suivante dans la liste.
+  let enCours = false
+
   async function charger(append) {
+    if (enCours) return
+    enCours = true
+    try {
+      await chargerUneFois(append)
+    } finally {
+      enCours = false
+    }
+  }
+
+  async function chargerUneFois(append) {
     const offset = append ? state.items.length : 0
     if (!append) { state.items = []; etiquette.textContent = 'Chargement…' }
     // Une fourchette à l'envers ne part pas : l'API répondrait 422 et l'écran
