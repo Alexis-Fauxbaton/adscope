@@ -22,7 +22,14 @@ async function call(path, body) {
   const res = await fetch(url, init)
   if (res.ok) return res.status === 204 ? null : res.json()
   let detail = `${path} a répondu ${res.status}`
-  try { detail = (await res.json()).detail || detail } catch { /* corps vide ou non JSON */ }
+  // Une 422 de validation Pydantic native (par ex. `EmailStr` malformé) rend
+  // `detail` en liste d'objets, pas en chaîne : `new Error([...])` la
+  // stringifierait en « [object Object] ». On ne garde que les messages
+  // propres au projet (chaîne), sinon repli sur le générique.
+  try {
+    const body = (await res.json()).detail
+    if (typeof body === 'string') detail = body
+  } catch { /* corps vide ou non JSON */ }
   throw new ApiError(res.status, detail)
 }
 

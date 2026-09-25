@@ -64,6 +64,21 @@ test('une erreur porte le message exact rendu par l’API', async () => {
   )
 })
 
+// Rouge sur `if (typeof body === 'string') detail = body` de `call` : sans
+// lui, une 422 de validation Pydantic native (detail en liste d'objets, pas en
+// chaîne) stringifierait en « [object Object] » au lieu du repli générique.
+test('un detail non textuel (422 de validation) retombe sur le message générique', async () => {
+  const { signup, ApiError } = await loadApiAuth()
+  globalThis.fetch = fakeFetch([], {
+    status: 422,
+    body: { detail: [{ loc: ['body', 'email'], msg: 'value is not a valid email address', type: 'value_error' }] },
+  })
+  await assert.rejects(
+    () => signup('pas-un-email', 'un-mot-de-passe'),
+    (err) => err instanceof ApiError && err.status === 422 && err.message === '/v1/auth/signup a répondu 422',
+  )
+})
+
 // Rouge sur `isDemo() ? demo() : call(...)` de chaque export : sans lui, une
 // capture d'écran en `?demo=1` appellerait `fetch`, qui n'existe pas à ce
 // moment-là (la vraie API sert d'autres routes en parallèle).
