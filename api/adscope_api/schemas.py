@@ -55,6 +55,10 @@ class SignalsOut(BaseModel):
     site_published_first: date | None
     published_at: datetime | None
     bumped_at: datetime | None
+    # Le doute (`.superpowers/disparition-plan.md` §1) : posé même quand
+    # l'annonce reste servie, c'est lui qui porte la mention « disparition
+    # probable, à confirmer ».
+    probably_gone_at: datetime | None
     real_age_days: int | None
     age_source: Literal["exact", "inferred"] | None
     republished: bool

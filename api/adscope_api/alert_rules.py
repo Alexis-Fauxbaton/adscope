@@ -12,6 +12,7 @@ from datetime import timedelta
 
 from sqlalchemy import func, or_, select
 
+from . import absence_scope
 from .alert_journal import ref_at
 from .config import alerts_confirmed_only
 from .market_params import MarketParams
@@ -50,10 +51,7 @@ def _alert_query(search, license_, now):
     threshold = max(kwargs.get("min_age_days") or 0, search.min_age_days)
     kwargs["min_age_days"] = threshold or None
     query, _age, _delta = market_core(license_, now, **kwargs)
-    return query.where(
-        Listing.last_seen >= now - SEEN_WINDOW,
-        Listing.absent_since.is_(None),
-    )
+    return query.where(Listing.last_seen >= now - SEEN_WINDOW, *absence_scope.quiet_for(license_))
 
 
 def drops_for(session, search, license_, now) -> list[dict]:

@@ -75,6 +75,7 @@ def signals_for(listing: Listing, now=None, followed=False) -> dict:
         "site_published_first": listing.site_published_first,
         "published_at": listing.published_at,
         "bumped_at": listing.bumped_at,
+        "probably_gone_at": listing.probably_gone_at,
         "real_age_days": None,
         "age_source": None,
         "republished": False,

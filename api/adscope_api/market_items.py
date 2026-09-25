@@ -48,6 +48,7 @@ class ItemOut(BaseModel):
     last_change_at: datetime | None
     followed: bool
     disappeared_at: datetime | None
+    probably_gone_at: datetime | None
 
 
 class MarketOut(BaseModel):
@@ -70,5 +71,5 @@ def item_of(row) -> dict:
         "seller_name": row.seller_name, "published_at": row.published_at,
         "age_days": row.age_days, "price_delta_since_first": row.price_delta_since_first,
         "last_change_at": row.last_change_at, "followed": row.followed,
-        "disappeared_at": row.disappeared_at,
+        "disappeared_at": row.disappeared_at, "probably_gone_at": row.probably_gone_at,
     }

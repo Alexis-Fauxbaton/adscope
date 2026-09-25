@@ -12,12 +12,12 @@ NOW = datetime(2026, 9, 18, 9, 0, tzinfo=timezone.utc)
 
 def car(session, site_id, *, brand="Renault", model="Clio", site="lbc",
         seller_type=None, seller_name=None, published=None, disappeared_at=None,
-        fuel=None, gearbox=None, department=None, prices=()):
+        probably_gone_at=None, fuel=None, gearbox=None, department=None, prices=()):
     row = Listing(site=site, site_id=site_id, first_seen=NOW, last_seen=NOW,
                   observations=1, brand=brand, model=model, seller_type=seller_type,
                   seller_name=seller_name, published_at=published,
-                  disappeared_at=disappeared_at, fuel=fuel, gearbox=gearbox,
-                  department=department)
+                  disappeared_at=disappeared_at, probably_gone_at=probably_gone_at,
+                  fuel=fuel, gearbox=gearbox, department=department)
     row.prices = [
         PricePoint(observed_at=at, price=price, source="user", confirmation=confirmation)
         for at, price, confirmation in prices
@@ -129,6 +129,18 @@ def test_flags_disappeared_only_within_the_window(session, key):
     assert items["gone_long_ago"]["flags"]["disappeared"] is False
 
 
+# Fait rougir `"probably_gone": listing.probably_gone_at is not None` : le
+# feed ne retire jamais l'annonce suivie, il dit seulement le doute — perdre
+# de vue ce qu'on suit serait pire au moment où ça compte.
+def test_a_followed_listing_probably_gone_stays_in_the_feed_and_says_so(session, key):
+    listing = car(session, "doubt", probably_gone_at=NOW)
+    follow_it(session, key, listing)
+    items = feed(session, key)
+    assert len(items) == 1
+    assert items[0]["probably_gone_at"] == NOW
+    assert items[0]["flags"]["probably_gone"] is True
+
+
 # Fait rougir `key=lambda it: (not it["changes"], ...)` dans `feed_for` : ce
 # qui a bougé passe devant ce qui n'a pas bougé.
 def test_items_with_changes_come_first(session, key):
@@ -180,7 +192,7 @@ def test_the_feed_route_serves_the_contract_shape(client, key, session):
         "price", "fuel", "gearbox", "department", "region",
         "seller_type", "seller_name", "published_at", "age_days",
         "price_delta_since_first", "last_change_at", "followed", "disappeared_at",
-        "followed_at", "changes", "flags",
+        "probably_gone_at", "followed_at", "changes", "flags",
     }
 
 

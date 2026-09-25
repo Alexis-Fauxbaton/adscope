@@ -15,6 +15,17 @@ def obs(**kw):
     return ObservationIn(**base)
 
 
+# Fait rougir `"probably_gone_at": listing.probably_gone_at` dans
+# `signals_for` : le panneau et la fiche doivent voir le doute, même quand
+# l'annonce reste servie (`disappeared_at` seul est filtré à la route).
+def test_the_panel_sees_the_doubt(session):
+    listing = record(session, obs(), source="user", now=NOW)
+    listing.probably_gone_at = NOW
+    session.commit()
+    out = signals_for(listing, now=NOW)
+    assert out["probably_gone_at"] == NOW
+
+
 def test_age_comes_from_the_site_on_first_sight(session):
     listing = record(session, obs(published_days_ago=60), source="user", now=NOW)
     session.commit()

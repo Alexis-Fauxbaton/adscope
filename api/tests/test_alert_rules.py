@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta, timezone
 
+from adscope_api.absence_models import AbsenceReport
 from adscope_api.alert_follows import follows_for
 from adscope_api.alert_models import SavedSearch
 from adscope_api.alert_rules import drops_for, new_for
+from adscope_api import absence_scope
 from adscope_api.auth import hash_key, new_key, resolve
 from adscope_api.auth_models import Account
 from adscope_api.follow_models import Follow
@@ -37,6 +39,15 @@ def account_and_license(session, email="pro@garage.fr"):
     session.add(License(key_hash=hash_key(key), label="garage", account_id=account.id))
     session.commit()
     return account, key
+
+
+def declare_absent(session, listing, license_, automated=False, at=NOW):
+    session.add(AbsenceReport(
+        listing_id=listing.id, actor=absence_scope.actor_of(license_),
+        license_key_hash=license_.key_hash if license_ else None,
+        automated=automated, evidence="absent", first_at=at, last_at=at,
+    ))
+    session.commit()
 
 
 def saved(session, account_id, **kw):
@@ -112,12 +123,41 @@ def test_a_listing_not_seen_within_48h_does_not_alert(session):
     assert drops_for(session, s, resolve(session, key), NOW) == []
 
 
-# Fait rougir `Listing.absent_since.is_(None)`.
-def test_a_listing_pending_absence_does_not_alert(session):
+# Fait rougir `absence_scope.quiet_for`, `AbsenceReport.actor ==
+# actor_of(license_)` : ce que ce compte croit parti ne l'alerte plus, lui.
+def test_no_alert_on_what_this_account_believes_gone(session):
     account, key = account_and_license(session)
     s = saved(session, account.id)
-    car(session, "1", absent_since=NOW - timedelta(hours=1), **old_prices())
+    listing = car(session, "1", **old_prices())
+    declare_absent(session, listing, resolve(session, key))
     assert drops_for(session, s, resolve(session, key), NOW) == []
+
+
+# Fait rougir `AbsenceReport.automated.is_(True)` dans `quiet_for` : le doute
+# du robot éteint l'alerte de tout le monde, comme le faisait `absent_since`
+# avant ce lot.
+def test_the_robots_doubt_silences_everyones_alerts(session):
+    account, key = account_and_license(session)
+    s = saved(session, account.id)
+    listing = car(session, "1", **old_prices())
+    raw = new_key()
+    session.add(License(key_hash=hash_key(raw), label="crawler", automated=True))
+    session.commit()
+    declare_absent(session, listing, resolve(session, raw), automated=True)
+    assert drops_for(session, s, resolve(session, key), NOW) == []
+
+
+# Fait rougir la disparition de `Listing.absent_since.is_(None)` de
+# `_alert_query` : un marchand qui croit l'annonce d'un concurrent partie ne
+# doit plus éteindre son alerte, faille corrigée par ce lot.
+def test_a_merchant_no_longer_silences_a_competitors_alerts(session):
+    account, key = account_and_license(session)
+    other, other_key = account_and_license(session, email="concurrent@garage.fr")
+    s = saved(session, account.id)
+    listing = car(session, "1", **old_prices())
+    declare_absent(session, listing, resolve(session, other_key))
+    results = drops_for(session, s, resolve(session, key), NOW)
+    assert [r["listing_id"] for r in results] == [listing.id]
 
 
 # Fait rougir `PricePoint.confirmation.is_(False)` dans la fenêtre : une

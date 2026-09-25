@@ -41,6 +41,7 @@ class FlagsOut(BaseModel):
     dropped: bool
     crossed: Literal[30, 60, 90] | None
     disappeared: bool
+    probably_gone: bool
 
 
 class FeedItemOut(ItemOut):
@@ -94,6 +95,7 @@ def _feed_item(listing, followed_at, since_days, since, now) -> dict:
         "price_delta_since_first": delta,
         "last_change_at": changes[-1].observed_at if changes else None,
         "followed": True, "disappeared_at": listing.disappeared_at,
+        "probably_gone_at": listing.probably_gone_at,
         "followed_at": followed_at, "changes": pairs,
         "flags": {
             "dropped": delta is not None and delta < 0,
@@ -101,6 +103,7 @@ def _feed_item(listing, followed_at, since_days, since, now) -> dict:
             "disappeared": (
                 listing.disappeared_at is not None and listing.disappeared_at >= since
             ),
+            "probably_gone": listing.probably_gone_at is not None,
         },
     }
 

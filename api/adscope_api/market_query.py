@@ -19,7 +19,7 @@ Le contrat d'un item et son `label` sont dans `market_items.py`."""
 
 from sqlalchemy import Date, DateTime, Integer, case, cast, extract, func, literal, select
 
-from . import search
+from . import absence_scope, search
 from .follow_models import Follow
 from .market_ranges import clauses as range_clauses, parse as parse_ranges
 from .models import Listing, PricePoint
@@ -87,14 +87,15 @@ def core(license_, now, *, brand=None, model=None, q=None, seller_type=None,
             Listing.fuel, Listing.gearbox, Listing.department, Listing.seller_type,
             Listing.seller_name, Listing.published_at, age.label("age_days"),
             delta.label("price_delta_since_first"), last_change.c.at.label("last_change_at"),
-            followed.label("followed"), Listing.disappeared_at, Listing.last_seen,
+            followed.label("followed"), Listing.disappeared_at, Listing.probably_gone_at,
+            Listing.last_seen,
         )
         .select_from(Listing)
         .outerjoin(last_price, last_price.c.listing_id == Listing.id)
         .outerjoin(first_change, first_change.c.listing_id == Listing.id)
         .outerjoin(last_change, last_change.c.listing_id == Listing.id)
         .outerjoin(change_count, change_count.c.listing_id == Listing.id)
-        .where(Listing.disappeared_at.is_(None))
+        .where(*absence_scope.visible(license_))
     )
     query = search.family(query, Listing.canon_brand, Listing.canon_model, brand, model, exclude)
     query = search.text(query, Listing.search_text, q)

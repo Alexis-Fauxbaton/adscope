@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
+from adscope_api import absence_scope
+from adscope_api.absence_models import AbsenceReport
 from adscope_api.auth import hash_key, new_key, resolve
 from adscope_api.follow_models import Follow
 from adscope_api.market_items import item_of
@@ -14,13 +16,14 @@ NOW = datetime(2026, 9, 18, 9, 0, tzinfo=timezone.utc)
 
 def car(session, site_id, *, brand="Renault", model="Clio", year=2015, mileage=None,
         version=None, site="lbc", seller_type=None, seller_name=None, published=None,
-        disappeared_at=None, fuel=None, gearbox=None, department=None, prices=()):
+        disappeared_at=None, probably_gone_at=None, fuel=None, gearbox=None,
+        department=None, prices=()):
     row = Listing(site=site, site_id=site_id, first_seen=NOW, last_seen=NOW,
                   observations=1, brand=brand, model=model, year=year, mileage=mileage,
                   version=version,
                   seller_type=seller_type, seller_name=seller_name, published_at=published,
-                  disappeared_at=disappeared_at, fuel=fuel, gearbox=gearbox,
-                  department=department)
+                  disappeared_at=disappeared_at, probably_gone_at=probably_gone_at,
+                  fuel=fuel, gearbox=gearbox, department=department)
     row.prices = [
         PricePoint(observed_at=at, price=price, source="user", confirmation=confirmation)
         for at, price, confirmation in prices
@@ -36,6 +39,45 @@ def car(session, site_id, *, brand="Renault", model="Clio", year=2015, mileage=N
 def page(session, key, **kw):
     total, rows = market_page(session, resolve(session, key), NOW, **kw)
     return total, [item_of(r) for r in rows]
+
+
+def declare_absent(session, listing, license_):
+    session.add(AbsenceReport(
+        listing_id=listing.id, actor=absence_scope.actor_of(license_),
+        license_key_hash=license_.key_hash if license_ else None,
+        automated=license_.automated if license_ else False,
+        evidence="absent", first_at=NOW, last_at=NOW,
+    ))
+    session.commit()
+
+
+# Fait rougir `absence_scope.visible`, le `~mine` : une probable déclarée par
+# ce compte sort de son marché.
+def test_a_probable_leaves_the_market_of_the_account_that_declared_it(session, key):
+    listing = car(session, "1", probably_gone_at=NOW)
+    declare_absent(session, listing, resolve(session, key))
+    total, items = page(session, key)
+    assert (total, items) == (0, [])
+
+
+# Fait rougir le `or_(probably_gone_at.is_(None), ~mine)` : la même probable
+# reste visible à un autre compte, qui ne l'a pas déclarée.
+def test_a_probable_stays_visible_to_everyone_else(session, key):
+    listing = car(session, "1", probably_gone_at=NOW)
+    other_raw = new_key()
+    session.add(License(key_hash=hash_key(other_raw), label="autre"))
+    session.commit()
+    declare_absent(session, listing, resolve(session, other_raw))
+    total, items = page(session, key)
+    assert (total, [i["site_id"] for i in items]) == (1, ["1"])
+
+
+# Fait rougir `market_items.item_of`, `"probably_gone_at": row.probably_gone_at` :
+# la mention doit voyager jusqu'à l'item, pour tous ceux qui la voient encore.
+def test_the_market_says_a_listing_is_probably_gone(session, key):
+    car(session, "1", probably_gone_at=NOW)
+    total, items = page(session, key)
+    assert (total, items[0]["probably_gone_at"]) == (1, NOW)
 
 
 # Fait rougir `Listing.brand == brand` dans `market_query._core`.
@@ -289,6 +331,7 @@ def test_the_market_route_serves_the_contract_shape(client, key, session):
         "price", "fuel", "gearbox", "department", "region",
         "seller_type", "seller_name", "published_at", "age_days",
         "price_delta_since_first", "last_change_at", "followed", "disappeared_at",
+        "probably_gone_at",
     }
 
 
