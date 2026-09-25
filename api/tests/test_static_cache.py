@@ -51,3 +51,11 @@ def test_v1_routes_are_not_touched(client, key):
     r = client.get("/v1/listings/lc/inconnue", headers=auth(key))
     assert r.status_code == 404
     assert "cache-control" not in {name.lower() for name in r.headers}
+
+
+# Fait rougir `if path == "tests" or path.startswith("tests/"):` dans
+# `NoCacheStaticFiles.get_response` : `web/tests/*.mjs` décrit le contrat
+# exact de chaque route à qui le lit (C-7, audit-config) — jamais servi.
+def test_the_web_test_suite_is_not_served(client):
+    r = client.get("/app/tests/api-auth.test.mjs")
+    assert r.status_code == 404

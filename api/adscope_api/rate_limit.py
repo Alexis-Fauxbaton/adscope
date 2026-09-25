@@ -15,6 +15,8 @@ from datetime import datetime, timedelta
 
 from fastapi import HTTPException
 
+from .config import trusted_proxy
+
 RATE_LIMITED = "Trop de tentatives. Réessayez dans quelques minutes."
 
 # (par email, par IP, fenêtre)
@@ -72,17 +74,29 @@ class Limiter:
 limiter = Limiter()
 
 
-def guard(bucket: str, email: str, request, now: datetime) -> None:
-    """Lève 429 si l'email ou l'IP dépasse son plafond pour ce bucket.
+def client_ip(request) -> str:
+    """L'IP qui compte pour le plafond.
 
-    L'IP vient de `request.client.host`, jamais d'un en-tête : un en-tête est
-    une donnée du client, et un `X-Forwarded-For` forgé contournerait le
-    plafond de qui l'envoie. Derrière un proxy sans `proxy_protocol`, l'IP vue
-    est celle du proxy et le plafond par IP devient global — dette de
-    go-live, notée au rapport.
+    Sans `ADSCOPE_TRUSTED_PROXY` (le défaut), `X-Forwarded-For` est une
+    donnée du CLIENT : le lire le rendrait forgeable, un en-tête suffirait à
+    contourner le plafond de qui l'envoie. Avec la variable posée — sur
+    Render, derrière `--forwarded-allow-ips` (`api/DEPLOY.md`), qui restreint
+    déjà quel pair a le droit de poser l'en-tête — c'est le DERNIER élément
+    qui compte : celui que le proxy de confiance a ajouté en dernier, jamais
+    le premier, que le client contrôle (AUTH-06/C-1, audit-config).
     """
+    if trusted_proxy():
+        forwarded = request.headers.get("x-forwarded-for", "")
+        last = forwarded.rsplit(",", 1)[-1].strip()
+        if last:
+            return last
+    return request.client.host if request.client else "inconnu"
+
+
+def guard(bucket: str, email: str, request, now: datetime) -> None:
+    """Lève 429 si l'email ou l'IP dépasse son plafond pour ce bucket."""
     per_email, per_ip, window = LIMITS[bucket]
-    ip = request.client.host if request.client else "inconnu"
+    ip = client_ip(request)
     if per_email is not None and not limiter.hit(bucket, f"email:{email}", per_email, now, window):
         raise HTTPException(status_code=429, detail=RATE_LIMITED)
     if not limiter.hit(bucket, f"ip:{ip}", per_ip, now, window):

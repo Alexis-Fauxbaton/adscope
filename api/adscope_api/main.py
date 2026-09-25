@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from .auth import require_license
 from .body_limit import BodySizeLimit
 from .comparables import comparables_for
-from .config import docs_urls
+from .config import docs_urls, validate_startup
 from .db import get_session
 from .disappearance import AbsenceOut, observe
 from . import (
@@ -26,16 +26,19 @@ from .revisit import due
 from .schemas import (
     BatchIn, ComparablesOut, RevisitIn, RevisitOut, SellerStatsOut, SignalsOut,
 )
+from .security_headers import SecurityHeaders
 from .sellers import stats_for
 from .signals import signals_for
 from .static import NoCacheStaticFiles
 from .usage import compact_daily
 
+validate_startup()  # refuse de démarrer si la config de production est incomplète
 # Fermés par défaut (INJ-1) : Swagger/Redoc, CDN sans intégrité, origine du cookie.
 _docs_url, _redoc_url, _openapi_url = docs_urls()
 app = FastAPI(title="adscope", version="0.1.0", docs_url=_docs_url,
              redoc_url=_redoc_url, openapi_url=_openapi_url)
 app.add_middleware(BodySizeLimit)  # A1 : un corps énorme n'entre plus en RAM.
+app.add_middleware(SecurityHeaders)  # C-7/INJ-2 : en-têtes sur /app et l'API
 app.include_router(auth_email.router)
 app.include_router(auth_signup.router)
 app.include_router(follows.router)
@@ -47,9 +50,8 @@ app.include_router(alert_settings.router)
 app.include_router(digests.router)
 app.include_router(sweep.router)
 
-# Le site du marchand : des fichiers statiques, jamais authentifiés — la
-# porte reste sur `/v1/*`. `check_dir=False` : le dossier peut ne pas encore
-# exister au démarrage (les lots livrent en parallèle).
+# Le site du marchand : fichiers statiques, jamais authentifiés — la porte
+# reste sur `/v1/*`. `check_dir=False` : le dossier peut ne pas encore exister.
 app.mount(
     "/app", NoCacheStaticFiles(directory=Path(__file__).resolve().parents[2] / "web",
                                html=True, check_dir=False),
@@ -57,9 +59,8 @@ app.mount(
 )
 
 
-# Le lot verrouille chaque annonce qu'il touche jusqu'à son commit : un ordre
-# commun à tous les émetteurs ôte le risque d'interblocage entre deux lots
-# qui portent les deux mêmes annonces en sens inverse.
+# Un ordre commun à tous les émetteurs ôte le risque d'interblocage entre
+# deux lots qui portent les deux mêmes annonces en sens inverse.
 def ordered(items):
     return sorted(items, key=lambda item: (item.site, item.site_id))
 

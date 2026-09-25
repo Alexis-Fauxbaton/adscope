@@ -127,3 +127,17 @@ def test_the_routes_need_a_license_or_a_cookie(browser, session, clock):
     sweep, revisits = both_routes(browser, {})
     assert sweep.status_code == 401
     assert revisits.status_code == 401
+
+
+# Fait rougir `.strip()` dans `config.operator_email` : un espace en trop
+# posé par un champ de tableau de bord Render fermait la porte en silence,
+# sans que rien ne dise pourquoi (C-9, audit-config).
+def test_a_trailing_space_in_the_operator_variable_still_authorizes(
+    browser, session, clock, monkeypatch,
+):
+    monkeypatch.setenv("ADSCOPE_OPERATOR_EMAIL", "ops@adscope.fr ")
+    account = enrolled(session, "ops@adscope.fr")
+    sign_in(browser, session, account.id, clock.now)
+    sweep, revisits = both_routes(browser, {})
+    assert sweep.status_code == 200
+    assert revisits.status_code == 200

@@ -7,13 +7,13 @@ import pytest
 from fastapi import HTTPException
 
 from adscope_api import rate_limit
-from adscope_api.rate_limit import RATE_LIMITED, guard, limiter
+from adscope_api.rate_limit import RATE_LIMITED, client_ip, guard, limiter
 
 NOW = datetime(2026, 9, 22, 12, 0, tzinfo=timezone.utc)
 
 
-def request(ip="1.2.3.4"):
-    return SimpleNamespace(client=SimpleNamespace(host=ip))
+def request(ip="1.2.3.4", headers=None):
+    return SimpleNamespace(client=SimpleNamespace(host=ip), headers=headers or {})
 
 
 # Fait rougir `if len(recent) >= limit:` dans `Limiter.hit` : la limite
@@ -87,3 +87,62 @@ def test_a_stale_entry_is_purged_after_the_widest_window():
     later = NOW + rate_limit.MAX_WINDOW
     guard("login", "quelquun@garage.fr", request("1.1.1.1"), later)
     assert ("signup", "ip:9.9.9.9") not in rate_limit._hits
+
+
+# `client_ip` : la porte de l'AUTH-06/C-1. Fait rougir
+# `if trusted_proxy(): ... return request.client.host` : sans
+# `ADSCOPE_TRUSTED_PROXY` posée, l'en-tête forgé ne doit jamais compter.
+def test_client_ip_ignores_a_forged_header_without_a_trusted_proxy(monkeypatch):
+    monkeypatch.delenv("ADSCOPE_TRUSTED_PROXY", raising=False)
+    req = request("10.0.0.1", headers={"x-forwarded-for": "1.1.1.1"})
+    assert client_ip(req) == "10.0.0.1"
+
+
+# Fait rougir `last = forwarded.rsplit(",", 1)[-1].strip()` : avec la
+# variable posée, c'est l'en-tête qui compte — le DERNIER élément, celui que
+# le proxy de confiance a ajouté. `8.8.8.8` ne rejoue jamais `request.client`
+# (`10.0.0.1`) : un simple retour à `request.client.host` passerait le test
+# à tort.
+def test_client_ip_honors_the_last_forwarded_hop_with_a_trusted_proxy(monkeypatch):
+    monkeypatch.setenv("ADSCOPE_TRUSTED_PROXY", "1")
+    req = request("10.0.0.1", headers={"x-forwarded-for": "1.1.1.1, 8.8.8.8"})
+    assert client_ip(req) == "8.8.8.8"
+
+
+# Le premier élément est celui que le client écrit lui-même : jamais celui
+# qui compte, même avec un proxy de confiance.
+def test_client_ip_never_trusts_the_first_forwarded_hop(monkeypatch):
+    monkeypatch.setenv("ADSCOPE_TRUSTED_PROXY", "1")
+    req = request("10.0.0.1", headers={"x-forwarded-for": "1.1.1.1, 2.2.2.2"})
+    assert client_ip(req) == "2.2.2.2"
+
+
+# `guard` lit maintenant `client_ip`, pas `request.client.host` en dur : deux
+# marchands distincts derrière le MÊME proxy Render (même `request.client`,
+# la seule chose qu'un revert vers `request.client.host` verrait) ne se
+# grillent plus le plafond l'un l'autre (AUTH-06/C-1) — c'est le scénario
+# exact de la trouvaille : « 30 connexions bidon interdisent la connexion à
+# tous les marchands ».
+def test_guard_does_not_share_the_cap_across_distinct_forwarded_ips_behind_the_same_proxy(
+    monkeypatch,
+):
+    monkeypatch.setenv("ADSCOPE_TRUSTED_PROXY", "1")
+    for i in range(30):
+        guard("login", f"marchand{i}@garage.fr",
+              request("10.0.0.1", headers={"x-forwarded-for": f"9.9.9.{i}"}), NOW)
+    # Un 31e marchand, sa propre IP réelle, derrière le même proxy : ne lève pas.
+    guard("login", "encore-un-autre@garage.fr",
+          request("10.0.0.1", headers={"x-forwarded-for": "9.9.9.99"}), NOW)
+
+
+# Le même en-tête, répété : c'est bien le plafond par IP réelle qui continue
+# de s'appliquer, pas un renoncement à tout plafond.
+def test_guard_still_caps_the_same_forwarded_ip_behind_a_trusted_proxy(monkeypatch):
+    monkeypatch.setenv("ADSCOPE_TRUSTED_PROXY", "1")
+    for i in range(30):
+        guard("login", f"marchand{i}@garage.fr",
+              request("10.0.0.1", headers={"x-forwarded-for": "9.9.9.9"}), NOW)
+    with pytest.raises(HTTPException) as exc:
+        guard("login", "encore-un-autre@garage.fr",
+              request("10.0.0.1", headers={"x-forwarded-for": "9.9.9.9"}), NOW)
+    assert exc.value.status_code == 429

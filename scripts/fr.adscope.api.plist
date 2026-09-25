@@ -18,18 +18,19 @@
   <key>EnvironmentVariables</key>
   <dict>
     <key>DATABASE_URL</key><string>postgresql+psycopg://localhost/adscope</string>
-    <!-- Mode local : /v1/auth/login rend le lien de connexion dans sa réponse.
-         Tant qu'aucun fournisseur d'envoi n'est branché, c'est le seul moyen de
-         se connecter. À retirer au go-live : qui peut appeler l'API entre dans
-         n'importe quel compte. Le service l'annonce au démarrage dans
-         ~/Library/Logs/adscope-api.log. -->
-    <key>ADSCOPE_DEV_LOGIN</key><string>1</string>
     <!-- L'hôte du lien de vérification envoyé par email, jamais celui de la
          requête (`Host` peut être forgé). C'est l'hôte que l'extension utilise
          par défaut (`extension/src/sw.js`, DEFAULTS.apiBase) — un seul hôte
          partout, sans quoi le cookie de session posé par la vérification
-         n'existe pas pour l'autre. -->
+         n'existe pas pour l'autre. `ADSCOPE_ENV` reste absente ici : c'est ce
+         qui garde ce `http://` local accepté sans lever (config.validate_startup,
+         voir api/DEPLOY.md — en production, ce même schéma refuserait de
+         démarrer). -->
     <key>ADSCOPE_PUBLIC_URL</key><string>http://localhost:8000</string>
+    <!-- Le compte opérateur (GET /v1/sweep, POST /v1/revisits par cookie) —
+         valeur d'exemple neutre, à remplacer par ta propre adresse en local ;
+         jamais une adresse réelle dans ce fichier suivi par git. -->
+    <key>ADSCOPE_OPERATOR_EMAIL</key><string>operateur@exemple.fr</string>
   </dict>
 
   <key>RunAtLoad</key><true/>
