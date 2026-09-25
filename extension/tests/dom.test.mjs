@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { ad, world } from './world.mjs'
+import { FIXTURE, ad, block, world } from './world.mjs'
 import { at } from './stage.mjs'
 
 // Le jour du relevé des annonces de la fabrique : deux dates à comparer, il faut
@@ -140,4 +140,22 @@ test("la pastille déjà juste n'est pas refaite à chaque lot de mutations", ()
   const before = w.badge().children[0]
   w.mutate(20)
   assert.equal(w.badge().children[0], before)
+})
+
+// Rouge sur `const cardMap = site.cardMap(document)` de src/listing.js, posé
+// une fois par rendu au lieu d'un `site.card(document, listing)` par annonce :
+// sans lui, le nombre de lectures du document grandissait avec le nombre
+// d'annonces de la charge (performance-engineer, /audit-project,
+// extension/src/listing.js:101). Dix annonces ne doivent pas coûter plus de
+// lectures qu'une seule.
+test('le rendu ne relit pas tout le document une fois par annonce de la charge', () => {
+  const solo = world('3254194817', { data: block(ad('3254194817')) })
+  solo.load('listing.js')
+
+  const ten = FIXTURE.slice(0, 10)
+  const ids = ten.map((a) => String(a.list_id))
+  const many = world('3254194817', { data: block(...ten), also: ids.filter((id) => id !== '3254194817') })
+  many.load('listing.js')
+  assert.equal(many.badgeOf(ids[1]).getAttribute('data-adscope'), ids[1])
+  assert.equal(many.counts.scan, solo.counts.scan)
 })

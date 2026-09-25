@@ -117,6 +117,23 @@ test('la bannière et la carte ordinaire de la même annonce portent la même pa
   assert.equal(banner.getAttribute('data-adscope-days'), ordinary.getAttribute('data-adscope-days'))
 })
 
+// Rouge sur `const cardMap = site.cardMap(document)` de src/listing.js, posé
+// une fois par rendu au lieu d'un `site.card(document, listing)` par annonce :
+// sans lui, le nombre de lectures du document grandissait avec le nombre
+// d'annonces de la charge (performance-engineer, /audit-project,
+// extension/src/listing.js:101). Vingt-trois annonces ne doivent pas coûter
+// plus de lectures qu'une seule.
+test('le rendu ne relit pas tout le document une fois par annonce de la charge', () => {
+  const solo = page({ path: '/listing', scripts: results(CARDS.slice(0, 1)), cards: [CARDS[0].reference] })
+  solo.load('listing.js')
+
+  const many = page({ path: '/listing', scripts: results(CARDS), cards: CARDS.map((c) => c.reference) })
+  many.load('listing.js')
+
+  assert.equal(many.status().listings, CARDS.length)
+  assert.equal(many.counts.scan, solo.counts.scan)
+})
+
 // Le défaut le plus grave du lot, vu de la page : une carte dont la charge porte
 // la clé de date sans valeur. `null` compté en millisecondes rendait l'époque
 // Unix — cinquante-six ans en ligne, et la pastille au rouge.

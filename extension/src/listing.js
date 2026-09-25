@@ -92,6 +92,10 @@
   const render = ADS.context.guard(() => {
     const now = new Date()
     const listings = ADS.feed.listings(document)
+    // Une seule lecture du conteneur par rendu : la map identifiant → cartes
+    // se construit une fois ici, jamais une fois par annonce (performance-
+    // engineer, /audit-project, extension/src/listing.js:101).
+    const cardMap = site.cardMap(document)
     const shown = []
     // Le résumé que la fenêtre affiche, et le badge de l'icône : combien
     // dépassent le seuil du site, combien sont en alerte. Les deux comptes se
@@ -101,7 +105,7 @@
     for (const listing of listings) {
       // Une mise en avant reparaît parfois plus bas dans les mêmes résultats :
       // toutes ses cartes portent la même annonce, donc la même pastille.
-      const cards = site.card(document, listing)
+      const cards = cardMap.get(listing.siteId) || []
       if (!cards.length) continue
       shown.push(listing)
       const s = site.signals(listing, now)

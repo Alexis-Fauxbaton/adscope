@@ -13,9 +13,8 @@ ADS.lacentrale = ADS.sites.register((() => {
   const date = (s) => (s ? new Date(s) : null)
   const number = (v) => (v === null || v === undefined || v === '' ? null : Number(v))
   const type = (t) => (t === 'PRO' ? 'pro' : 'private')
-  // Complété le 2026-09-19 (.superpowers/lc-carburants.md) — HYBRID_DIESEL_ELECTRIC est déduit
-  // par symétrie (jamais vu). Complété le 2026-09-22 (lot F2, éthanol au vocabulaire fermé,
-  // `api/adscope_api/vocab.py`) — BICARBURATION_ESSENCE_BIOETHANOL, qui partait en `autre`, gagne sa case.
+  // Complété le 2026-09-19 (.superpowers/lc-carburants.md) — HYBRID_DIESEL_ELECTRIC déduit par symétrie
+  // (jamais vu). Complété le 2026-09-22 (lot F2, `api/adscope_api/vocab.py`) — BICARBURATION_ESSENCE_BIOETHANOL, qui partait en `autre`, gagne sa case.
   const FUEL = { ESSENCE: 'essence', DIESEL: 'diesel', ELECTRIC: 'electrique', BIO_ESSENCE_GPL: 'gpl', HYBRID_ESSENCE_ELECTRIC: 'hybride', HYBRID_DIESEL_ELECTRIC: 'hybride', PLUGIN_HYBRID_ESSENCE_ELECTRIC: 'hybride_rechargeable', PLUGIN_HYBRID_DIESEL_ELECTRIC: 'hybride_rechargeable', BICARBURATION_ESSENCE_BIOETHANOL: 'ethanol' }
   const GEARBOX = { MANUAL: 'manuelle', AUTO: 'automatique', MECANIQUE: 'manuelle', AUTOMATIQUE: 'automatique' }
   // L'adresse se déduit de la référence : le site remplace la lettre de tête par son code ASCII
@@ -27,10 +26,9 @@ ADS.lacentrale = ADS.sites.register((() => {
     return m ? String.fromCharCode(Number(m[1])) + m[2] : null
   }
   const listing = (ref, rest) => ({ site: SITE, siteId: String(ref), url: `https://www.lacentrale.fr/${slug(ref)}`, ...rest })
-  // Seul le marchand est retenu : agréger les annonces d'une entreprise est de la donnée
-  // d'entreprise, celles d'un particulier seraient personnelles — et une fiche de particulier
-  // porte son nom. `customerReference` est la clé du vendeur des deux côtés ; le siret, porté
-  // par les seules cartes, ne sort jamais de la page.
+  // Seul le marchand est retenu : agréger les annonces d'une entreprise est de la donnée d'entreprise, celles
+  // d'un particulier seraient personnelles. `customerReference` est la clé du vendeur des deux côtés ; le
+  // siret, porté par les seules cartes, ne sort jamais de la page.
   const seller = (customerType, id, name) =>
     customerType === 'PRO' && id
       ? { sellerId: String(id), sellerName: name || null }
@@ -92,26 +90,28 @@ ADS.lacentrale = ADS.sites.register((() => {
     const node = dateNode(doc)
     return node && (node.textContent || '').trim()
   }
-  // Les cartes de résultats qui portent cette annonce, reconnues par son adresse ; le bloc
-  // qui entoure chacune porte les métadonnées de suivi du site. Une mise en avant reparaît
-  // ailleurs sur la page — toutes ses cartes reviennent, pas la première trouvée.
-  const cardOf = (doc, l) => [...new Set(
-    [...doc.querySelectorAll(`a[href*="${slug(l.siteId)}"]`)].map((a) => a.closest('[data-tracking-meta]') || a),
-  )]
-  // Mesuré : là où le compteur du site s'arrête. La fiche relevée le 2026-09-06 porte
-  // 1 810 jours en ligne et affiche « Publiée il y a 60 jours » ; au-delà de ce plafond,
-  // son libellé ne distingue plus rien, et l'écart, lui, se mesure.
+  // Une lecture du conteneur par rendu, groupée par identifiant (relu par `urlId`) — pas un `querySelectorAll`
+  // complet par annonce (perf., /audit-project, listing.js:101). Une mise en avant (`boostVo`) reparaît ailleurs : ses cartes reviennent sous la même clé.
+  const cardMap = (doc) => {
+    const map = new Map()
+    for (const a of doc.querySelectorAll('a[href]')) {
+      const id = urlId(a.getAttribute('href') || '')
+      if (!id) continue
+      const el = a.closest('[data-tracking-meta]') || a
+      const cards = map.get(id) || map.set(id, []).get(id)
+      if (!cards.includes(el)) cards.push(el)
+    }
+    return map
+  }
+  // Mesuré : là où le compteur du site s'arrête. La fiche relevée le 2026-09-06 porte 1 810 jours en
+  // ligne et affiche « Publiée il y a 60 jours » ; au-delà de ce plafond, son libellé ne distingue plus rien.
   const CAP_DAYS = 60
-  // Mesuré le 2026-09-06, et la mesure conclut à l'insuffisance : la base porte 24 annonces du
-  // site, toutes d'un seul relevé, dont 5 dans la fenêtre [31, 60] que ce seuil découpe. Aucune
-  // borne ne s'y dessine, et l'absence est vérifiée : en tirant 23 anciennetés au hasard parmi
-  // les 29 188 de leboncoin, le plus grand écart se place n'importe où entre 18 et 56 jours — du
-  // bruit à cet effectif ; il faut environ 500 annonces pour voir la forme, 2 000 pour y poser une
-  // borne. 31 jours reste emprunté à leboncoin ; ici il ne pèse que sur l'appui visuel.
+  // Mesuré le 2026-09-06, et la mesure conclut à l'insuffisance : la base porte 24 annonces du site,
+  // toutes d'un seul relevé, dont 5 dans [31, 60] — trop peu pour qu'une borne s'y dessine (il faut
+  // ~500 annonces pour voir la forme). 31 jours reste emprunté à leboncoin, ici sans effet que visuel.
   const OLD_MIN_DAYS = 31
-  // Non mesuré non plus, et volontairement sans effet sur l'alerte : 22 des 23 cartes relevées
-  // portent un `lastUpdate` postérieur de plus d'un jour à la mise en ligne. Une marque que 96 %
-  // des annonces portent ne distingue rien : affichée comme fait, jamais retenue comme signal.
+  // Non mesuré non plus, et volontairement sans effet sur l'alerte : 22 des 23 cartes relevées portent
+  // un `lastUpdate` postérieur d'un jour à la mise en ligne. 96 % des annonces le portent : rien à en distinguer.
   const BUMP_MIN_MS = DAY
 
   const signals = (listed, now) => {
@@ -142,7 +142,7 @@ ADS.lacentrale = ADS.sites.register((() => {
       : null
 
   return {
-    id: SITE, name: 'La Centrale', origins: ['https://www.lacentrale.fr'], urlId, card: cardOf,
+    id: SITE, name: 'La Centrale', origins: ['https://www.lacentrale.fr'], urlId, cardMap,
     dateNode, words, claim, displayed, fromDocument, fromScripts, payload, signals,
   }
 })())

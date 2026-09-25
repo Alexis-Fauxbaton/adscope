@@ -35,12 +35,7 @@ ADS.leboncoin = ADS.sites.register((() => {
   // Vocabulaire fermé, relevé le 2026-09-19 (.superpowers/recherche-lot2-ext.md) ; GNV (7) et Hydrogène (9) ont leur propre case depuis le 2026-09-19, « autre » ne garde plus que le code 5. Éthanol (E85, lot F2) : aucun code 1..9 connu ici — rien inventé, voir `api/adscope_api/vocab.py`.
   const FUEL = { 1: 'essence', 2: 'diesel', 3: 'gpl', 4: 'electrique', 5: 'autre', 6: 'hybride', 7: 'gnv', 8: 'hybride_rechargeable', 9: 'hydrogene' }
   const GEARBOX = { 1: 'manuelle', 2: 'automatique' }
-  // Relevé le 2026-09-06 sur une page réelle : `owner` porte `store_id`, `name`,
-  // `user_id` et `siren`, **quel que soit le type de vendeur** — un particulier
-  // y figure avec un prénom. La présence du champ ne dit donc rien ; le type,
-  // si. Seul le marchand est retenu : agréger ses annonces publiées est de la
-  // donnée d'entreprise, celles d'un particulier seraient de la donnée
-  // personnelle. `user_id` et `siren` ne sortent jamais de la page.
+  // Relevé le 2026-09-06 sur une page réelle : `owner` porte `store_id`, `name`, `user_id` et `siren`, **quel que soit le type de vendeur** — un particulier y figure avec un prénom. La présence du champ ne dit donc rien ; le type, si. Seul le marchand est retenu : agréger ses annonces publiées est de la donnée d'entreprise, celles d'un particulier seraient de la donnée personnelle. `user_id` et `siren` ne sortent jamais de la page.
   const seller = (owner) =>
     owner.type === 'pro' && owner.store_id
       ? { sellerId: String(owner.store_id), sellerName: owner.name || null }
@@ -69,11 +64,9 @@ ADS.leboncoin = ADS.sites.register((() => {
   // indexer à quelques heures d'écart est le fonctionnement normal du site.
   const BUMP_MIN_MS = 24 * 3600 * 1000
 
-  // Réactualiser n'est pas un signal : 76 % des annonces professionnelles en base
-  // le sont (5 % chez les particuliers). Le signal est l'annonce ancienne qu'on
-  // maintient en avant parce qu'elle ne part pas. Un mois : c'est là que
-  // l'affichage cesse de compter en jours, et la borne coupe l'alerte pro de
-  // 3 041 à 1 903 sur les 7 110 annonces mesurées le 2026-09-06.
+  // Réactualiser n'est pas un signal : 76 % des annonces professionnelles en base le sont (5 %
+  // chez les particuliers). Le signal est l'annonce ancienne qu'on maintient en avant parce
+  // qu'elle ne part pas. Un mois : la borne coupe l'alerte pro de 3 041 à 1 903 sur 7 110 (2026-09-06).
   const OLD_MIN_DAYS = 31
 
   // Réactualisée « récemment » : au-delà de deux semaines, la remise en avant est
@@ -118,11 +111,18 @@ ADS.leboncoin = ADS.sites.register((() => {
   // Ce que l'URL d'une fiche porte : une suite d'au moins six chiffres.
   const urlId = (path) => (path.match(/\d{6,}/) || [])[0] || null
 
-  // Les cartes des résultats qui portent cette annonce, et le bloc qui entoure chacune —
-  // ce site n'en répète aucune, mais l'appelant ne distingue plus un site qui doublonne.
-  const card = (doc, l) => [...new Set(
-    [...doc.querySelectorAll(`a[href*="/ad/voitures/${l.siteId}"], a[href$="/${l.siteId}"]`)].map((a) => a.closest('article') || a),
-  )]
+  // Une lecture du conteneur par rendu, groupée par identifiant — pas un `querySelectorAll` complet par annonce (perf., /audit-project, listing.js:101).
+  const cardMap = (doc) => {
+    const map = new Map()
+    for (const a of doc.querySelectorAll('a[href]')) {
+      const id = urlId(a.getAttribute('href') || '')
+      if (!id) continue
+      const el = a.closest('article') || a
+      const cards = map.get(id) || map.set(id, []).get(id)
+      if (!cards.includes(el)) cards.push(el)
+    }
+    return map
+  }
 
   // Le libellé que la fiche affiche sous le titre : « il y a 3 jours à 15:36 ».
   const DISPLAYED = /il y a .+ à \d{1,2}:\d{2}|(?:hier|aujourd'hui) à \d{1,2}:\d{2}/i
@@ -142,7 +142,7 @@ ADS.leboncoin = ADS.sites.register((() => {
   return {
     id: 'lbc', name: 'leboncoin', origins: ['https://www.leboncoin.fr'],
     // Le prix est dans le bloc que ce libellé ferme : le panneau se pose là, sous les deux.
-    urlId, card, dateNode, mount: (doc, node) => ADS.read.after(node), words, claim,
+    urlId, cardMap, dateNode, mount: (doc, node) => ADS.read.after(node), words, claim,
     fromDocument, fromPayload, payload, normalize, signals, findAds,
   }
 })())
