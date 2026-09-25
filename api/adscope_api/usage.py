@@ -1,19 +1,16 @@
 """Mesure d'usage : combien de pages par jour, et pendant combien de jours.
 
-Deux questions, deux tables. Le compteur monte à chaque observation reçue — pas
-aux seuls changements de prix, qui ne mesuraient que le marché.
-
-Le grain (licence, jour, annonce) ne sert qu'à dédoublonner les annonces tant
-que la journée dure : 5 615 lignes et 3,2 Mo pour une seule, contre 3,7 Mo pour
-tout l'historique de prix. Close, la journée est résumée en une ligne par
-licence — les deux questions s'y répondent aussi bien — et ses lignes fines
-sont effacées. Le résumé, lui, se garde sans borne.
+Deux questions, deux tables. Le compteur monte à chaque observation reçue —
+pas aux seuls changements de prix, qui ne mesuraient que le marché. Le grain
+(licence, jour, annonce) ne sert qu'à dédoublonner les annonces tant que la
+journée dure ; close, elle est résumée en une ligne par licence et ses lignes
+fines sont effacées. Le résumé, lui, se garde sans borne.
 """
 
 from datetime import datetime, timedelta, timezone
 from itertools import chain
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.dialects.postgresql import insert
 
 from .models import License, UsageDay, UsageSummary
@@ -21,6 +18,8 @@ from .models import License, UsageDay, UsageSummary
 # Ce qu'on garde au grain fin. La journée en cours en a besoin ; les deux
 # suivantes absorbent une horloge décalée et une observation en retard.
 RETENTION_DAYS = 3
+
+LOCK_KEY = "adscope_usage_compact"  # verrou consultatif de `compact()`
 
 
 def bump(session, license_, listing_id, day) -> None:
@@ -38,9 +37,7 @@ def bump(session, license_, listing_id, day) -> None:
 
 
 def _human(query, model, since):
-    """Les licences automatiques sont écartées à la lecture, pas à l'écriture :
-    leur volume reste consultable sans se mêler à l'usage humain.
-    """
+    """Les licences automatiques sont écartées à la lecture, pas à l'écriture."""
     query = query.join(License, License.key_hash == model.license_key_hash).where(
         License.automated.is_(False)
     )
@@ -82,9 +79,12 @@ def by_day(session, since=None) -> list[dict]:
 def compact(session, now=None) -> int:
     """Ferme les journées passées ; rend le nombre de journées résumées.
 
-    Idempotente : une journée fermée n'a plus de ligne fine, et une observation
-    en retard sur elle s'ajoute à son résumé.
+    Idempotente. `pg_advisory_xact_lock` sérialise les appels concurrents
+    (une requête API et `scripts/usage_compact.py`, ou deux requêtes l'une
+    contre l'autre) : sans lui, deux transactions lisent les mêmes lignes
+    avant que l'une ou l'autre ne les supprime, et comptent double.
     """
+    session.execute(text("SELECT pg_advisory_xact_lock(hashtext(:key))"), {"key": LOCK_KEY})
     if now is None:
         now = datetime.now(timezone.utc)
     limit = now.date() - timedelta(days=RETENTION_DAYS - 1)
@@ -108,9 +108,8 @@ def compact(session, now=None) -> int:
     return len(closed)
 
 
-# Le jour où ce processus a déjà fermé les journées passées. Rien à lancer à la
-# main : le premier lot du jour s'en charge, comme le cache de l'extension se
-# purge au premier passage.
+# Le jour où ce processus a déjà fermé les journées passées ; rien à lancer à
+# la main, le premier lot du jour s'en charge.
 _closed_on = None
 
 
@@ -119,8 +118,9 @@ def compact_daily(session, now=None) -> int:
     day = (now or datetime.now(timezone.utc)).date()
     if _closed_on == day:
         return 0
+    result = compact(session, now)  # posé APRÈS le succès, jamais avant
     _closed_on = day
-    return compact(session, now)
+    return result
 
 
 def by_license(rows) -> list[dict]:

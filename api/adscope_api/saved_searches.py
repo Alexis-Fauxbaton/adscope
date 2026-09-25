@@ -1,18 +1,11 @@
 """`/v1/searches` : les recherches enregistrées d'un compte.
 
 Une recherche est un jeu de filtres du marché (`market_params.MarketParams`),
-nommé — `query` est validée et renormalisée à l'écriture, pour que deux
-écrans identiques donnent une seule chaîne stockée. `PUT` remplace l'objet
-entier : la page a la recherche en main (elle vient de l'afficher), et
-« champ absent = ne pas toucher » est une règle qu'aucun test ne protège
-bien — déjà le choix de `PUT /v1/families`.
+nommé — `query` est validée et renormalisée à l'écriture. `PUT` remplace
+l'objet entier, jamais une fusion par champ.
 
-Chaque accès par identifiant vérifie l'appartenance au compte : une ressource
-d'un autre compte est un 404, jamais un 403, qui confirmerait qu'elle existe.
-
-Lot F2 : `with_coverage` ajoute la couverture (`coverage.py`) et le statut de
-balayage (`sweep_url.translate`) à chaque recherche rendue — une requête de
-plus par route, qui évite à « Mes alertes » un second aller-retour.
+Un accès par identifiant hors compte est un 404, jamais un 403 (qui
+confirmerait qu'il existe). `with_coverage` ajoute couverture et statut de balayage.
 """
 
 from datetime import datetime
@@ -62,9 +55,7 @@ class SearchOut(SearchIn):
 
 
 def with_coverage(session, license_, row: SavedSearch, now) -> SearchOut:
-    """La recherche, augmentée de sa couverture et de son statut de balayage
-    (`coverage.status_of`) — appelée pour une recherche en pause aussi : elle
-    garde sa couverture affichée, seule la file de `/v1/sweep` l'exclut."""
+    """La recherche, augmentée de sa couverture et de son statut de balayage."""
     coverage_24h, seen_total, sweep_status = status_of(session, license_, row.query, now)
     return SearchOut.model_validate(row).model_copy(update={
         "coverage_24h": coverage_24h, "seen_total": seen_total, "sweep_status": sweep_status,
@@ -72,8 +63,7 @@ def with_coverage(session, license_, row: SavedSearch, now) -> SearchOut:
 
 
 def _normalized_query(raw: str) -> str:
-    """Validée (paramètre inconnu, valeur hors vocabulaire, fourchette à
-    l'envers → 422) et renormalisée — la même règle que `/v1/market` accepte."""
+    """Validée (422 si mal formée) et renormalisée — la règle de `/v1/market`."""
     params = MarketParams.from_query(raw)
     params.core_kwargs()  # ne sert qu'à valider département/fourchettes ici
     return params.to_query()
@@ -91,7 +81,17 @@ def get_searches(session=Depends(get_session), account_id=Depends(require_accoun
         select(SavedSearch).where(SavedSearch.account_id == account_id)
         .order_by(SavedSearch.created_at, SavedSearch.id)
     ).all()
-    return [with_coverage(session, license_, row, now) for row in rows]
+    # Une passe par `query` distincte, pas par ligne (saved_searches.py:94).
+    cache: dict[str, tuple] = {}
+    out = []
+    for row in rows:
+        if row.query not in cache:
+            cache[row.query] = status_of(session, license_, row.query, now)
+        coverage_24h, seen_total, sweep_status = cache[row.query]
+        out.append(SearchOut.model_validate(row).model_copy(update={
+            "coverage_24h": coverage_24h, "seen_total": seen_total, "sweep_status": sweep_status,
+        }))
+    return out
 
 
 @router.post("/v1/searches", response_model=SearchOut, status_code=201)

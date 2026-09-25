@@ -199,3 +199,28 @@ def test_post_search_already_renders_coverage(client, session, clock):
     key = enrolled(session)
     created = post(client, key).json()
     assert created["seen_total"] == 1
+
+
+# Fait rougir `if row.query not in cache:` dans `get_searches` : deux
+# recherches à la même `query` (normalisée) ne doivent recalculer la
+# couverture qu'une fois — jusqu'à MAX_SEARCHES requêtes multi-jointures
+# indépendantes sinon, à chaque ouverture de « Mes alertes »
+# (saved_searches.py:94, audit-project).
+def test_two_searches_sharing_a_query_share_one_coverage_call(client, session, clock, monkeypatch):
+    import adscope_api.saved_searches as saved_searches
+
+    key = enrolled(session)
+    post(client, key, {**BODY, "name": "une"})
+    post(client, key, {**BODY, "name": "deux"})
+
+    calls = []
+    original = saved_searches.status_of
+
+    def counting(*args, **kwargs):
+        calls.append(1)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(saved_searches, "status_of", counting)
+    got = client.get("/v1/searches", headers=auth(key)).json()
+    assert len(got) == 2
+    assert len(calls) == 1

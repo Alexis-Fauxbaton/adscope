@@ -1,11 +1,11 @@
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import update
+from sqlalchemy import text, update
 
 from adscope_api import usage
 from adscope_api.models import License, UsageDay, UsageSummary
 from adscope_api.usage import (
-    RETENTION_DAYS, by_day, by_license, compact, compact_daily,
+    LOCK_KEY, RETENTION_DAYS, by_day, by_license, compact, compact_daily,
 )
 from conftest import auth
 from adscope_api.observations import record
@@ -242,6 +242,53 @@ def test_the_first_batch_of_the_day_closes_the_days_that_passed(session):
     assert compact_daily(session, now=later) == 0
     session.commit()
     assert rows(session, UsageSummary) == 1
+
+
+# Fait rougir `session.execute(text("SELECT pg_advisory_xact_lock(...)"))`
+# dans `compact()` : sans elle, deux compactions concurrentes ne s'excluent
+# pas et peuvent compter deux fois les mêmes lignes `UsageDay` (usage.py:91,
+# audit-project). Preuve directe : `compact()` tient le verrou tant que sa
+# transaction n'est ni validée ni annulée — une seconde connexion, réelle,
+# ne peut pas l'obtenir pendant ce temps, et le peut de nouveau une fois la
+# transaction close.
+def test_compact_holds_the_advisory_lock_for_its_whole_transaction(session, sessions):
+    lic = license_(session, "alexis", "a" * 64)
+    record(session, obs("1", 9900), source="user", license_=lic, now=NOW)
+    session.commit()
+
+    compact(session, now=NOW + timedelta(days=RETENTION_DAYS))  # pas de commit : verrou tenu
+
+    contender = sessions()
+    held = contender.execute(
+        text("SELECT pg_try_advisory_xact_lock(hashtext(:key))"), {"key": LOCK_KEY}
+    ).scalar()
+    contender.rollback()
+    assert held is False
+
+    session.commit()  # relâche le verrou
+
+    freed = sessions()
+    got = freed.execute(
+        text("SELECT pg_try_advisory_xact_lock(hashtext(:key))"), {"key": LOCK_KEY}
+    ).scalar()
+    freed.rollback()
+    assert got is True
+
+
+# Fait rougir l'ordre `result = compact(session, now); _closed_on = day` dans
+# `compact_daily` : posé AVANT (l'ancien code), un échec de `compact` marquait
+# quand même la journée close, et plus aucun appel suivant du même jour ne la
+# refermait jamais.
+def test_closed_on_is_not_marked_when_compact_fails(session, monkeypatch):
+    def boom(session, now=None):
+        raise RuntimeError("échec simulé")
+
+    monkeypatch.setattr(usage, "compact", boom)
+    try:
+        compact_daily(session, now=NOW)
+    except RuntimeError:
+        pass
+    assert usage._closed_on is None
 
 
 # Le câblage : c'est la route qui ferme, personne n'a de commande à lancer.
