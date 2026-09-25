@@ -343,3 +343,164 @@ en base. Pas touché ici — angle `api/` traité par un autre agent.
 
 - `cd extension && node --test tests/*.test.mjs` → **434 / 434** verts.
 - `api/` et `web/` non touchés par ce lot (hors périmètre de la tâche).
+
+---
+
+## 2026-09-25 — angle déploiement : les verrous de mise en ligne (§3.1 de la synthèse)
+
+Ferme les neuf points listés en §3.1 de `audit-synthese.md` (« avant
+hébergement, toi seul, en ligne ») plus les deux hautes de `audit-project`
+côté `api/`. Aucune migration.
+
+### AUTH-06 / C-1 / A6 — plafond par IP forgeable/global selon le déploiement (critique/haute)
+
+**`api/adscope_api/rate_limit.py`** (`client_ip`, neuf), **`config.py`**
+(`trusted_proxy`) — `guard` lisait `request.client.host` en dur : derrière
+Render, sans configuration explicite, cette valeur est soit celle du client
+(un `X-Forwarded-For` forgé la contourne), soit celle du proxy pour tout le
+monde (le plafond devient global — 30 connexions bidon interdisent la
+connexion à tous les marchands). `client_ip` ne lit l'en-tête que si
+`ADSCOPE_TRUSTED_PROXY` est posée, et prend alors le DERNIER élément, jamais
+le premier. La frontière réseau elle-même (qui a le droit de poser l'en-tête)
+reste `--forwarded-allow-ips` d'uvicorn, documentée dans `api/DEPLOY.md`
+(neuf) avec la commande de lancement complète. Tests neufs dans
+`test_rate_limit.py`, dont un qui prouve directement le scénario de la
+trouvaille : trente marchands distincts derrière le même proxy ne se grillent
+plus le plafond l'un l'autre.
+
+### C-2 / AUTH-08 — `ADSCOPE_PUBLIC_URL` non-`https` acceptée en production (haute)
+
+**`api/adscope_api/config.py`** (`validate_startup`, `env`), appelée une fois
+à l'import de `main.py` — auparavant rien ne distinguait poste local et
+production : une adresse publique oubliée en `http` (ou en `localhost`)
+partait en ligne sans avertissement, et le cookie de session de 90 jours
+voyageait sans `Secure`. `ADSCOPE_ENV=production` est la seule valeur qui
+active le refus ; absente (le poste local), rien ne change. Tests neufs dans
+`test_config.py`.
+
+### C-6 — `DATABASE_URL` : défaut sur la base locale, schéma Render non normalisé (moyenne)
+
+**`api/adscope_api/config.py`** (`database_url`, `_normalized`) — l'ancien
+`Settings(frozen=True)` figeait l'URL à l'import et acceptait `postgres://`
+tel quel (SQLAlchemy cherche alors `psycopg2`, non installé :
+`ModuleNotFoundError` sans rapport avec la cause réelle). `database_url()`
+normalise `postgres://`/`postgresql://` vers `postgresql+psycopg://` (seul
+dialecte installé), et refuse de démarrer avec un message nommant la
+variable manquante si `DATABASE_URL` est absente en production — en local,
+le défaut `localhost/adscope` ne change pas. `db.py` la lit désormais à
+chaque construction du moteur plutôt qu'une valeur figée. Tests neufs dans
+`test_config.py`.
+
+### C-5 — aucun manifeste de déploiement (moyenne)
+
+**`api/DEPLOY.md`** (neuf, 71 lignes) — commande d'installation
+(`uv sync --frozen`), commande de démarrage complète avec les options de
+proxy de C-1, les variables obligatoires et leur pourquoi, et le rappel
+qu'une seule instance Render doit tourner (A10 — les plafonds et la clôture
+d'usage vivent en mémoire). Pas de `render.yaml` : composer le plan Render, le
+domaine et la base sans ta décision aurait figé des choix qui ne sont pas
+pris — **à trancher avec toi**. `api/uv.lock` est suivi et à jour
+(`uv lock --check` : aucune résolution changée).
+
+### C-7 / INJ-2 — aucun en-tête de sécurité, suite de tests du site servie en ligne (moyenne/haute)
+
+**`api/adscope_api/security_headers.py`** (neuf, middleware ASGI, sur le
+modèle de `body_limit.py`) — `X-Content-Type-Options`, `Referrer-Policy`,
+`X-Frame-Options` sur toute réponse (API et `/app`, qui partagent l'origine
+du cookie) ; une `Content-Security-Policy` sur `/app` seul, compatible avec
+le site tel qu'il est aujourd'hui (`script-src 'self'` — un seul script en
+ligne restait, dans `web/desabonnement.html`, déplacé vers
+`web/js/unsubscribe-page.js`, neuf, sur le modèle de
+`balayage-page.js`/`revisits-page.js` ; polices Google conservées,
+`style-src`/`font-src` les nomment explicitement — D10, non traité par ce
+lot) ; `Strict-Transport-Security` seulement quand `ADSCOPE_PUBLIC_URL` est
+en `https`. **`api/adscope_api/static.py`** (`NoCacheStaticFiles.get_response`)
+— `web/tests/*.mjs`, qui décrit le contrat exact de chaque route, ne répond
+plus que 404 sous `/app/tests/`. Tests neufs : `test_security_headers.py`,
+un test dans `test_static_cache.py`.
+
+### C-9 — `ADSCOPE_OPERATOR_EMAIL` comparée sans normalisation (basse)
+
+**`api/adscope_api/config.py`** (`operator_email`) — un espace en trop posé
+par un champ de tableau de bord Render (ou une casse différente) fermait la
+porte de `require_operator` en silence, sans aucun message. `.strip().lower()`,
+même normalisation qu'à l'inscription (`payload.email.strip().lower()`,
+`auth_signup.py`). Test neuf dans `test_operator.py`.
+
+### C-10 — la plist suivie documente une porte dérobée qui n'existe plus (basse)
+
+**`scripts/fr.adscope.api.plist`** — `ADSCOPE_DEV_LOGIN` et son commentaire
+retirés (la clé n'existe plus dans le code, seul le commentaire laissait
+croire l'inverse) ; `ADSCOPE_OPERATOR_EMAIL` posée avec une valeur d'exemple
+neutre (`operateur@exemple.fr`), jamais une adresse réelle ; commentaire de
+`ADSCOPE_PUBLIC_URL` mis à jour pour expliquer pourquoi ce `http://` local
+reste accepté (`ADSCOPE_ENV` absente). Pas de test — fichier de
+configuration, pas de code.
+
+### D13 / C-8 — `crawler/.license` non ignoré par git (basse)
+
+**`.gitignore`** — `crawler/.license` ajouté. Vérifié non suivi avant
+(`git ls-files crawler/.license` vide) et non ignoré (`git check-ignore -v`
+sans sortie) : fenêtre fermée avant tout `git add -A`, pas un rattrapage
+d'incident.
+
+### saved_searches.py:94 (audit-project, élevée) — couverture recalculée par ligne plutôt que par forme de requête
+
+**`api/adscope_api/saved_searches.py`** (`get_searches`) — jusqu'à
+`MAX_SEARCHES` (50) recherches enregistrées appelaient chacune
+`with_coverage` → `status_of` → une requête `market_query.core()` complète
+(quatre jointures externes, deux sous-requêtes), en série, à chaque ouverture
+de « Mes alertes ». Deux recherches à la même `query` normalisée (marque et
+modèle identiques, par exemple) partagent maintenant un seul calcul : une
+passe par forme distincte, pas une par ligne. `POST`/`GET`/`PUT` sur une
+recherche seule ne changent pas — ils n'appelaient `with_coverage` qu'une
+fois. Test neuf : deux recherches à la même `query`, un seul appel à
+`status_of` mesuré.
+
+### usage.py:91 (audit-project, élevée) — `compact()` sans verrou, `_closed_on` posé avant le succès
+
+**`api/adscope_api/usage.py`** (`compact`, `compact_daily`) — deux
+compactions concurrentes (une requête API proche de la limite du jour et
+`scripts/usage_compact.py`, ou deux requêtes API l'une contre l'autre — les
+routes synchrones tournent dans un threadpool) pouvaient lire les mêmes
+lignes `UsageDay` avant que l'une ou l'autre ne les supprime, et compter deux
+fois le même volume dans `UsageSummary` (chiffres d'usage, pertinents pour la
+facturation). `compact()` prend maintenant `pg_advisory_xact_lock` en
+première ligne, relâché au commit/rollback de sa transaction. Par ailleurs
+`compact_daily` posait `_closed_on = day` AVANT d'appeler `compact` : un
+échec (verrou en attente, base coupée) marquait quand même la journée close,
+et plus aucun appel suivant du même jour ne la refermait jamais — posé
+maintenant après le succès. Tests neufs : le verrou tenu par une vraie
+seconde connexion tant que la transaction n'est pas close (`pg_try_advisory_xact_lock`),
+et `_closed_on` qui reste `None` quand `compact` lève.
+
+### Suites
+
+- `cd api && ./.venv/bin/pytest tests/ -q` → **941 / 941** verts (25 tests
+  neufs). Chaque ligne de correctif listée ci-dessus a été vérifiée rouge en
+  la défaisant, puis restaurée.
+- `node --test web/tests/*.test.mjs` → **166 / 166** verts (`web/desabonnement.html`
+  et `web/js/unsubscribe-page.js`, neuf, sans changement de contrat testé).
+- `node --test extension/tests/*.test.mjs` → **434 / 434** verts,
+  `extension/` non touché par ce lot.
+- `launchctl kickstart -k gui/$UID/fr.adscope.api` relancé après coup, une
+  fois les tests verts.
+
+### Ouvert, non traité dans ce lot
+
+- **A10** (moyenne) — les plafonds anti-abus et la clôture d'usage restent en
+  mémoire par processus ; `api/DEPLOY.md` écrit noir sur blanc « une seule
+  instance Render », mais rien ne l'impose techniquement (Redis ou état en
+  base, une demi-journée de travail — décision produit sur le coût).
+- **D10** (moyenne) — les quatre pages du site chargent toujours les polices
+  chez Google (`web/*.html`) : l'IP du marchand part hors UE sans base
+  légale. La CSP de ce lot les nomme explicitement plutôt que de les
+  retirer — non demandé par ce lot.
+- **render.yaml** — délibérément pas créé : le plan Render, le domaine de
+  production et le choix de base sont à trancher avec Alexis avant de figer
+  quoi que ce soit dans un manifeste versionné. `api/DEPLOY.md` documente la
+  commande sans le fichier.
+- Le reste de §3.2/§3.3 de `audit-synthese.md` (quota d'écriture, suppression
+  de compte, durées de conservation, etc.) — hors périmètre explicite de ce
+  lot, qui ne portait que sur §3.1 et les deux hautes d'`audit-project` côté
+  `api/`.
