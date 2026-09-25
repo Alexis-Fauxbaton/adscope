@@ -140,8 +140,8 @@ def post_revisits(payload: RevisitIn, session=Depends(get_session),
 
 @app.post("/v1/disappearances", response_model=AbsenceOut)
 def post_disappearance(payload: AbsenceIn, session=Depends(get_session),
-                       _=Depends(require_license)):
+                       license_=Depends(require_license)):
     verdict = observe(session, payload.site, payload.site_id, payload.evidence,
-                      datetime.now(timezone.utc))
+                      datetime.now(timezone.utc), license_=license_)
     session.commit()
     return {"verdict": verdict}

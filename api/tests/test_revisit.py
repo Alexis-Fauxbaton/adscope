@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from adscope_api.auth import hash_key, new_key
+from adscope_api.corpus_models import Recheck
 from adscope_api.follow_models import Follow, TrackedFamily
 from adscope_api.models import License, Listing
 from adscope_api.naming import label
@@ -211,3 +212,60 @@ def test_a_followed_listing_still_owes_the_silence(session):
                        followed_at=NOW))
     session.commit()
     assert due(session, "lbc", 10, NOW) == []
+
+
+def marked(session, listing_id, field="price"):
+    session.add(Recheck(listing_id=listing_id, field=field,
+                        license_key_hash=merchant(session), merchant_value="9900",
+                        observed_at=NOW))
+    session.commit()
+
+
+# Fait rougir `(_marked(), 0)` dans `_rank` : le marqueur passe devant tout,
+# y compris devant une annonce demandée.
+def test_a_listing_to_check_comes_before_everything(session):
+    mine = listed(session, "1000000001", last_seen=NOW - QUIET - timedelta(hours=1))
+    session.add(Follow(license_key_hash=merchant(session), listing_id=mine.id,
+                       followed_at=NOW))
+    session.commit()
+    old = listed(session, "1000000002", last_seen=NOW - QUIET - timedelta(hours=1))
+    marked(session, old.id)
+    assert ids(due(session, "lbc", 10, NOW)) == ["1000000002", "1000000001"]
+
+
+# Fait rougir le `or_(_marked(), and_(last_seen <= now - QUIET, …))` : sans
+# lui, une fiche marquée vue il y a deux heures ne serait pas servie.
+def test_a_listing_to_check_does_not_owe_the_silence(session):
+    listing = listed(session, "3263259495", last_seen=NOW - timedelta(hours=2))
+    marked(session, listing.id)
+    assert ids(due(session, "lbc", 10, NOW)) == ["3263259495"]
+
+
+# Fait rougir le même `or_`, côté bail : une fiche marquée déjà servie hier
+# revient tout de même, malgré `next_detail_crawl` dans le futur.
+def test_a_listing_to_check_ignores_the_lease(session):
+    listing = listed(session, "3263259495", last_seen=NOW - QUIET - timedelta(hours=1))
+    listing.next_detail_crawl = NOW + timedelta(days=1)
+    session.commit()
+    marked(session, listing.id)
+    assert ids(due(session, "lbc", 10, NOW)) == ["3263259495"]
+
+
+# Fait rougir `Listing.site == site`, tenu hors du `or_` : un marqueur ne
+# lève pas le garde-fou de site.
+def test_a_marked_listing_of_another_site_stays_out(session):
+    listing = listed(session, "W103538172", site="lc", last_seen=NOW - timedelta(hours=2))
+    marked(session, listing.id)
+    assert due(session, "lbc", 10, NOW) == []
+    assert due(session, "lc", 10, NOW) == []
+
+
+# Fait rougir `Listing.last_revisit_at.nullsfirst()` : sans lui, une fiche
+# marquée déjà servie tiendrait la tête devant une marquée jamais ouverte.
+def test_a_marked_listing_already_served_falls_behind_the_others(session):
+    served_before = listed(session, "1000000001", last_seen=NOW - timedelta(hours=2),
+                           last_revisit_at=NOW - timedelta(days=1))
+    never_served = listed(session, "1000000002", last_seen=NOW - timedelta(hours=2))
+    marked(session, served_before.id)
+    marked(session, never_served.id)
+    assert ids(due(session, "lbc", 10, NOW)) == ["1000000002", "1000000001"]

@@ -47,8 +47,9 @@ file.
 import logging
 from datetime import timedelta
 
-from sqlalchemy import case, or_, select
+from sqlalchemy import and_, case, or_, select
 
+from .corpus_models import Recheck
 from .follow_models import Follow, TrackedFamily
 from .models import Listing
 from .urls import _lbc
@@ -87,13 +88,22 @@ def _wanted():
     return or_(followed, tracked)
 
 
+# Ce que `recheck.mark` a posé et qu'aucun relevé du robot n'a encore levé
+# (lot Corpus). Passe outre le silence ET le bail (`due`, ci-dessous) : un
+# marchand vient de mettre `last_seen` à jour, donc `QUIET` écarterait
+# précisément l'annonce qu'il faut rouvrir.
+def _marked():
+    return select(1).where(Recheck.listing_id == Listing.id).exists()
+
+
 def _rank(now):
     old = now - OLD
     return case(
-        (_wanted(), 0),
-        (Listing.seller_type == "pro", case((Listing.published_at <= old, 1), else_=2)),
-        (Listing.published_at <= old, 3),
-        else_=4,
+        (_marked(), 0),          # à vérifier : le robot doit trancher, c'est tout
+        (_wanted(), 1),
+        (Listing.seller_type == "pro", case((Listing.published_at <= old, 2), else_=3)),
+        (Listing.published_at <= old, 4),
+        else_=5,
     )
 
 
@@ -112,10 +122,16 @@ def due(session, site: str, limit: int, now) -> list[dict]:
         .where(
             Listing.site == site,
             Listing.disappeared_at.is_(None),
-            Listing.last_seen <= now - QUIET,
-            or_(Listing.next_detail_crawl.is_(None), Listing.next_detail_crawl <= now),
+            or_(
+                _marked(),
+                and_(Listing.last_seen <= now - QUIET,
+                    or_(Listing.next_detail_crawl.is_(None), Listing.next_detail_crawl <= now)),
+            ),
         )
-        .order_by(_rank(now), Listing.last_seen)
+        # Une fiche marquée que le crawler n'ouvre jamais (mur anti-bot,
+        # budget épuisé) recule derrière les autres marquées, plutôt que de
+        # tenir la tête de la file indéfiniment — un tri, pas un seuil.
+        .order_by(_rank(now), Listing.last_revisit_at.nullsfirst(), Listing.last_seen)
         .limit(limit)
         .with_for_update(skip_locked=True)
     ).all()

@@ -40,6 +40,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 
 from .models import Listing
+from . import recheck
 from .revisit import CONFIRM_DELAY
 
 log = logging.getLogger("adscope.disappearance")
@@ -100,7 +101,7 @@ def fleet(session, now) -> tuple[int, int]:
     return int(row[0]), int(row[1])
 
 
-def observe(session, site: str, site_id: str, evidence: str, now) -> str:
+def observe(session, site: str, site_id: str, evidence: str, now, license_=None) -> str:
     """Une constatation d'absence, portée par la page elle-même."""
     listing = session.scalar(
         select(Listing)
@@ -113,6 +114,11 @@ def observe(session, site: str, site_id: str, evidence: str, now) -> str:
         log.warning("constatation non concluante: %s/%s, preuve %s",
                     site, site_id, evidence)
         return "logged"
+    # Le marchand déclare l'absence : la fiche est marquée « à vérifier »,
+    # quel que soit le verdict ci-dessous — c'est le robot qui tranchera
+    # (lot Corpus, docs/roadmap.md § Lot Corpus).
+    if license_ is not None and not license_.automated:
+        recheck.mark_absence(session, listing, license_, evidence, now)
     if listing.disappeared_at is not None:
         return "already"
     if listing.absent_since is None:
