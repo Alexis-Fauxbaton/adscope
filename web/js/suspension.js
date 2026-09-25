@@ -2,7 +2,7 @@
 // (`.superpowers/disparition-plan.md` §6.3) : chaque carte propose
 // « Suspendre » ou « Rétablir », jamais les deux, jamais rien pour une clé
 // supprimée (`license_key_hash` nul). Le clic ouvre une confirmation
-// *dans la page* — jamais `window.confirm`, imcapturable en démo, même règle
+// *dans la page* — jamais `window.confirm`, incapturable en démo, même règle
 // que `save-search.js`.
 
 import * as licensesApi from './api-ecarts.js'

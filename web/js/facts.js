@@ -29,12 +29,17 @@ function crossedFact(item) {
 }
 
 function goneFact(item) {
-  if (!item.flags || !item.flags.disappeared) return null
-  if (!item.disappeared_at) return { kind: 'disappeared', text: 'a disparu' }
-  return {
-    kind: 'disappeared',
-    text: `a disparu le ${shortDate(item.disappeared_at)}`,
+  if (item.flags && item.flags.disappeared) {
+    if (!item.disappeared_at) return { kind: 'disappeared', text: 'a disparu' }
+    return {
+      kind: 'disappeared',
+      text: `a disparu le ${shortDate(item.disappeared_at)}`,
+    }
   }
+  if (item.flags && item.flags.probably_gone) {
+    return { kind: 'probably_gone', text: 'Disparition probable, à confirmer' }
+  }
+  return null
 }
 
 // Une disparition prime sur tout : le reste décrit une annonce qui n'est plus
