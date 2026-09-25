@@ -13,9 +13,18 @@ import {
   deltaLabel, delayLabel, fieldLabel, parseDays, sortLicenses, summarize, valueLabel,
 } from './ecarts.js'
 import { shortDate } from './format.js'
+import { renderSuspendControl } from './suspension.js'
 
 const racine = document.getElementById('racine')
 const days = parseDays(location.search)
+let lastPayload = null
+
+// Le clic d'un bouton de suspension repeint la page depuis `lastPayload` : la
+// clé a déjà été basculée en place (`suspension.js`), pas besoin de relire
+// l'API.
+function repeindre() {
+  peindre('data', lastPayload)
+}
 
 function ligneEcart(item) {
   const pct = deltaLabel(item.delta_pct)
@@ -50,6 +59,7 @@ function carteCle(lic) {
         el('div', { class: 'fait-2', text: `le plus rapide : ${delayLabel(lic.min_delay_seconds)}` }),
       ]),
     ]),
+    renderSuspendControl(lic, repeindre),
     el('ol', { class: 'ecart-liste' }, lic.items.map(ligneEcart)),
   ])
 }
@@ -67,6 +77,7 @@ function vueVide(pending) {
 }
 
 function peindre(state, payload = null) {
+  if (payload) lastPayload = payload
   clear(racine)
   if (state === 'no-license') {
     racine.append(el('p', { class: 'vue-s', text: 'Connectez-vous d’abord sur /app.' }))

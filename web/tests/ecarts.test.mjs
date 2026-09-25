@@ -66,6 +66,13 @@ test('les six champs ont un libellé français', () => {
   assert.equal(fieldLabel('autre'), 'autre')
 })
 
+// Rouge sur l'entrée `revived: 'résurrection'` de `FIELD_LABELS` (lot
+// Disparition, `.superpowers/disparition-plan.md` §7.2) : sans elle, une
+// résurrection contredite se lisait sous son code anglais brut.
+test('le libellé du champ « résurrection »', () => {
+  assert.equal(fieldLabel('revived'), 'résurrection')
+})
+
 // Rouge sur `if (field === 'price') return money(...)` de `valueLabel` :
 // sans lui, un prix se lirait « 9900 » plutôt que « 9 900 € ».
 test('un prix se met en forme, une date aussi, le reste se rend tel quel', () => {

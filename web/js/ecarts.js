@@ -18,8 +18,10 @@ export function parseDays(search) {
   return Math.min(Math.round(raw), MAX_DAYS)
 }
 
-// Les six champs du journal (docs/roadmap.md § Lot Corpus, point 3) : un
-// libellé français, jamais le code brut, sur la carte d'une clé.
+// Les champs du journal : un libellé français, jamais le code brut, sur la
+// carte d'une clé. `revived` (`.superpowers/disparition-plan.md` §7.2, lot
+// Disparition) : la résurrection qu'un marchand a déclarée et que le robot
+// contredit (`recheck.mark_revival`, `divergence.on_absence`).
 const FIELD_LABELS = {
   price: 'prix',
   published: 'date de mise en ligne',
@@ -27,6 +29,7 @@ const FIELD_LABELS = {
   absence: 'absence',
   bump: 'réactualisation',
   unknown_listing: 'annonce inconnue',
+  revived: 'résurrection',
 }
 
 export function fieldLabel(field) {

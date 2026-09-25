@@ -82,3 +82,20 @@ export function divergences(days = 30) {
     truncated: false, pending: PENDING, licenses,
   }
 }
+
+// Les boutons de suspension en démo (`?demo=1`) basculent cet état local,
+// sans réseau — ce qui permet la capture des deux états sur la même clé
+// (`.superpowers/disparition-plan.md` §6.3).
+function bascule(keyHash, active) {
+  const lic = Object.values(LICENSES).find((l) => l.license_key_hash === keyHash)
+  if (lic) lic.active = active
+  return { key_hash: keyHash, label: lic ? lic.label : 'clé supprimée', active }
+}
+
+export function suspend(keyHash) {
+  return bascule(keyHash, false)
+}
+
+export function restore(keyHash) {
+  return bascule(keyHash, true)
+}
