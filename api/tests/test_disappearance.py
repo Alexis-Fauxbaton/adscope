@@ -2,7 +2,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from adscope_api.disappearance import GUARD_MIN, observe
+from adscope_api.disappearance import observe
+from adscope_api.fleet_guard import GUARD_MIN
 from adscope_api.intake import ObservationIn
 from adscope_api.models import Listing
 from adscope_api.observations import record

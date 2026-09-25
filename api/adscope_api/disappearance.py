@@ -1,6 +1,6 @@
 """Ce qu'on écrit quand le site dit lui-même qu'une annonce n'est plus là.
 
-Trois règles, et elles sont toutes des refus :
+Quatre règles, et les trois premières sont des refus :
 
 1. Une extraction qui échoue n'est pas une disparition. Seule la preuve
    `absent` — la signature positive que l'extension a constatée sur la page —
@@ -18,11 +18,20 @@ Trois règles, et elles sont toutes des refus :
    constatations séparées par une observation vivante ne sont pas concordantes :
    `observations.record` efface l'absence en cours, et le compte repart de zéro.
 
-3. Le garde-fou de flotte. Une refonte de gabarit ou une bascule anti-bot se
-   voit toujours comme un pic global ; un vrai renouvellement de stock, jamais.
-   Au-delà d'une disparition constatée pour trois revisites abouties sur la
-   fenêtre, l'écriture s'interrompt et se journalise — les constatations
-   continuent d'être prises, elles sont réversibles.
+3. Le garde-fou de flotte (`fleet_guard.py`). Une refonte de gabarit ou une
+   bascule anti-bot se voit toujours comme un pic global ; un vrai
+   renouvellement de stock, jamais. Au-delà d'une disparition constatée pour
+   trois revisites abouties sur la fenêtre, l'écriture s'interrompt et se
+   journalise — les constatations continuent d'être prises, elles sont
+   réversibles.
+
+4. Deux voix distinctes pour un fait de marché (`.superpowers/disparition-plan.md`
+   §1-§3) : une disparition ferme exige deux comptes concordants — le robot
+   compte comme un compte, deux clés du même compte n'en comptent qu'un. Une
+   seule voix ne pose qu'un doute (`probably_gone_at`), réversible et propre à
+   son déclarant (`market_query`, `alert_rules`). Entorse tranchée au texte de
+   la décision : le robot confirme seul (`AUTOMATED_CONFIRMS_ALONE`), sinon
+   `disappeared_at` ne s'écrirait presque plus jamais.
 
 Le journal part en `warning` à dessein : l'API tourne sous uvicorn en
 `--log-level warning`, et c'est le seul niveau qui atteigne
@@ -33,14 +42,13 @@ code ni la colonne ne le supposent.
 """
 
 import logging
-from datetime import timedelta
 from typing import Literal
 
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select
+from sqlalchemy import select
 
 from .models import Listing
-from . import divergence, recheck
+from . import absence_scope, divergence, fleet_guard, recheck
 from .revisit import CONFIRM_DELAY
 
 log = logging.getLogger("adscope.disappearance")
@@ -48,57 +56,20 @@ log = logging.getLogger("adscope.disappearance")
 
 class AbsenceOut(BaseModel):
     """Ce que la constatation a produit, dit sans détour : `first` a seulement
-    posé un rendez-vous, `recorded` a écrit, `held` s'est heurté au garde-fou
-    de flotte, `logged` n'a rien conclu."""
+    posé un rendez-vous, `probable` n'a qu'une voix, `recorded` a écrit,
+    `held` s'est heurté au garde-fou de flotte, `logged` n'a rien conclu."""
 
     verdict: Literal["unknown", "logged", "already", "first", "too_soon",
-                     "held", "recorded"]
+                     "held", "probable", "recorded"]
 
 # La seule preuve qui écrive.
 WRITES = "absent"
 
-GUARD_WINDOW = timedelta(hours=24)
-# En dessous, la proportion ne veut rien dire : trois revisites dont une
-# disparue sont un lundi ordinaire.
-GUARD_MIN = 30
-GUARD_SHARE = 1 / 3
-
-
-def fleet(session, now) -> tuple[int, int]:
-    """Sur la fenêtre : combien de revisites ont abouti, combien ont dit absente.
-
-    La population, d'abord : les fiches que la file a servies dans la fenêtre.
-    `last_revisit_at` ne sert qu'à ça — c'est un compteur d'ouvertures, et le
-    garde-fou compte des fiches. Puis ce qu'on sait de chacune, aujourd'hui :
-    `gone`, une absence en cours ; `seen`, une annonce revue vivante dans la
-    fenêtre. Celles que le crawler n'a jamais ouvertes ne portent ni l'une ni
-    l'autre et ne comptent d'aucun côté : elles gonfleraient le dénominateur, et
-    c'est le sens qui endort le garde-fou.
-
-    Comparer `absent_since` à `last_revisit_at` semblait dire la même chose et
-    disait l'inverse : `due` rafraîchit `last_revisit_at` à chaque ouverture, si
-    bien que la seconde constatation — celle qui écrit — trouvait toujours
-    l'absence *derrière* la dernière ouverture. Le numérateur s'effaçait à
-    l'instant précis où on le consultait, pour tout le trafic crawler.
-
-    L'asymétrie entre les deux termes est voulue. Une absence est un *état* :
-    `observations.record` l'efface dès que l'annonce est revue vivante, donc une
-    absence qui subsiste est courante par construction et n'a pas à être bornée
-    — la borner la ferait expirer, et la file qui rouvre la fiche une semaine
-    plus tard écrirait le pic qu'on venait de retenir. Une vue, elle, est un
-    *événement* : `last_seen` est toujours rempli, et sans fenêtre le
-    dénominateur avalerait toute la base. Comme `revisit.QUIET` (trois jours)
-    dépasse la fenêtre, une fiche servie dont `last_seen` tombe dedans a
-    forcément répondu après son ouverture.
-    """
-    window = now - GUARD_WINDOW
-    gone = Listing.absent_since.is_not(None)
-    seen = Listing.last_seen >= window
-    row = session.execute(
-        select(func.count().filter(gone), func.count().filter(or_(gone, seen)))
-        .where(Listing.last_revisit_at >= window)
-    ).one()
-    return int(row[0]), int(row[1])
+# Le robot confirme seul (docs/roadmap.md § Lot Corpus : « le robot fait
+# foi »). À `False`, il lui faut une seconde voix comme à un marchand — et la
+# base n'écrit alors presque plus de disparition ferme
+# (.superpowers/disparition-plan.md §2.4).
+AUTOMATED_CONFIRMS_ALONE = True
 
 
 def observe(session, site: str, site_id: str, evidence: str, now, license_=None) -> str:
@@ -119,6 +90,10 @@ def observe(session, site: str, site_id: str, evidence: str, now, license_=None)
     # (lot Corpus, docs/roadmap.md § Lot Corpus).
     if license_ is not None and not license_.automated:
         recheck.mark_absence(session, listing, license_, evidence, now)
+    # Enregistré avant tout refus : un deuxième déclarant sur une annonce
+    # déjà ferme doit compter comme une voix, sinon la levée (`revival.py`)
+    # le prendrait pour un tiers.
+    actors = absence_scope.report(session, listing, license_, evidence, now)
     if listing.disappeared_at is not None:
         return "already"
     if listing.absent_since is None:
@@ -128,12 +103,18 @@ def observe(session, site: str, site_id: str, evidence: str, now, license_=None)
     if now - listing.absent_since < CONFIRM_DELAY:
         return "too_soon"
 
-    gone, settled = fleet(session, now)
-    if settled >= GUARD_MIN and gone > settled * GUARD_SHARE:
+    gone, settled = fleet_guard.fleet(session, now)
+    if settled >= fleet_guard.GUARD_MIN and gone > settled * fleet_guard.GUARD_SHARE:
         log.warning("écriture suspendue: %d disparitions pour %d revisites abouties"
                     " sur %s — gabarit ou mur anti-bot avant renouvellement de stock",
-                    gone, settled, GUARD_WINDOW)
+                    gone, settled, fleet_guard.GUARD_WINDOW)
         return "held"
+
+    automated = license_ is None or license_.automated
+    if actors < 2 and not (automated and AUTOMATED_CONFIRMS_ALONE):
+        # Un seul déclarant : un doute, pas encore un fait — voir §1 du plan.
+        listing.probably_gone_at = listing.absent_since
+        return "probable"
 
     # Le robot confirme la disparition : la seule réclamation qu'il
     # contredit est `unknown_listing` (lot Corpus, docs/roadmap.md § Lot
