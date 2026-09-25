@@ -13,6 +13,7 @@ base réelle, une migration passée ne se retouche pas. Elles vivent dans
 """
 
 from .migration_registry_early import EARLY, LEDGER
+from .migration_sql_absence import ABSENCE_REPORTS
 from .migration_sql_alerts import ALERTS_TABLES
 from .migration_sql_corpus import CORPUS_TABLES
 from .migration_sql_login_tokens import LOGIN_TOKENS_PENDING_PASSWORD
@@ -33,4 +34,7 @@ MIGRATIONS = EARLY + (
     # marqueur « à vérifier » (`rechecks`) et le journal des écarts
     # (`divergences`).
     ("016_corpus", CORPUS_TABLES),
+    # Le lot Disparition : la colonne du doute (`listings.probably_gone_at`)
+    # et le registre des voix qui l'ont constaté (`absence_reports`).
+    ("017_absence", ABSENCE_REPORTS),
 )

@@ -1,7 +1,7 @@
 from datetime import date, datetime
 
 from sqlalchemy import (
-    Boolean, Date, DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func,
+    Boolean, Date, DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func, text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,6 +14,7 @@ from .follow_models import Follow, TrackedFamily  # noqa: F401
 from .usage_models import UsageDay, UsageSummary  # noqa: F401
 from .alert_models import AccountSettings, AlertSent, Digest, SavedSearch  # noqa: F401
 from .corpus_models import Divergence, Recheck  # noqa: F401
+from .absence_models import AbsenceReport  # noqa: F401
 
 
 class Listing(Base):
@@ -27,6 +28,10 @@ class Listing(Base):
         Index("ix_listings_revisit", "last_revisit_at"),
         # Le découpage par famille du site, sur la forme canonique.
         Index("ix_listings_canon", "canon_brand", "canon_model"),
+        # La population du doute est minuscule et transitoire : c'est cet
+        # index partiel qui rend `absence_scope.visible` gratuit.
+        Index("ix_listings_probable", "probably_gone_at",
+              postgresql_where=text("probably_gone_at IS NOT NULL")),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -76,6 +81,13 @@ class Listing(Base):
     # dit deux fois. Irréversible — une fausse date ne se retire plus une fois
     # mêlée aux vraies. `revisit` et `disappearance` disent à quel prix.
     disappeared_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
+    # Le doute, à la différence du fait : une seule voix l'a constatée
+    # (`absence_scope`, `.superpowers/disparition-plan.md` §2.1). Jamais
+    # effacée par l'écriture de `disappeared_at` — elle dit quand le doute
+    # est né, l'autre quand il a été tranché.
+    probably_gone_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None
     )
     # La machinerie qui y mène, et qui ne dit rien du marché : quand rouvrir la

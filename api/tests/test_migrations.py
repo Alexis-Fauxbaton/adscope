@@ -53,6 +53,8 @@ def to_old_shape(session):
     session.execute(
         text("ALTER TABLE listings DROP COLUMN IF EXISTS canon_model_source")
     )
+    session.execute(text("DROP TABLE IF EXISTS absence_reports"))
+    session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS probably_gone_at"))
     session.execute(text("DROP TABLE IF EXISTS schema_migrations"))
 
 
@@ -564,3 +566,51 @@ def test_the_index_on_divergences_license_exists(session):
     assert {"ix_divergences_license", "ix_divergences_listing"} <= {
         row[0] for row in indexes
     }
+
+
+# Le lot Disparition arrive sur une base qui porte des annonces existantes,
+# dont certaines déjà `disappeared_at` : la colonne du doute s'ajoute vide,
+# aucun `disappeared_at` n'est relu ni annulé.
+def test_the_017_migration_adds_the_probable_column_and_the_registry(session):
+    to_old_shape(session)
+    assert "probably_gone_at" not in columns(session, "listings")
+    assert "absence_reports" not in tables(session)
+    apply_migrations(session.connection())
+    assert "probably_gone_at" in columns(session, "listings")
+    assert "absence_reports" in tables(session)
+
+
+def test_the_017_migration_is_replayable(session):
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    assert apply_migrations(session.connection()) == []
+
+
+def test_the_017_migration_produces_the_columns_that_create_all_produces(session):
+    from adscope_api.absence_models import AbsenceReport
+
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    assert columns(session, "absence_reports") == set(AbsenceReport.__table__.c.keys())
+
+
+def test_the_listings_already_recorded_keep_disappeared_at_and_an_empty_probable(session):
+    to_old_shape(session)
+    with_history(session)
+    session.execute(text(
+        "UPDATE listings SET disappeared_at = now() WHERE site_id = '87103336930'"
+    ))
+    apply_migrations(session.connection())
+    rows = session.execute(text(
+        "SELECT disappeared_at IS NOT NULL, probably_gone_at FROM listings"
+    )).all()
+    assert rows == [(True, None)]
+
+
+def test_the_index_on_absence_reports_actor_exists(session):
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    indexes = session.execute(text(
+        "SELECT indexname FROM pg_indexes WHERE tablename = 'absence_reports'"
+    ))
+    assert "ix_absence_reports_actor" in {row[0] for row in indexes}
