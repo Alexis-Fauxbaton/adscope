@@ -20,7 +20,7 @@ from sqlalchemy.dialects.postgresql import insert
 from .fingerprint import fingerprint
 from .models import Listing, PricePoint
 from .intake import ObservationIn
-from . import divergence, publication
+from . import divergence, publication, revival
 from .model_vocabulary import CACHE
 from .taxonomy import derive
 from .usage import bump
@@ -138,7 +138,7 @@ def record(session, observation: ObservationIn, source: str, license_=None,
 
     listing.last_seen = max(listing.last_seen, now)
     listing.observations += 1
-    listing.disappeared_at = listing.absent_since = None
+    revival.apply(session, listing, license_, now)
 
     publication.apply(listing, observation, now)
 

@@ -91,12 +91,6 @@ def _vehicle(session, claim, listing, observation, now) -> None:
             _write(session, claim, str(observation.mileage), now)
 
 
-def _absence(session, claim, now) -> None:
-    # L'observation en cours prouve que le robot voit l'annonce : une
-    # réclamation « absence » en attente est donc toujours contredite ici.
-    _write(session, claim, "présente", now)
-
-
 def _bump(session, claim, observation, now) -> None:
     if observation.bumped_at is None:
         _write(session, claim, "aucune", now)
@@ -118,24 +112,25 @@ def _verify(session, listing, observation, now) -> None:
             _price(session, claim, observation, now)
         elif claim.field == "vehicle":
             _vehicle(session, claim, listing, observation, now)
-        elif claim.field == "absence":
-            _absence(session, claim, now)
         elif claim.field in _HANDLERS:
             _HANDLERS[claim.field](session, claim, observation, now)
-        # `unknown_listing` : jamais ici — le robot trouve l'annonce, donc le
-        # marchand disait vrai. `on_absence`, plus bas, le tranche.
+        # `unknown_listing`/`revived` : jamais ici — le robot trouve l'annonce,
+        # donc le marchand disait vrai. `on_absence`, plus bas, tranche les
+        # deux. `absence` non plus : `revival.apply` en est l'unique auteur,
+        # sinon la même contradiction produirait deux lignes du journal.
     recheck.clear(session, listing.id)
 
 
 def on_absence(session, listing, now) -> None:
     """Le robot vient de confirmer la disparition (verdict `recorded`,
-    licence automated) : la seule réclamation qu'il contredit est
+    licence automated) : les réclamations qu'il contredit sont
     `unknown_listing` — le marchand disait l'avoir créée, le robot ne l'a
-    jamais retrouvée."""
-    claim = session.scalar(
+    jamais retrouvée — et `revived` — un marchand disait l'avoir revue en
+    ligne, le robot la retrouve absente."""
+    claims = session.scalars(
         select(Recheck).where(Recheck.listing_id == listing.id,
-                              Recheck.field == "unknown_listing")
-    )
-    if claim is not None:
+                              Recheck.field.in_(("unknown_listing", "revived")))
+    ).all()
+    for claim in claims:
         _write(session, claim, "absente", now)
     recheck.clear(session, listing.id)

@@ -83,6 +83,15 @@ def mark_absence(session, listing, license_, evidence, now) -> None:
     _claim(session, listing, "absence", license_, evidence, now)
 
 
+def mark_revival(session, listing, license_, now) -> None:
+    """Une résurrection déclarée par un marchand (`revival.apply`) : elle sera
+    jugée comme les autres réclamations, au prochain passage du robot — sinon
+    un marchand pourrait ressusciter en boucle l'annonce d'un concurrent."""
+    if listing.site not in ADDRESS:
+        return
+    _claim(session, listing, "revived", license_, "revenue", now)
+
+
 def clear(session, listing_id) -> None:
     """Lève le marqueur en entier : une observation automated a tranché."""
     session.execute(delete(Recheck).where(Recheck.listing_id == listing_id))

@@ -156,17 +156,6 @@ def test_a_brand_rewritten_by_the_merchant_is_journaled(session):
     assert len(lines(session, listing.id)) == 1
 
 
-# Fait rougir la branche `absence` de `_verify`.
-def test_an_absence_the_robot_contradicts_is_journaled(session):
-    listing = listed(session)
-    claim(session, listing, "absence", "absent", merchant(session).key_hash)
-    divergence.on_observation(session, listing, obs(price=9900), robot(session),
-                              NOW + timedelta(hours=2))
-    rows = lines(session, listing.id)
-    assert len(rows) == 1
-    assert rows[0].field == "absence"
-
-
 # Fait rougir la branche `bump` de `_verify`.
 def test_a_bump_the_robot_does_not_see_is_journaled(session):
     listing = listed(session)
@@ -194,6 +183,23 @@ def test_a_listing_the_robot_never_finds_is_journaled(session):
     rows = lines(session, listing.id)
     assert len(rows) == 1
     assert rows[0].field == "unknown_listing"
+
+
+# Fait rougir `divergence.on_absence`, la branche `revived` : un marchand
+# disait l'annonce revenue, le robot la retrouve absente — la résurrection
+# était donc fausse, ou trop tôt.
+def test_a_resurrection_the_robot_contradicts_is_journalled(session):
+    listing = listed(session)
+    claim(session, listing, "revived", "revenue", merchant(session).key_hash)
+    bot = robot(session)
+    observe(session, listing.site, listing.site_id, "absent", NOW + timedelta(hours=1),
+           license_=bot)
+    observe(session, listing.site, listing.site_id, "absent",
+           NOW + timedelta(hours=1) + CONFIRM_DELAY, license_=bot)
+    session.commit()
+    rows = lines(session, listing.id)
+    assert len(rows) == 1
+    assert (rows[0].field, rows[0].robot_value) == ("revived", "absente")
 
 
 # Fait rougir la branche `absence` de `on_absence` : le marchand disait vrai,
