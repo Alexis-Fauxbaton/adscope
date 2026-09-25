@@ -45,6 +45,12 @@ def _utc_day(moment):
     return moment.astimezone(timezone.utc).date()
 
 
+# Un ordre commun à tous les émetteurs ôte le risque d'interblocage entre
+# deux lots qui portent les deux mêmes annonces en sens inverse.
+def ordered(items):
+    return sorted(items, key=lambda item: (item.site, item.site_id))
+
+
 def _locked(session, observation, now) -> Listing:
     """L'annonce, verrouillée jusqu'à la fin de la transaction.
 

@@ -84,6 +84,13 @@ def docs_enabled() -> bool:
     return os.environ.get("ADSCOPE_ENABLE_DOCS", "") == "1"
 
 
+# La digue du lot Corpus (docs/roadmap.md § Lot Corpus) : au-delà, une clé non
+# automated se voit refuser ses observations pour le reste de la journée UTC.
+# Lu à chaque appel, comme le reste de cette configuration.
+def observations_per_day() -> int:
+    return int(os.environ.get("ADSCOPE_OBSERVATIONS_PER_DAY", "2000"))
+
+
 def docs_urls() -> tuple[str | None, str | None, str | None]:
     """(`docs_url`, `redoc_url`, `openapi_url`) pour `FastAPI(...)` — les trois
     fermés ensemble, ou ouverts ensemble."""

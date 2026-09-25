@@ -14,12 +14,12 @@ from .db import get_session
 from .disappearance import AbsenceOut, observe
 from . import (
     alert_settings, auth_email, auth_signup, digests, families, follows, market,
-    market_facets, saved_searches, sweep,
+    market_facets, quota, saved_searches, sweep,
 )
 from .follows import followed_ids
 from .mail_outbox import purge_expired
 from .models import Listing
-from .observations import record
+from .observations import ordered, record
 from .intake import AbsenceIn, ObservationsIn
 from .operator import require_operator
 from .revisit import due
@@ -59,15 +59,12 @@ app.mount(
 )
 
 
-# Un ordre commun à tous les émetteurs ôte le risque d'interblocage entre
-# deux lots qui portent les deux mêmes annonces en sens inverse.
-def ordered(items):
-    return sorted(items, key=lambda item: (item.site, item.site_id))
-
-
 @app.post("/v1/observations")
 def post_observations(payload: ObservationsIn, session=Depends(get_session),
                       license_=Depends(require_license)):
+    # La digue du lot Corpus : au-delà du quota, la clé (non automated) est
+    # refusée avant toute écriture — l'ordre du lot n'a pas encore d'importance.
+    quota.guard(session, license_, datetime.now(timezone.utc))
     for item in ordered(payload.items):
         record(session, item, source="user", license_=license_)
     # La mesure d'usage ferme ses journées passées au premier lot du jour ; la
