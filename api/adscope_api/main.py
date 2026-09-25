@@ -13,8 +13,8 @@ from .config import docs_urls, validate_startup
 from .db import get_session
 from .disappearance import AbsenceOut, observe
 from . import (
-    alert_settings, auth_email, auth_signup, digests, families, follows, market,
-    market_facets, quota, saved_searches, sweep,
+    alert_settings, auth_email, auth_signup, digests, divergences, families, follows,
+    market, market_facets, quota, saved_searches, sweep,
 )
 from .follows import followed_ids
 from .mail_outbox import purge_expired
@@ -49,6 +49,7 @@ app.include_router(saved_searches.router)
 app.include_router(alert_settings.router)
 app.include_router(digests.router)
 app.include_router(sweep.router)
+app.include_router(divergences.router)
 
 # Le site du marchand : fichiers statiques, jamais authentifiés — la porte
 # reste sur `/v1/*`. `check_dir=False` : le dossier peut ne pas encore exister.
