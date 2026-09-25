@@ -91,6 +91,14 @@ def observations_per_day() -> int:
     return int(os.environ.get("ADSCOPE_OBSERVATIONS_PER_DAY", "2000"))
 
 
+# En réserve, désactivé par défaut (lot Corpus, docs/roadmap.md § Lot Corpus,
+# point 5) : une baisse dont le dernier relevé vient d'une licence non
+# automated n'entre pas dans le digest tant qu'un relevé automated ne l'a pas
+# suivie. Voir `alert_rules.drops_for`.
+def alerts_confirmed_only() -> bool:
+    return os.environ.get("ADSCOPE_ALERTS_CONFIRMED_ONLY", "") == "1"
+
+
 def docs_urls() -> tuple[str | None, str | None, str | None]:
     """(`docs_url`, `redoc_url`, `openapi_url`) pour `FastAPI(...)` — les trois
     fermés ensemble, ou ouverts ensemble."""

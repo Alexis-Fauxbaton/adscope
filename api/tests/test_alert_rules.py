@@ -277,3 +277,83 @@ def test_follows_only_carries_what_the_feed_carries(session):
     candidates = follows_for(session, account.id, NOW)
     assert [c["kind"] for c in candidates] == ["drop"]
     assert candidates[0]["listing_id"] == listing.id
+
+
+def licensed(session, automated=False, label="x"):
+    key_hash = hash_key(new_key())
+    session.add(License(key_hash=key_hash, label=label, automated=automated))
+    session.commit()
+    return key_hash
+
+
+# Fait rougir la condition `confirmed`, posée seulement si le drapeau est vrai.
+def test_a_drop_last_seen_by_a_merchant_waits_for_the_robot(session, monkeypatch):
+    monkeypatch.setenv("ADSCOPE_ALERTS_CONFIRMED_ONLY", "1")
+    account, key = account_and_license(session)
+    s = saved(session, account.id, created_at=CREATED)
+    merchant_key = licensed(session)
+    listing = car(session, "1", published=NOW - timedelta(days=200))
+    session.add(PricePoint(listing_id=listing.id, observed_at=NOW - timedelta(days=5),
+                           price=12000, source="user", confirmation=False))
+    session.add(PricePoint(listing_id=listing.id, observed_at=NOW - timedelta(days=1),
+                           price=11000, source="user", confirmation=False,
+                           license_key_hash=merchant_key))
+    session.commit()
+    assert drops_for(session, s, resolve(session, key), NOW) == []
+
+
+# Fait rougir la même condition, sens inverse : un relevé automated postérieur
+# à la baisse la confirme.
+def test_the_same_drop_passes_once_the_robot_has_followed(session, monkeypatch):
+    monkeypatch.setenv("ADSCOPE_ALERTS_CONFIRMED_ONLY", "1")
+    account, key = account_and_license(session)
+    s = saved(session, account.id, created_at=CREATED)
+    merchant_key = licensed(session)
+    robot_key = licensed(session, automated=True)
+    listing = car(session, "1", published=NOW - timedelta(days=200))
+    session.add(PricePoint(listing_id=listing.id, observed_at=NOW - timedelta(days=5),
+                           price=12000, source="user", confirmation=False))
+    session.add(PricePoint(listing_id=listing.id, observed_at=NOW - timedelta(days=1),
+                           price=11000, source="user", confirmation=False,
+                           license_key_hash=merchant_key))
+    session.add(PricePoint(listing_id=listing.id, observed_at=NOW - timedelta(hours=1),
+                           price=11000, source="crawler", confirmation=True,
+                           license_key_hash=robot_key))
+    session.commit()
+    results = drops_for(session, s, resolve(session, key), NOW)
+    assert [r["listing_id"] for r in results] == [listing.id]
+
+
+# Fait rougir `observed_at >= windowed.c.observed_at` (et non `>`) : la
+# baisse vue par le robot lui-même n'attend pas un second passage.
+def test_a_drop_the_robot_itself_saw_needs_no_confirmation(session, monkeypatch):
+    monkeypatch.setenv("ADSCOPE_ALERTS_CONFIRMED_ONLY", "1")
+    account, key = account_and_license(session)
+    s = saved(session, account.id, created_at=CREATED)
+    robot_key = licensed(session, automated=True)
+    listing = car(session, "1", published=NOW - timedelta(days=200))
+    session.add(PricePoint(listing_id=listing.id, observed_at=NOW - timedelta(days=5),
+                           price=12000, source="crawler", confirmation=False))
+    session.add(PricePoint(listing_id=listing.id, observed_at=NOW - timedelta(days=1),
+                           price=11000, source="crawler", confirmation=False,
+                           license_key_hash=robot_key))
+    session.commit()
+    results = drops_for(session, s, resolve(session, key), NOW)
+    assert [r["listing_id"] for r in results] == [listing.id]
+
+
+# Fait rougir `if alerts_confirmed_only(): ...` (la condition n'est ajoutée
+# que si le drapeau est vrai) : par défaut, il est faux.
+def test_the_flag_is_off_by_default(session):
+    account, key = account_and_license(session)
+    s = saved(session, account.id, created_at=CREATED)
+    merchant_key = licensed(session)
+    listing = car(session, "1", published=NOW - timedelta(days=200))
+    session.add(PricePoint(listing_id=listing.id, observed_at=NOW - timedelta(days=5),
+                           price=12000, source="user", confirmation=False))
+    session.add(PricePoint(listing_id=listing.id, observed_at=NOW - timedelta(days=1),
+                           price=11000, source="user", confirmation=False,
+                           license_key_hash=merchant_key))
+    session.commit()
+    results = drops_for(session, s, resolve(session, key), NOW)
+    assert [r["listing_id"] for r in results] == [listing.id]

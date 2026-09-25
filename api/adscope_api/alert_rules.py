@@ -10,12 +10,13 @@ seul endroit, les deux chemins ne peuvent plus diverger.
 
 from datetime import timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from .alert_journal import ref_at
+from .config import alerts_confirmed_only
 from .market_params import MarketParams
 from .market_query import core as market_core
-from .models import Listing, PricePoint
+from .models import License, Listing, PricePoint
 from .naming import label as naming_label
 from .taxonomy import inferred_model
 from .urls import build as build_url
@@ -79,13 +80,27 @@ def drops_for(session, search, license_, now) -> list[dict]:
               lag_price.label("prev"), lag_at.label("prev_at"), first_price.label("first_price"))
         .where(PricePoint.confirmation.is_(False), PricePoint.listing_id.in_(items.keys()))
     ).subquery()
-    drop_rows = session.execute(
-        select(windowed).where(
-            windowed.c.prev.is_not(None),
-            windowed.c.price < windowed.c.prev,
-            windowed.c.observed_at > search.created_at,
-            (windowed.c.prev - windowed.c.price) * 100 >= search.min_drop_pct * windowed.c.prev,
+    clauses = [
+        windowed.c.prev.is_not(None),
+        windowed.c.price < windowed.c.prev,
+        windowed.c.observed_at > search.created_at,
+        (windowed.c.prev - windowed.c.price) * 100 >= search.min_drop_pct * windowed.c.prev,
+    ]
+    if alerts_confirmed_only():
+        # Un relevé du robot postérieur à la baisse — ou la baisse elle-même
+        # vue par le robot (`observed_at >= …`, pas `>` : elle est alors déjà
+        # confirmée par elle-même). `license_key_hash` nul = le crawler
+        # d'avant la colonne, qui fait foi aussi.
+        clauses.append(
+            select(1).select_from(PricePoint)
+            .outerjoin(License, License.key_hash == PricePoint.license_key_hash)
+            .where(PricePoint.listing_id == windowed.c.listing_id,
+                  PricePoint.observed_at >= windowed.c.observed_at,
+                  or_(PricePoint.license_key_hash.is_(None), License.automated.is_(True)))
+            .exists()
         )
+    drop_rows = session.execute(
+        select(windowed).where(*clauses)
         .distinct(windowed.c.listing_id)
         .order_by(windowed.c.listing_id, windowed.c.observed_at.desc(), windowed.c.id.desc())
     ).all()
