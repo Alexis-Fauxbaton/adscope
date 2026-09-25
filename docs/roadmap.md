@@ -64,6 +64,31 @@ comportement dans l'extension (ses observations sont le produit, rien de plus). 
 une mesure d'usage interne, côté serveur, rattachée aux comptes, déclarée dans la politique de
 confidentialité — sans elle, ni prix ni priorités ne se décident sur des faits.
 
+## Lot « Corpus » — décidé le 2026-09-25, avant le Store
+
+L'API ne voit jamais le site, seulement le navigateur du marchand : aucun moyen d'authentifier
+qu'une requête vient de l'extension plutôt que d'un script (Google a abandonné Web Environment
+Integrity en 2023 ; App Attest et Play Integrity n'existent que sur mobile ; Castorus ne vérifie
+rien et s'en remet au nombre). Le crawl serveur reste exclu. Décision : **on ne bloque rien à
+l'entrée, on recoupe après coup par le robot, et on attribue.**
+
+1. **Quota par clé** (observations par jour) — contre l'inondation seulement.
+2. **Revisite rapide** : une observation de marchand qui change un prix, une date, une
+   disparition ou crée une annonce met l'annonce au rang 0 de la file de revisite existante.
+3. **Journal des écarts, par clé** : au passage suivant du robot, prix différent de plus de 5 %
+   dans les deux sens sans relevé intermédiaire, date de mise en ligne différente, véhicule
+   différent (km à 1 000 près), disparition ou annonce que le robot ne retrouve pas,
+   réactualisation qu'il ne voit pas. Chaque ligne porte **l'horodatage de l'observation, celui
+   de la vérification et le délai** : un écart de 30 % en deux heures est un faux, en six jours
+   c'est peut-être le vendeur. Page opérateur classée par nombre d'écarts sur 30 jours puis par
+   délai court ; suspension à la main, jamais automatique. Le robot fait foi, il n'est jamais jugé.
+4. **En réserve, non activé au lancement** : les alertes ne partent que sur une baisse revue par
+   le robot (une condition dans la requête des alertes). À activer au premier écart suspect ou à
+   l'ouverture large — Alexis y est réticent au démarrage : le robot est alors la source de
+   presque tout, et la retenue coûterait de la fraîcheur pour rien.
+
+Seuils (5 %, 1 000 km) à mesurer sur la base avant de les figer.
+
 ## Programme « recherche filtrée » — décidé le 2026-09-18, un lot à la fois, revue d'Alexis entre chaque
 
 Le site doit découper proprement par famille, puis trier sur ce que les sites ne montrent pas.
