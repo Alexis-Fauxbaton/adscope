@@ -1,5 +1,12 @@
 # Adscope — runbook de balayage par recherche (lot F2)
 
+> **Bascule vers Render — 2026-09-26.** L'API est en ligne : `https://adscope-api.onrender.com`.
+> Le Chrome qui crawle doit (1) avoir cette adresse comme adresse d'API dans le popup de
+> l'extension (réglages), (2) porter la clé de `crawler/.license` dans ce même popup — c'est
+> la clé robot, sans elle rien de ce que le lot Corpus journalise ne s'écrit —, ou à défaut une
+> session ouverte sur `https://adscope-api.onrender.com/app`. `localhost:8000` ne sert plus
+> qu'au développement ; aucune tâche planifiée ne doit plus y écrire.
+
 > **Premier geste de tout run, avant tout `navigate` :** lire `crawler/logs/YYYY-MM.log`
 
 But : revoir chaque jour les annonces des recherches enregistrées par les marchands,
@@ -38,6 +45,15 @@ attendu ne ressemble à rien) signe un paramètre faux — `u_car_model` d'abord
 premier suspect du rapport API. Alexis lira le journal pour trancher, pas cette
 session.
 
+## Le navigateur — règle du 2026-09-24
+
+Si `tabs_context_mcp` réclame un choix entre plusieurs Chrome connectés, **le Mac est
+prioritaire, toujours** : dès qu'un navigateur macOS figure dans la liste, le run le
+sélectionne lui-même avec `select_browser`, le journalise et continue — le choix a été
+posé à l'avance par Alexis, il n'y a plus rien à deviner. On ne s'arrête que si la liste
+ne contient **aucun** macOS, ou en contient **plusieurs**. Détail et historique : section
+« Plusieurs Chrome connectés au compte — règle du 2026-09-24 » de `RUNBOOK.md`.
+
 ## Le témoin
 
 Comme le crawl exhaustif (`RUNBOOK.md`) : sur une page de résultats, l'absence de
@@ -49,14 +65,14 @@ s'arrêter.
 ## La file
 
 **Prérequis, une fois pour toutes — à la main, par Alexis :** une session déjà
-connectée sur `http://localhost:8000/app` (le prérequis de `RUNBOOK-revisites.md`).
+connectée sur `https://adscope-api.onrender.com/app` (le prérequis de `RUNBOOK-revisites.md`).
 Le même cookie porte les deux pages.
 
 La file se demande sur `/app/balayage.html`, jamais par `curl` — même raison que
 la revisite : la clé ne se lit, ne se recopie ni ne se construit jamais ici, le
 navigateur la porte seule.
 
-1. `navigate` vers `http://localhost:8000/app/balayage.html` (`?pages=` pour un
+1. `navigate` vers `https://adscope-api.onrender.com/app/balayage.html` (`?pages=` pour un
    budget différent des 120 pages par défaut — inutile pour un run normal).
 2. Cliquer **« Demander la file »**. `GET`, rien n'est consommé : contrairement à
    la revisite, recharger la page et redemander la file ne coûte rien — la
@@ -135,7 +151,7 @@ n'a pas chargé ou si `__NEXT_DATA__` est absent.
 | La page dit « L'API n'a pas répondu » | journaliser `error: API injoignable`, ne rien ouvrir |
 | La page dit « Connectez-vous d'abord sur /app » | la session gardée par le navigateur est absente ou révoquée — se reconnecter sur `/app` à la main (le prérequis, ci-dessus), journaliser, s'arrêter |
 | Aucun badge sur le témoin | extension absente du profil — journaliser `error: aucun badge`, s'arrêter |
-| Plusieurs Chrome connectés au compte | un seul doit l'être — voir « Un seul Chrome doit être connecté » de `RUNBOOK.md`, journaliser, s'arrêter |
+| Plusieurs Chrome connectés au compte | **un macOS dans la liste → le sélectionner (`select_browser`) et continuer** (règle du 2026-09-24, voir `RUNBOOK.md`). Aucun macOS, ou plusieurs : journaliser, s'arrêter |
 | Une URL ne charge pas | la passer, journaliser `erreur: page illisible` sur sa ligne, continuer |
 | `__NEXT_DATA__` absent sur une page qui a chargé | gabarit refondu ou mur anti-bot — journaliser `erreur: pas de __NEXT_DATA__`, continuer sur la recherche suivante |
 | Écart énorme et systématique sur toutes les recherches | probablement `u_car_model` ou un autre paramètre faux, pas un site qui a changé — journaliser en détail, ne pas essayer de corriger l'URL à la main, laisser Alexis trancher |
@@ -229,7 +245,7 @@ phase 2.
 
 PHASE 1 — BALAYAGE (crawler/RUNBOOK-balayage.md)
 
-3. navigate vers http://localhost:8000/app/balayage.html, cliquer UNE fois
+3. navigate vers https://adscope-api.onrender.com/app/balayage.html, cliquer UNE fois
    « Demander la file ». C'est un GET : rien n'est consommé, contrairement à la revisite.
    - « Connectez-vous d'abord sur /app » ou « L'API n'a pas répondu » : journaliser,
      s'arrêter — les deux phases.
@@ -266,7 +282,7 @@ PHASE 2 — REVISITES (crawler/RUNBOOK-revisites.md)
 8. Boucle de tranches, jusqu'à file vide, budget insuffisant ou incident :
    a. limit = min(100, (secondes restantes - 90 de marge) / 8). Si limit < 10 :
       arrêter, ne demander aucune tranche.
-   b. navigate pleine page vers http://localhost:8000/app/revisites.html?limit=<limit>,
+   b. navigate pleine page vers https://adscope-api.onrender.com/app/revisites.html?limit=<limit>,
       puis cliquer UNE SEULE fois « Demander la file ». Si la page restitue la tranche
       précédente depuis sessionStorage et n'offre plus que « Oublier cette file »,
       cliquer d'abord dessus : cela ne consomme rien.
