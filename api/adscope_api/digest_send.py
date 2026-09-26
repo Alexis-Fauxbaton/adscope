@@ -2,17 +2,23 @@
 boîte d'envoi, marquer le journal — dans cet ordre, pour que l'idempotence
 tienne. Marquer avant d'insérer condamnerait des alertes à ne jamais être
 dites pour un courrier qui n'a jamais existé.
+
+`run` (tous les comptes) est ce que `scripts/send_digests.py` et le
+planificateur (`digest_run.record`) appellent tous les deux — jamais
+dupliqué entre les deux : voir `.superpowers/planificateur.md`.
 """
 
 import secrets
 from datetime import timezone
 
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from .alert_journal import mark
 from .alert_models import Digest
 from .alert_settings import settings_of
 from .auth import of_account
+from .auth_models import Account
 from .digest_build import build
 from .digest_html import render as render_html
 from .digest_text import render as render_text
@@ -58,3 +64,16 @@ def send_for_account(session, account_id: int, now, dry_run: bool = False) -> di
     mark(session, account_id, built["lines"], now)
     session.commit()
     return {"account_id": account_id, "subject": built["subject"], "lines": len(built["lines"])}
+
+
+def run(session_factory, now, dry_run: bool = False) -> list[dict]:
+    """Prend une fabrique de sessions en paramètre : jamais la base
+    `adscope` depuis un test — celui-ci lui donne `adscope_test`."""
+    sent = []
+    with session_factory() as session:
+        account_ids = session.scalars(select(Account.id).order_by(Account.id)).all()
+        for account_id in account_ids:
+            result = send_for_account(session, account_id, now, dry_run=dry_run)
+            if result is not None:
+                sent.append(result)
+    return sent
