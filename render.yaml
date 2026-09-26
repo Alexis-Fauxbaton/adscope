@@ -19,7 +19,9 @@ projects:
             branch: feat/api
             rootDir: api
             numInstances: 1
-            healthCheckPath: /app/
+            # `/healthz` : sans base ni authentification (api/adscope_api/digest_runs.py).
+            # `/app/` avant elle frappait les fichiers statiques toutes les 5 s pour rien.
+            healthCheckPath: /healthz
             buildCommand: pip install uv && uv sync --frozen
             # La migration tourne avant chaque mise en ligne, jamais au démarrage :
             # scripts/migrate.py est idempotent (create_all + registre).
