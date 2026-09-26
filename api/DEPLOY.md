@@ -1,9 +1,10 @@
 # Déploiement — Render
 
 Ce que la mise en ligne exige et que rien dans le code ne peut deviner à ta
-place. Pas de `render.yaml` dans ce dépôt : le composer sans ta décision sur
-le domaine, le plan Render et la base gèlerait des choix qui ne sont pas
-encore pris (C-5, `.superpowers/audit-config.md`).
+place. Le `render.yaml` à la racine du dépôt (2026-09-26) fige ces choix :
+un service web `starter` à une instance, un cron pour l'email du matin, une
+base `basic-256mb`, tout à Francfort. Le domaine et l'adresse d'opérateur
+restent des valeurs `sync: false`, posées dans le tableau de bord.
 
 ## Installation
 
@@ -26,10 +27,11 @@ uv run uvicorn adscope_api.main:app \
 
 `--proxy-headers --forwarded-allow-ips` dit à uvicorn qui a le droit de poser
 `X-Forwarded-For` : sans le premier, aucun en-tête n'est honoré et l'IP vue
-par le service est celle du proxy Render pour tout le monde (AUTH-06/C-1) ;
-avec `--forwarded-allow-ips=*`, n'importe quel client pourrait forger la
-sienne. Trouve la plage exacte dans la documentation Render du moment (elle
-change) — jamais `*`.
+par le service est celle du proxy Render pour tout le monde (AUTH-06/C-1).
+Sur Render, `'*'` est acceptable : l'instance n'est joignable que par le proxy
+Render, aucun client ne parle directement à uvicorn, donc personne ne peut y
+forger un en-tête — et Render ne publie pas la plage de son proxy. Ailleurs
+(un VPS exposé), jamais `*` : la plage exacte du proxy, ou rien.
 
 `ADSCOPE_TRUSTED_PROXY` (variable d'application, ci-dessous) est la décision
 symétrique côté code : elle dit à `rate_limit.guard` de lire lui-même le
