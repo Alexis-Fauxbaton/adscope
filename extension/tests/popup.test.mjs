@@ -91,3 +91,18 @@ test('sans page analysée, la fenêtre nomme les sites pris en charge', async ()
   assert.equal(nodes.empty.hidden, false)
   assert.match(nodes.empty.text, /annonce voiture/)
 })
+
+// Rouge sur le `if (!el('api').value.trim())` du handler `api-save` de
+// popup/account.js : une adresse posée à la main (« localhost » du temps du
+// développement) doit s'oublier en vidant le champ, sans rien avoir à taper —
+// sinon `isBase('')` refuse, et l'ancienne valeur reste enregistrée.
+test("vider l'adresse de l'API et enregistrer rétablit celle par défaut", async () => {
+  const { nodes, removed } = await open({ status: detail(), apiBase: 'http://localhost:8000' })
+  assert.equal(nodes.api.value, 'http://localhost:8000')
+  nodes.api.value = '  '
+  await nodes['api-save'].onclick()
+  assert.deepEqual(removed, ['apiBase'])
+  assert.equal(nodes.api.value, 'https://adscope-api.onrender.com')
+  assert.match(nodes['api-note'].textContent, /par défaut/)
+})
+

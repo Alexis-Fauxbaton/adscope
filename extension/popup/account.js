@@ -6,6 +6,7 @@ globalThis.ADS = globalThis.ADS || {}
 // l'état connecté/déconnecté qu'elle affiche à la place d'une clé humaine.
 ADS.account = (() => {
   const { isKey, mask, base, isBase, probe, outcome } = ADS.config
+  const DEFAULT_BASE = 'https://adscope-api.onrender.com'
   const { el, note } = ADS.dom
 
   let key = ''
@@ -37,7 +38,14 @@ ADS.account = (() => {
   const origins = (apiBase) => ({ origins: [`${new URL(apiBase).origin}/*`] })
   const access = (apiBase) => chrome.permissions.request(origins(apiBase)).catch(() => false)
 
+  // Le champ vidé rend l'adresse par défaut : une valeur posée à la main
+  // (« localhost » du temps du développement) s'oublie sans rien avoir à taper.
   el('api-save').onclick = async () => {
+    if (!el('api').value.trim()) {
+      await chrome.storage.local.remove('apiBase')
+      el('api').value = DEFAULT_BASE
+      return note('api-note', 'ok', `Adresse par défaut rétablie : ${DEFAULT_BASE}.`)
+    }
     const value = base(el('api').value)
     if (!isBase(value)) return note('api-note', 'bad', 'Adresse attendue : http(s)://hôte[:port]')
     el('api').value = value
@@ -86,7 +94,7 @@ ADS.account = (() => {
   // Amorce : ce que le stockage rend au chargement — la clé et l'adresse.
   const init = (stored) => {
     key = stored.licenseKey || ''
-    el('api').value = stored.apiBase || 'https://adscope-api.onrender.com'
+    el('api').value = stored.apiBase || DEFAULT_BASE
     showKey()
   }
 

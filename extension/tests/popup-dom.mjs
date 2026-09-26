@@ -115,6 +115,7 @@ export const open = async ({
   const messages = []
   const opened = []
   const requested = []
+  const removed = []
   globalThis.window = { open: (url, target) => opened.push({ url, target }) }
   globalThis.document = {
     getElementById: (id) => (nodes[id] = nodes[id] || new El()),
@@ -122,7 +123,7 @@ export const open = async ({
     createElementNS: (_ns, t) => new El(t),
   }
   globalThis.chrome = {
-    storage: { local: { get: async () => ({ licenseKey, apiBase, status }), set: async () => {} } },
+    storage: { local: { get: async () => ({ licenseKey, apiBase, status }), set: async () => {}, remove: async (k) => removed.push(k) } },
     runtime: {
       sendMessage: async (msg) => {
         messages.push(msg)
@@ -149,5 +150,5 @@ export const open = async ({
     require(path)
   }
   await new Promise((r) => setTimeout(r, 0))
-  return { nodes, asked, messages, opened, requested, popup, src }
+  return { nodes, asked, messages, opened, requested, removed, popup, src }
 }
