@@ -24,12 +24,15 @@ n'est pas posée. L'envoi tourne dans un exécuteur (`run_in_executor`) : la
 boucle est asynchrone, `digest_send.run` ne l'est pas.
 
 **Réserve — le service local (`launchctl`)** : le défaut de configuration est
-`07:00`, comme demandé. Le service local relancé aujourd'hui l'a donc hérité
-et tentera un envoi réel (dans la base `adscope` locale, sans fournisseur —
-l'email s'écrit dans la boîte d'envoi, rien ne part vraiment) à 7 h demain, si
-le Mac tourne encore. `scripts/fr.adscope.api.plist` est hors du périmètre de
-ce lot (interdit d'y toucher) : si tu ne veux pas de ce comportement en local,
-ajoute `ADSCOPE_DIGEST_AT` (vide) à ses `EnvironmentVariables` et relance.
+`07:00`, comme demandé. Le service local relancé aujourd'hui après cette
+heure a rattrapé tout de suite, pas attendu demain (`run_due`, `>=` et pas
+`==` — §1) : un envoi réel a eu lieu à 11 h 12 le jour même, dans la base
+`adscope` locale, sans fournisseur — l'email s'écrit dans la boîte d'envoi,
+rien ne part vraiment. C'est le comportement voulu, pas un raté à corriger.
+`scripts/fr.adscope.api.plist` est hors du périmètre de ce lot (interdit d'y
+toucher) : si tu ne veux pas de cet envoi immédiat à un redémarrage tardif,
+ajoute `ADSCOPE_DIGEST_AT` (vide) à ses `EnvironmentVariables` avant de
+relancer.
 
 ## 2. La mesure (migration 018, `digest_runs`)
 
@@ -48,20 +51,25 @@ dupliquée.
 
 Derrière `require_operator`, comme `/v1/divergences`. `?days=14` (défaut) :
 les lignes du jour le plus récent au plus ancien, plus un résumé `{days, ran,
-missed, max_delay_seconds, last_error}`. `missed` ne compte que les jours qui
-portent une ligne — un jour jamais atteint (avant le premier déploiement, ou
-pas encore dû aujourd'hui) n'en a aucune, et ne compte donc ni pour ni contre ;
-c'est ce qui distingue l'état vide honnête de « tout est manqué ». Enregistrée
-*avant* `digests.router` dans `main.py` : sans cet ordre,
-`/v1/digests/{digest_id}` intercepte « runs » comme un identifiant (422),
-prouvé par un test qui casse volontairement l'ordre.
+missed, missed_days, max_delay_seconds, last_error}`. `missed` compte des
+JOURS civils (Europe/Paris), pas des lignes : depuis le premier jour qui
+porte une ligne (jamais avant — l'état vide honnête d'un service pas encore
+déployé) jusqu'à hier inclus, plus aujourd'hui une fois son heure cible
+passée. Un jour y compte dès qu'il n'a pas de ligne réussie — qu'il porte une
+ligne en erreur ou qu'il n'en porte aucune : un service resté éteint minuit à
+minuit n'écrit rien, et ce jour ne doit pas s'en trouver oublié (voir le
+correctif plus bas). `missed_days` porte les dates de ces jours, pour que la
+carte les nomme. Enregistrée *avant* `digests.router` dans `main.py` : sans
+cet ordre, `/v1/digests/{digest_id}` intercepte « runs » comme un identifiant
+(422), prouvé par un test qui casse volontairement l'ordre.
 
 ## 4. La carte opérateur (`web/ecarts.html`, en tête)
 
 Le parcours qu'elle sert : Alexis ouvre la page le matin, dix secondes de
 focus. Il lit d'abord la phrase du haut — « 14 jours : 13 envois, 1 manqué,
-retard maximal 2 min » — et sait déjà si tout va bien. S'il y a un manqué, il
-descend d'une ligne : la date, l'heure de départ (heure de Paris, composée
+retard maximal 2 min. Manqué le 10 sept. » — et sait déjà si tout va bien, et
+lequel sinon, sans descendre à la liste. S'il veut le détail, il descend
+d'une ligne : la date, l'heure de départ (heure de Paris, composée
 côté API et lue telle quelle côté site — jamais reconstruite par un `Date`,
 qui retomberait sur le fuseau du navigateur), le retard, les comptes
 examinés, les emails écrits, et l'erreur en rouge si le jour a manqué. Il n'y
@@ -97,19 +105,36 @@ cette échelle, et c'est exactement ce qu'un cron externe achète. En dessous de
 ce seuil, la mesure suffit à répondre « ça part, à l'heure » sans qu'il y ait
 de décision à prendre.
 
+## Correctif (2026-09-26) : `missed` par jour, pas par ligne
+
+La relecture du lot a trouvé l'angle mort du §3 tel qu'il était écrit ce
+même jour : `missed = len(rows) - ran` ne comptait que des LIGNES. Un jour où
+le service est resté éteint minuit à minuit (Europe/Paris) n'écrit aucune
+ligne, et n'apparaissait ni en `ran` ni en `missed` — le trou exact que le
+critère du §6 (« un manqué sur 30 jours ») doit détecter, invisible pour lui.
+
+`missed` compte désormais des jours civils, et `missed_days` en porte les
+dates (§3) ; la phrase de la carte (§4) les nomme. Les quatre cas qui font
+la règle : un jour sans aucune ligne au milieu de la fenêtre compte ; le jour
+courant avant son heure cible ne compte pas encore ; le même jour courant
+passé l'heure cible sans succès compte déjà ; sans aucune ligne du tout,
+l'état reste vide (0), jamais « tout est manqué ».
+
 ## Vérification
 
-- `api` : `cd api && ./.venv/bin/pytest tests/ -q` → **1085 verts** (1048 +
-  37 : config, migration 018, `digest_run`, `scheduler`, la route, `/healthz`).
-- `web` : `cd web && node --test tests/*.test.mjs` → **210 verts** (205 + 5,
-  `digest-runs.js`).
+- `api` : `cd api && ./.venv/bin/pytest tests/ -q` → **1089 verts** (1085 +
+  4, ce correctif ; 1048 + 37 pour le reste du lot : config, migration 018,
+  `digest_run`, `scheduler`, la route, `/healthz`).
+- `web` : `cd web && node --test tests/*.test.mjs` → **212 verts** (210 + 2,
+  ce correctif ; 205 + 5 pour le reste du lot, `digest-runs.js`).
 - `extension` : `node --test extension/tests/*.test.mjs` → **439 verts**,
   inchangée (rien touché).
 - Migration 018 appliquée en local après `pg_dump -Fc adscope` vers
   `~/adscope-backups/` ; `launchctl kickstart -k gui/$UID/fr.adscope.api` ;
   `/healthz` et `/app/` répondent 200 sur le service relancé.
-- Chaque test neuf nomme la ligne de production qui le fait rougir ; un
-  échantillon représentatif (la règle du jour local, le plafond de
-  tentatives, l'ordre d'enregistrement des routes, le calcul du retard
-  maximal, la lecture de l'heure sans `Date`) a été cassé puis restauré pour
-  le prouver — pas chacun des ~50 tests neufs un par un, vu l'ampleur du lot.
+- Chaque test neuf nomme la ligne de production qui le fait rougir. Pour le
+  lot d'origine (~50 tests), un échantillon représentatif (la règle du jour
+  local, le plafond de tentatives, l'ordre d'enregistrement des routes, le
+  calcul du retard maximal, la lecture de l'heure sans `Date`) a été cassé
+  puis restauré pour le prouver, pas chacun un par un. Pour le correctif
+  ci-dessus (6 tests neufs, lot réduit), chacun l'a été individuellement.
