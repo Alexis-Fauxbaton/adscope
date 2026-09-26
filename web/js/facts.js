@@ -36,9 +36,9 @@ function goneFact(item) {
       text: `a disparu le ${shortDate(item.disappeared_at)}`,
     }
   }
-  if (item.flags && item.flags.probably_gone) {
-    return { kind: 'probably_gone', text: 'Disparition probable, à confirmer' }
-  }
+  // Une disparition probable (un seul marchand l'a constatée) ne se dit pas
+  // aux autres — décision d'Alexis du 2026-09-26 : c'est une information sur
+  // une source, pas sur la voiture, et le robot tranche en quelques heures.
   return null
 }
 

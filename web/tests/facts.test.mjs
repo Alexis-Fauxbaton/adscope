@@ -92,15 +92,14 @@ test('une disparition sans date se dit quand même', () => {
   assert.equal(fait.text, 'a disparu')
 })
 
-// Rouge sur la branche `flags.probably_gone` de `goneFact` dans js/facts.js :
-// le point 2 de la décision exige que le site affiche « disparition
-// probable, à confirmer » — la ferme (`flags.disappeared`) ne dit pas tout.
-test('une disparition probable se dit à confirmer', () => {
-  const [fait] = factsOf(item({
+// Rouge si `goneFact` (js/facts.js) se remet à lire `flags.probably_gone` :
+// une disparition probable ne se dit pas aux autres marchands (décision du
+// 2026-09-26), l'annonce reste une annonce en ligne jusqu'à confirmation.
+test('une disparition probable ne se dit pas', () => {
+  const faits = factsOf(item({
     flags: { dropped: false, crossed: null, disappeared: false, probably_gone: true },
   }))
-  assert.equal(fait.kind, 'probably_gone')
-  assert.equal(fait.text, 'Disparition probable, à confirmer')
+  assert.ok(!faits.some((f) => f.kind === 'probably_gone'))
 })
 
 // La ferme prime sur le doute : une annonce ne porte jamais les deux flags à
