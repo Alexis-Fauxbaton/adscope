@@ -53,7 +53,7 @@ test("la mention ouvre l'application, pas la page hôte", () => {
   w.load('listing.js')
   w.denySession()
   w.badge().children[0].click()
-  assert.deepEqual(w.opened(), [{ url: 'http://localhost:8000/app/#/connexion', target: '_blank' }])
+  assert.deepEqual(w.opened(), [{ url: 'https://adscope-api.onrender.com/app/#/connexion', target: '_blank' }])
 })
 
 // Un échec relance la pause de 30 s de src/sync.js (elle laisse passer la

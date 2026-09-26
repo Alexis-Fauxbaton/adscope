@@ -86,7 +86,7 @@ ADS.account = (() => {
   // Amorce : ce que le stockage rend au chargement — la clé et l'adresse.
   const init = (stored) => {
     key = stored.licenseKey || ''
-    el('api').value = stored.apiBase || 'http://localhost:8000'
+    el('api').value = stored.apiBase || 'https://adscope-api.onrender.com'
     showKey()
   }
 

@@ -13,6 +13,7 @@
     "storage"
   ],
   "host_permissions": [
+    "https://adscope-api.onrender.com/*",
     "http://localhost:8000/*",
     "https://www.leboncoin.fr/*",
     "https://www.lacentrale.fr/*"

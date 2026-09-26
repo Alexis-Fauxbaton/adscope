@@ -5,7 +5,7 @@ globalThis.ADS = globalThis.ADS || {}
 // répondu (`ADS.reach`) et si la session tient encore (`ADS.auth`), et ces
 // deux constats-là sont la moitié de ce que la fenêtre affiche.
 ADS.api = (() => {
-  const DEFAULTS = { apiBase: 'http://localhost:8000', licenseKey: '' }
+  const DEFAULTS = { apiBase: 'https://adscope-api.onrender.com', licenseKey: '' }
 
   const config = async () => ({
     ...DEFAULTS,

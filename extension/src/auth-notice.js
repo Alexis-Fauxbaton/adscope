@@ -11,7 +11,7 @@ globalThis.ADS = globalThis.ADS || {}
 // suivie — le crawl tournerait à vide en se croyant sain.
 ADS.authNotice = (() => {
   const TEXT = 'adscope — reconnectez-vous'
-  const DEFAULT_BASE = 'http://localhost:8000'
+  const DEFAULT_BASE = 'https://adscope-api.onrender.com'
 
   // Lu une fois par page, pas à chaque carte repeinte : la fenêtre ne relit
   // pas le stockage pour chaque annonce d'une page de résultats.
