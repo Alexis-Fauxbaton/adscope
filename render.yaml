@@ -1,38 +1,49 @@
-# Blueprint Render — décidé le 2026-09-26. Un seul service web, une seule
-# instance (les plafonds anti-abus vivent en mémoire, api/DEPLOY.md), une base
-# Postgres. Pas de cron facturé à l'usage (Alexis, 2026-09-26) : l'email du
-# matin partira d'un planificateur interne au service web, une seule instance. Région Francfort : données de
-# marchands français, hébergement dans l'UE (politique de confidentialité).
+# Blueprint Render — décidé le 2026-09-26. Un projet « adscope », un environnement
+# « production » : un seul service web à une instance (les plafonds anti-abus
+# vivent en mémoire, api/DEPLOY.md) et une base Postgres. Région Francfort :
+# données de marchands français, hébergement dans l'UE. Pas de cron facturé à
+# l'usage : l'email du matin partira d'un planificateur interne au service web.
 #
 # Les valeurs `sync: false` se posent dans le tableau de bord Render, jamais ici :
 # le domaine public et l'adresse de l'opérateur ne sont pas des choses du dépôt.
-services:
-  - type: web
-    name: adscope-api
-    runtime: python
-    region: frankfurt
-    plan: starter
-    branch: feat/api
-    rootDir: api
-    numInstances: 1
-    healthCheckPath: /app/
-    buildCommand: pip install uv && uv sync --frozen
-    # La migration tourne avant chaque mise en ligne, jamais au démarrage :
-    # scripts/migrate.py est idempotent (create_all + registre).
-    preDeployCommand: uv run python scripts/migrate.py
-    # `--forwarded-allow-ips='*'` : sur Render l'instance n'est joignable que par
-    # le proxy Render, aucun client ne parle directement à uvicorn — la forge
-    # d'X-Forwarded-For que redoute api/DEPLOY.md n'a pas de chemin. La plage
-    # exacte du proxy n'est pas publiée par Render.
-    startCommand: >-
-      uv run uvicorn adscope_api.main:app --host 0.0.0.0 --port $PORT
-      --proxy-headers --forwarded-allow-ips='*'
-    envVars:
-      - fromGroup: adscope-config
-      - key: DATABASE_URL
-        fromDatabase:
-          name: adscope-db
-          property: connectionString
+projects:
+  - name: adscope
+    environments:
+      - name: production
+        services:
+          - type: web
+            name: adscope-api
+            runtime: python
+            region: frankfurt
+            plan: starter
+            branch: feat/api
+            rootDir: api
+            numInstances: 1
+            healthCheckPath: /app/
+            buildCommand: pip install uv && uv sync --frozen
+            # La migration tourne avant chaque mise en ligne, jamais au démarrage :
+            # scripts/migrate.py est idempotent (create_all + registre).
+            preDeployCommand: uv run python scripts/migrate.py
+            # `--forwarded-allow-ips='*'` : sur Render l'instance n'est joignable que
+            # par le proxy Render, aucun client ne parle directement à uvicorn — la
+            # forge d'X-Forwarded-For que redoute api/DEPLOY.md n'a pas de chemin.
+            startCommand: >-
+              uv run uvicorn adscope_api.main:app --host 0.0.0.0 --port $PORT
+              --proxy-headers --forwarded-allow-ips='*'
+            envVars:
+              - fromGroup: adscope-config
+              - key: DATABASE_URL
+                fromDatabase:
+                  name: adscope-db
+                  property: connectionString
+        databases:
+          - name: adscope-db
+            databaseName: adscope
+            user: adscope
+            region: frankfurt
+            plan: basic-256mb
+            postgresMajorVersion: "17"
+            ipAllowList: []
 
 envVarGroups:
   - name: adscope-config
@@ -49,12 +60,3 @@ envVarGroups:
       # Le seul compte qui ouvre les files de machine par cookie.
       - key: ADSCOPE_OPERATOR_EMAIL
         sync: false
-
-databases:
-  - name: adscope-db
-    databaseName: adscope
-    user: adscope
-    region: frankfurt
-    plan: basic-256mb
-    postgresMajorVersion: "17"
-    ipAllowList: []
