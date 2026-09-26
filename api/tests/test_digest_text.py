@@ -21,3 +21,18 @@ def test_a_positive_cumulative_carries_an_explicit_plus_sign():
 
 def test_a_negative_cumulative_already_carries_its_own_minus_sign():
     assert f"{money(-4000)} depuis le premier prix" in body_of(drop(-4000))
+
+
+# Fait rougir le `short_date(seen_from) != short_date(seen_to)` de `body_of` :
+# deux relevés le même jour donnaient « constatée entre le 24 sept. et le
+# 24 sept. » (vu sur le premier email réel d'Alexis, le 2026-09-26).
+def test_a_window_within_one_day_says_the_day_once():
+    assert "constatée le 18 sept." in body_of(drop(-1000))
+    assert "entre le" not in body_of(drop(-1000))
+
+
+def test_a_window_over_two_days_still_says_both():
+    earlier = drop(-1000)
+    earlier["window_from"] = datetime(2026, 9, 15, 9, 0, tzinfo=timezone.utc)
+    assert "constatée entre le 15 sept. et le 18 sept." in body_of(earlier)
+

@@ -39,10 +39,13 @@ def body_of(candidate: dict) -> str:
     kind = candidate["kind"]
     age = f"en ligne depuis {candidate['age_days']} jours" if candidate["age_days"] else ""
     if kind == "drop":
-        window = f"constatée le {short_date(candidate['window_to'])}"
-        if candidate["window_from"] is not None:
-            window = (f"constatée entre le {short_date(candidate['window_from'])}"
-                      f" et le {short_date(candidate['window_to'])}")
+        # La fenêtre honnête : « entre le 14 et le 17 » quand les deux relevés
+        # tombent des jours différents, « le 24 » quand c'est le même jour —
+        # « entre le 24 et le 24 » se lisait comme une coquille.
+        seen_from, seen_to = candidate["window_from"], candidate["window_to"]
+        window = f"constatée le {short_date(seen_to)}"
+        if seen_from is not None and short_date(seen_from) != short_date(seen_to):
+            window = f"constatée entre le {short_date(seen_from)} et le {short_date(seen_to)}"
         delta = candidate["price_delta_since_first"]
         # Signe explicite : `money` ne préfixe que le négatif, un cumul
         # positif (prix remonté avant cette baisse) se lirait comme une baisse.
