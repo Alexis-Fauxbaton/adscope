@@ -9,6 +9,21 @@ test('la phrase résume les jours, les envois, les manqués et le retard maximal
   assert.equal(phrase, '14 jours : 13 envois, 1 manqué, retard maximal 2 min.')
 })
 
+// Rouge sur `if (!missedDays.length) return withDelay` (ou l'appel à
+// `missedDaysLabel` juste après) : la phrase nomme les jours manqués, pas
+// seulement leur nombre — Alexis n'a plus besoin de descendre à la liste
+// pour savoir lesquels.
+test('la phrase nomme les jours manqués quand il y en a', () => {
+  const phrase = summarize({
+    days: 14, ran: 12, missed: 2, max_delay_seconds: 120,
+    missed_days: ['2026-09-23', '2026-09-25'],
+  })
+  assert.equal(
+    phrase,
+    '14 jours : 12 envois, 2 manqués, retard maximal 2 min. Manqué le 23 et le 25 sept.',
+  )
+})
+
 // Rouge sur l'accord singulier de `plural` (`n === 1 ? '' : 's'`) : un seul
 // jour, un seul envoi, aucun manqué ne prennent pas de « s ».
 test('la phrase accorde le singulier', () => {

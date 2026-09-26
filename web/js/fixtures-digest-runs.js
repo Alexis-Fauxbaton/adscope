@@ -49,8 +49,9 @@ export function digestRuns(days = 14) {
   const rows = ROWS.slice(0, days).map(item)
   const delays = rows.filter((row) => row.sent != null).map((row) => row.delay_seconds)
   const ran = delays.length
+  const missedDays = rows.filter((row) => row.sent == null).map((row) => row.day)
   return {
-    days, ran, missed: rows.length - ran,
+    days, ran, missed: missedDays.length, missed_days: missedDays,
     max_delay_seconds: delays.length ? Math.max(...delays) : 0,
     last_error: rows.find((row) => row.error)?.error ?? null,
     runs: rows,
