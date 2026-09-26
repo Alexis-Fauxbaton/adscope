@@ -74,5 +74,5 @@ databases:
     user: adscope
     region: frankfurt
     plan: basic-256mb
-    postgresMajorVersion: "16"
+    postgresMajorVersion: "17"
     ipAllowList: []
