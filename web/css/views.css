@@ -117,6 +117,13 @@ output{font-size:23px; font-weight:700; letter-spacing:-.02em}
 .ecart-l2{display:flex; align-items:baseline; gap:14px; font-size:13.5px; color:var(--faible); flex-wrap:wrap}
 .ecart-delai{font-weight:700; color:var(--douce)}
 
+/* ── planificateur : « L'email du matin » ── */
+#planificateur{margin-bottom:20px}
+.run-liste{display:flex; flex-direction:column; gap:10px; margin-top:16px}
+.run-ligne{display:flex; align-items:baseline; gap:14px; font-size:13.5px; color:var(--faible); flex-wrap:wrap}
+.run-jour{font-weight:700; color:var(--encre); min-width:60px}
+.run-erreur{color:#B4243A; font-weight:600}
+
 @media (max-width:640px){
   .annonce{grid-template-columns:1fr; gap:18px}
   .annonce-age{text-align:left; align-items:flex-start}
