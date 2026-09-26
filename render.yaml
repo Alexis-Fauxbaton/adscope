@@ -1,6 +1,7 @@
 # Blueprint Render — décidé le 2026-09-26. Un seul service web, une seule
 # instance (les plafonds anti-abus vivent en mémoire, api/DEPLOY.md), une base
-# Postgres, un cron pour l'email du matin. Région Francfort : données de
+# Postgres. Pas de cron facturé à l'usage (Alexis, 2026-09-26) : l'email du
+# matin partira d'un planificateur interne au service web, une seule instance. Région Francfort : données de
 # marchands français, hébergement dans l'UE (politique de confidentialité).
 #
 # Les valeurs `sync: false` se posent dans le tableau de bord Render, jamais ici :
@@ -26,25 +27,6 @@ services:
     startCommand: >-
       uv run uvicorn adscope_api.main:app --host 0.0.0.0 --port $PORT
       --proxy-headers --forwarded-allow-ips='*'
-    envVars:
-      - fromGroup: adscope-config
-      - key: DATABASE_URL
-        fromDatabase:
-          name: adscope-db
-          property: connectionString
-
-  # L'email du matin (lot F1) : 05:00 UTC = 7 h à Paris en été, 6 h en hiver.
-  # Idempotent (UNIQUE(account_id, day)) : le rejouer n'envoie rien de plus.
-  - type: cron
-    name: adscope-digests
-    runtime: python
-    region: frankfurt
-    plan: starter
-    branch: feat/api
-    rootDir: api
-    schedule: "0 5 * * *"
-    buildCommand: pip install uv && uv sync --frozen
-    startCommand: uv run python -m scripts.send_digests
     envVars:
       - fromGroup: adscope-config
       - key: DATABASE_URL
