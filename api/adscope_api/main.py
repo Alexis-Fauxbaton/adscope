@@ -13,8 +13,8 @@ from .config import docs_urls, validate_startup
 from .db import get_session
 from .disappearance import AbsenceOut, observe
 from . import (
-    alert_settings, auth_email, auth_signup, digests, divergences, families, follows,
-    licenses, market, market_facets, quota, saved_searches, sweep,
+    alert_settings, auth_email, auth_signup, digest_runs, digests, divergences, families,
+    follows, licenses, market, market_facets, quota, saved_searches, scheduler, sweep,
 )
 from .follows import followed_ids
 from .mail_outbox import purge_expired
@@ -36,7 +36,7 @@ validate_startup()  # refuse de démarrer si la config de production est incompl
 # Fermés par défaut (INJ-1) : Swagger/Redoc, CDN sans intégrité, origine du cookie.
 _docs_url, _redoc_url, _openapi_url = docs_urls()
 app = FastAPI(title="adscope", version="0.1.0", docs_url=_docs_url,
-             redoc_url=_redoc_url, openapi_url=_openapi_url)
+             redoc_url=_redoc_url, openapi_url=_openapi_url, lifespan=scheduler.lifespan)
 app.add_middleware(BodySizeLimit)  # A1 : un corps énorme n'entre plus en RAM.
 app.add_middleware(SecurityHeaders)  # C-7/INJ-2 : en-têtes sur /app et l'API
 app.include_router(auth_email.router)
@@ -47,6 +47,7 @@ app.include_router(market.router)
 app.include_router(market_facets.router)
 app.include_router(saved_searches.router)
 app.include_router(alert_settings.router)
+app.include_router(digest_runs.router)  # avant digests.router : voir digest_runs.py
 app.include_router(digests.router)
 app.include_router(sweep.router)
 app.include_router(divergences.router)
