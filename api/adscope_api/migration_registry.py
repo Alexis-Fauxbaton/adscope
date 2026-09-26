@@ -16,6 +16,7 @@ from .migration_registry_early import EARLY, LEDGER
 from .migration_sql_absence import ABSENCE_REPORTS
 from .migration_sql_alerts import ALERTS_TABLES
 from .migration_sql_corpus import CORPUS_TABLES
+from .migration_sql_digest_runs import DIGEST_RUNS_TABLE
 from .migration_sql_login_tokens import LOGIN_TOKENS_PENDING_PASSWORD
 from .migration_sql_passwords import PASSWORDS_TABLES
 
@@ -37,4 +38,7 @@ MIGRATIONS = EARLY + (
     # Le lot Disparition : la colonne du doute (`listings.probably_gone_at`)
     # et le registre des voix qui l'ont constaté (`absence_reports`).
     ("017_absence", ABSENCE_REPORTS),
+    # Le planificateur interne (`.superpowers/planificateur.md`) : une ligne
+    # par jour local, la mesure de ce qui est parti et de ce qui a manqué.
+    ("018_digest_runs", DIGEST_RUNS_TABLE),
 )

@@ -105,3 +105,30 @@ class Digest(Base):
     first_visit_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None
     )
+
+
+class DigestRun(Base):
+    """Une ligne par jour local (Europe/Paris) : la mesure du planificateur
+    (`scheduler.py`) et du script (`scripts/send_digests.py`), main dans la
+    main derrière `trigger` — `digest_run.record` est leur seule porte
+    d'écriture. Clé primaire `day` : le « unique » du besoin devient la
+    contrainte, pas une colonne à côté.
+
+    `sent` reste nul tant qu'aucun essai n'a réussi ce jour-là ; `error`
+    porte le dernier échec, `attempts` plafonne les essais
+    (`digest_run.MAX_ATTEMPTS`). `delay_seconds` ne se stocke pas : il se
+    recalcule à la lecture (`started_at - due_at`), trivial et jamais lu
+    ailleurs qu'à l'affichage opérateur.
+    """
+
+    __tablename__ = "digest_runs"
+
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    accounts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    sent: Mapped[int | None] = mapped_column(Integer, default=None)
+    error: Mapped[str | None] = mapped_column(Text, default=None)
+    trigger: Mapped[str] = mapped_column(String(16))
+    attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")

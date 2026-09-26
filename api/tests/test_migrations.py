@@ -55,6 +55,7 @@ def to_old_shape(session):
     )
     session.execute(text("DROP TABLE IF EXISTS absence_reports"))
     session.execute(text("ALTER TABLE listings DROP COLUMN IF EXISTS probably_gone_at"))
+    session.execute(text("DROP TABLE IF EXISTS digest_runs"))
     session.execute(text("DROP TABLE IF EXISTS schema_migrations"))
 
 
@@ -614,3 +615,27 @@ def test_the_index_on_absence_reports_actor_exists(session):
         "SELECT indexname FROM pg_indexes WHERE tablename = 'absence_reports'"
     ))
     assert "ix_absence_reports_actor" in {row[0] for row in indexes}
+
+
+# Le planificateur (`.superpowers/planificateur.md`) arrive sur une base sans
+# historique d'envoi : la table est neuve, rien des annonces ni des comptes
+# n'est touché.
+def test_the_018_migration_adds_the_digest_runs_table(session):
+    to_old_shape(session)
+    assert "digest_runs" not in tables(session)
+    apply_migrations(session.connection())
+    assert "digest_runs" in tables(session)
+
+
+def test_the_018_migration_is_replayable(session):
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    assert apply_migrations(session.connection()) == []
+
+
+def test_the_018_migration_produces_the_columns_that_create_all_produces(session):
+    from adscope_api.alert_models import DigestRun
+
+    to_old_shape(session)
+    apply_migrations(session.connection())
+    assert columns(session, "digest_runs") == set(DigestRun.__table__.c.keys())
