@@ -4,7 +4,7 @@ la carte « L'email du matin » (`.superpowers/planificateur.md`). `clock`
 l'horloge réelle.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -100,3 +100,47 @@ def test_a_row_carries_the_paris_clock_time_and_its_delay(client, key, session, 
     assert row["started_at"].startswith(f"{TODAY}T07:02:00")
     assert row["delay_seconds"] == 120
     assert (row["accounts"], row["sent"], row["trigger"], row["attempts"]) == (3, 2, "scheduler", 1)
+
+
+# Fait rougir `if day not in ok_days: days.append(day)` dans `_missed_days` :
+# un jour sans AUCUNE ligne (service éteint minuit à minuit) compte comme
+# manqué, pas seulement les lignes en erreur — c'est l'angle mort que
+# `missed = len(rows) - ran` laissait passer.
+def test_a_day_with_no_row_at_all_in_the_middle_of_the_window_counts_as_missed(
+    client, key, session, clock,
+):
+    run_row(session, TODAY - timedelta(days=2), sent=1)
+    run_row(session, TODAY, sent=1)  # TODAY - 1 n'a aucune ligne
+    res = client.get("/v1/digests/runs?days=14", headers=auth(key))
+    body = res.json()
+    assert (body["missed"], body["missed_days"]) == (1, [str(TODAY - timedelta(days=1))])
+
+
+# Fait rougir `return today if now >= due_today else today - timedelta(days=1)`
+# dans `_last_judged_day` (branche `else`) : le jour courant n'est pas jugé
+# avant sa cible — un manqué ne se déclare pas par avance.
+def test_today_before_the_target_hour_does_not_count_as_missed(client, key, session, clock):
+    run_row(session, TODAY - timedelta(days=1), sent=1)
+    clock.now = datetime.combine(TODAY, time(6, 59), tzinfo=PARIS)  # 07:00 est la cible par défaut
+    res = client.get("/v1/digests/runs?days=14", headers=auth(key))
+    body = res.json()
+    assert (body["missed"], body["missed_days"]) == (0, [])
+
+
+# Fait rougir la même ligne, branche `if` : passée la cible sans succès, le
+# jour courant compte déjà — pas besoin d'attendre demain pour le savoir.
+def test_today_after_the_target_hour_without_success_counts_as_missed(
+    client, key, session, clock,
+):
+    run_row(session, TODAY - timedelta(days=1), sent=1)  # rien pour TODAY ; `clock` est déjà 14h à Paris
+    res = client.get("/v1/digests/runs?days=14", headers=auth(key))
+    body = res.json()
+    assert (body["missed"], body["missed_days"]) == (1, [str(TODAY)])
+
+
+# Fait rougir `first_day = min((row.day for row in rows), default=None)` et
+# le `if first_day is None ...: return []` : sans aucune ligne, la liste
+# nommée reste vide elle aussi — l'état vide honnête ne nomme aucun jour.
+def test_no_rows_at_all_means_no_missed_days(client, key, session, clock):
+    res = client.get("/v1/digests/runs?days=14", headers=auth(key))
+    assert res.json()["missed_days"] == []

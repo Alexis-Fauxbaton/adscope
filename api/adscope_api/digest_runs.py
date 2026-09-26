@@ -11,19 +11,23 @@ matcherait sinon « runs » comme un identifiant (et le rejetterait, 422,
 avant même d'y voir un chemin différent) — Starlette essaie les routes dans
 l'ordre où elles ont été ajoutées, jamais par spécificité du gabarit.
 
-`missed` ne compte que les jours qui portent une ligne : un jour jamais
-atteint (avant le premier déploiement, ou pas encore dû aujourd'hui) n'a pas
-de ligne du tout, et ne compte donc ni pour ni contre — c'est l'état vide
-honnête de la carte, pas « tout est manqué ».
+`missed` compte des JOURS civils (Europe/Paris), pas des lignes : depuis le
+premier jour qui porte une ligne (jamais avant — l'état vide honnête d'un
+service pas encore déployé) jusqu'à hier inclus, plus aujourd'hui une fois
+son heure cible passée. Un jour y compte dès qu'il n'a pas de ligne réussie
+— qu'il porte une ligne en erreur ou qu'il n'en porte aucune : un service
+resté éteint minuit à minuit n'écrit rien, et ne doit pas s'en trouver
+oublié (c'était l'angle mort de `missed = len(rows) - ran`).
 """
 
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 
 from .alert_models import DigestRun
+from .config import digest_at
 from .db import get_session
 from .operator import require_operator
 from .sessions import now_utc
@@ -49,6 +53,33 @@ def _out(row: DigestRun) -> dict:
     }
 
 
+def _last_judged_day(now: datetime) -> date:
+    """Hier, ou aujourd'hui si son heure cible (Europe/Paris) est déjà
+    passée : un jour ne se déclare pas manqué avant d'avoir eu sa chance.
+    Même repli que `digest_run._due_at` — `digest_at()` vide garde tout de
+    même une cible pour la mesure."""
+    today = now.astimezone(PARIS).date()
+    hour, minute = (int(part) for part in (digest_at() or "07:00").split(":"))
+    due_today = datetime.combine(today, time(hour, minute), tzinfo=PARIS)
+    return today if now >= due_today else today - timedelta(days=1)
+
+
+def _missed_days(rows, now: datetime) -> list[date]:
+    """Les jours civils sans envoi réussi, depuis le premier jour qui porte
+    une ligne jusqu'au dernier jour jugé (voir le docstring du module)."""
+    first_day = min((row.day for row in rows), default=None)
+    last_day = _last_judged_day(now)
+    if first_day is None or first_day > last_day:
+        return []
+    ok_days = {row.day for row in rows if row.sent is not None and row.error is None}
+    days, day = [], first_day
+    while day <= last_day:
+        if day not in ok_days:
+            days.append(day)
+        day += timedelta(days=1)
+    return days
+
+
 @router.get("/v1/digests/runs")
 def get_digest_runs(days: int = Query(default=14, ge=1, le=365), session=Depends(get_session),
                     _=Depends(require_operator), now=Depends(now_utc)):
@@ -57,11 +88,11 @@ def get_digest_runs(days: int = Query(default=14, ge=1, le=365), session=Depends
         select(DigestRun).where(DigestRun.day >= since).order_by(DigestRun.day.desc())
     ).all()
     ran = sum(1 for row in rows if row.sent is not None)
-    missed = len(rows) - ran
+    missed_days = _missed_days(rows, now)
     delays = [(row.started_at - row.due_at).total_seconds() for row in rows if row.sent is not None]
     last_error = next((row.error for row in rows if row.error), None)
     return {
-        "days": days, "ran": ran, "missed": missed,
+        "days": days, "ran": ran, "missed": len(missed_days), "missed_days": missed_days,
         "max_delay_seconds": int(max(delays)) if delays else 0,
         "last_error": last_error, "runs": [_out(row) for row in rows],
     }
