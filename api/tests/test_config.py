@@ -3,7 +3,7 @@ comment il lit `DATABASE_URL` (C-2/AUTH-08, C-6, audit-config)."""
 
 import pytest
 
-from adscope_api.config import database_url, trusted_proxy, validate_startup
+from adscope_api.config import database_url, digest_at, trusted_proxy, validate_startup
 
 
 # Fait rougir `for prefix in ("postgresql://", "postgres://"):` dans
@@ -91,3 +91,26 @@ def test_trusted_proxy_is_false_by_default(monkeypatch):
     assert trusted_proxy() is False
     monkeypatch.setenv("ADSCOPE_TRUSTED_PROXY", "1")
     assert trusted_proxy() is True
+
+
+# `ADSCOPE_DIGEST_AT` (planificateur, `scheduler.run_due`) : « 07:00 » par
+# défaut — le poste local et les tests n'ont pas d'envoi spontané tant que
+# personne ne pose la variable.
+def test_digest_at_defaults_to_seven_am(monkeypatch):
+    monkeypatch.delenv("ADSCOPE_DIGEST_AT", raising=False)
+    assert digest_at() == "07:00"
+
+
+# Fait rougir `.strip()` dans `digest_at` : un espace posé à la main dans le
+# tableau de bord Render ne doit pas désactiver le planificateur en silence
+# (même raison que `operator_email()`, C-9).
+def test_digest_at_strips_stray_whitespace(monkeypatch):
+    monkeypatch.setenv("ADSCOPE_DIGEST_AT", " 07:00 ")
+    assert digest_at() == "07:00"
+
+
+# Fait rougir `os.environ.get("ADSCOPE_DIGEST_AT", "07:00")` : posée à vide,
+# la variable désactive le planificateur — `scheduler.run_due` la lit ainsi.
+def test_digest_at_empty_string_disables_it(monkeypatch):
+    monkeypatch.setenv("ADSCOPE_DIGEST_AT", "")
+    assert digest_at() == ""

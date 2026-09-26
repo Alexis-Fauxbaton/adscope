@@ -99,6 +99,15 @@ def alerts_confirmed_only() -> bool:
     return os.environ.get("ADSCOPE_ALERTS_CONFIRMED_ONLY", "") == "1"
 
 
+# L'heure cible de l'email du matin, Europe/Paris (`scheduler.run_due`).
+# Vide désactive le planificateur : le poste local et les tests n'ont pas
+# d'envoi spontané tant que personne ne pose la variable
+# (.superpowers/planificateur.md). Même normalisation par espaces que
+# `operator_email()` (C-9) — lue à chaque appel, comme le reste d'ici.
+def digest_at() -> str:
+    return os.environ.get("ADSCOPE_DIGEST_AT", "07:00").strip()
+
+
 def docs_urls() -> tuple[str | None, str | None, str | None]:
     """(`docs_url`, `redoc_url`, `openapi_url`) pour `FastAPI(...)` — les trois
     fermés ensemble, ou ouverts ensemble."""
