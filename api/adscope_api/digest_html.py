@@ -74,8 +74,12 @@ def render(lines: list[dict], token: str, unsub_token: str) -> str:
     manage_link = f"{base}/app/?d={token}#/alertes"
     unsub_link = f"{base}/app/desabonnement.html?t={unsub_token}"
     footer_links = f'{_link(manage_link, "Gérer mes alertes")} &nbsp;·&nbsp; {_link(unsub_link, "Me désabonner", "#999")}'
+    # `<meta charset>` : sans lui, un client ou un navigateur qui rend le corps
+    # HTML hors de l'enveloppe MIME devine l'encodage — Safari a rendu
+    # « 34â€¯100Â â‚¬ » sur le premier email réel (2026-09-26).
     return f"""<!DOCTYPE html>
-<html><body style="margin:0;padding:0;background:{FLOOR}">
+<html lang="fr"><head><meta charset="utf-8"><title>adscope</title></head>
+<body style="margin:0;padding:0;background:{FLOOR}">
 <table role="presentation" width="100%" style="background:{FLOOR}">
 <tr><td align="center">
 <table role="presentation" width="600" style="max-width:600px;width:100%;padding:24px 16px">

@@ -64,3 +64,13 @@ def test_a_candidate_without_a_price_arrow_has_no_price_line():
     }
     html = render([candidate], TOKEN, UNSUB)
     assert "font-size:15px;font-weight:700;color:#111" not in html
+
+
+# Fait rougir le `<meta charset="utf-8">` de `render` : sans lui, Safari a
+# rendu « 34â€¯100Â â‚¬ » sur le premier email réel d'Alexis (2026-09-26) —
+# l'encodage se devine dès que le corps HTML est lu hors de l'enveloppe MIME.
+def test_the_html_declares_its_encoding():
+    html = render([drop()], TOKEN, UNSUB)
+    assert '<meta charset="utf-8">' in html
+    assert html.index('<meta charset="utf-8">') < html.index("<body")
+
