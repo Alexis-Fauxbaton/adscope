@@ -2,9 +2,13 @@
 
 Ce que la mise en ligne exige et que rien dans le code ne peut deviner à ta
 place. Le `render.yaml` à la racine du dépôt (2026-09-26) fige ces choix :
-un service web `starter` à une instance, un cron pour l'email du matin, une
-base `basic-256mb`, tout à Francfort. Le domaine et l'adresse d'opérateur
-restent des valeurs `sync: false`, posées dans le tableau de bord.
+un service web `starter` à une instance, une base `basic-256mb`, tout à
+Francfort. Pas de cron facturé à l'usage : l'email du matin part d'un
+planificateur interne au service web (`ADSCOPE_DIGEST_AT`,
+`.superpowers/planificateur.md`) — si le besoin s'en fait sentir, la mesure
+qu'il pose (`GET /v1/digests/runs`) dira quand basculer sur un cron. Le
+domaine et l'adresse d'opérateur restent des valeurs `sync: false`, posées
+dans le tableau de bord.
 
 ## Installation
 
