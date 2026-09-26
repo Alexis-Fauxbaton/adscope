@@ -164,6 +164,22 @@ toute façon requis pour facturer.
 - Schéma : table `accounts`, licences rattachées. Les emails sont de la donnée personnelle :
   politique de confidentialité et déclaration du Store à écrire en conséquence.
 
+## En ligne — depuis le 2026-09-26
+
+`https://adscope-api.onrender.com` : projet Render « adscope », environnement « production »,
+région Francfort — un service web `starter` à une instance, une base Postgres 17
+`basic-256mb`, pas de cron (l'email du matin partira d'un planificateur interne au service).
+Blueprint `render.yaml` à la racine ; commande, variables et règle « une seule instance » dans
+`api/DEPLOY.md`. Base locale restaurée à l'identique le 26 à 2 h 58 (123 877 annonces, 166 756
+relevés) ; depuis, l'extension et les trois runbooks écrivent sur Render, `localhost:8000` ne
+sert plus qu'au développement. Vérifié de bout en bout : `/v1/me` puis `/v1/observations` et
+`/v1/listings/batch` en 200 depuis le Chrome d'Alexis à 3 h 16.
+
+**Ce qui bloque encore, et qui n'est pas du code** : le **domaine**. Sans lui, pas d'envoi
+d'email (SPF/DKIM), pas d'adresse définitive dans le manifeste, la politique de
+confidentialité ni le Store. Fournisseur d'email recommandé : Brevo (société française,
+serveurs en UE, 300 emails par jour gratuits).
+
 ## Ce qui n'est pas dans le dépôt, et qui bloque — état au 2026-09-18
 
 - **Le balayage tourne** et reste le mode d'acquisition : 51 712 annonces, dernière vue le
